@@ -34,9 +34,17 @@ Profesyonel standartlarda çalışmak için şu kurallar benimsenmiştir:
 ## 🛠 Donanım Gereksinimleri
 
 * Raspberry Pi Pico
-* GY-87 Sensör Modülü (MPU6050 + HMC5883L + BMP180)
+* Standart: MPU6050 (İvmeölçer + Jiroskop)
+* Gelişmiş (GY-87): MPU6050 + HMC5883L (Magnetometre) + BMP180 (Barometre)
 * SBUS destekli alıcı
 * ESC ve Fırçasız Motor / Servolar
+* 
+##Donanım Yetenekleri ve Sensörler
+Bu uçuş kontrolcüsü, modüler bir yapıya sahiptir ve config.h üzerinden kolayca konfigüre edilebilir:
+IMU (Dinamik Destek):
+Akıllı Algılama: Sistem, kullanılan sensör setini config.h dosyasındaki #define USE_GY87 satırı üzerinden otomatik algılar.
+Eğer USE_GY87 aktifse; barometrik irtifa ve pusula verileri otomatik olarak işleme alınır.
+Eğer pasifse; sistem sadece temel ivme ve jiroskop verileriyle çalışarak işlemci yükünü minimize eder.
 
 ## 📋 Gelecek Geliştirmeler (Roadmap)
 
