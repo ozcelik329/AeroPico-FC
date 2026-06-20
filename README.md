@@ -67,6 +67,6 @@ Bu proje, aşağıdaki açık kaynaklı çalışmalardan esinlenerek geliştiril
 [https://github.com/JoshuaPeddle/PicoFlight]
 
 Developed by Muhammed Fatih Emre Özçelik/ozcelik329
-Copyright © 2026 Muhammed Fatih Emre Özçelik.
+Copyright © 2026 Muhammed Fatih Emre Özçelik. All rights reserved
  
-This project includes code derived from PicoFlight, which is licensed under GPL-3.0. My modifications and additions are licensed under Apache-2.0.
+
