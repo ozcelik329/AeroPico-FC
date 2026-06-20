@@ -2,42 +2,50 @@
 #include "config.h"
 #include "drivers/Sensors.h"
 #include "drivers/RX.h"
+#include "drivers/IMU.h"        // Yeni eklenen IMU modülü
 #include "core/SystemTimer.h"
 
-// Modüllerimizin nesnelerini oluşturuyoruz
+// Modül nesnelerimizi tanımlıyoruz
 SensorManager sensors;
 RXManager rx;
+IMUManager imu;                 // Füzyon ve Açı hesabı için
 
 void setup() {
-  // Debug ve GCS için Seri port
   Serial.begin(115200);
   
-  // 1. Sistem ayarlarını yap ve Core 1'i başlat
+  // 1. Sistem ve Core 1 başlatma
   SystemManager::init();
   
-  // 2. Sürücüleri başlat
+  // 2. Sürücüleri ve IMU'yu başlat
   sensors.init();
   rx.init();
+  imu.init();
   
-  Serial.println("AeroPico FC Baslatildi ve RX Hazir!");
+  Serial.println("AeroPico FC Baslatildi - Sistem Hazir!");
 }
 
 void loop() {
-  // --- Core 0: Sensör ve Veri İşleme ---
+  // --- Core 0: Veri Okuma ve İşleme (Data Pipeline) ---
   
-  // Sensör verilerini güncelle
+  // 1. Sensörlerden ham verileri çek
   sensors.update();
   
-  // Kumanda sinyallerini oku
+  // 2. Ham verileri IMU'ya (Füzyon/Açı hesabı) gönder
+  #ifdef USE_GY87
+    imu.update(sensors.ax, sensors.ay, sensors.az, 
+               sensors.gx, sensors.gy, sensors.gz, 
+               sensors.mx, sensors.my, sensors.mz, 
+               sensors.pressure);
+  #else
+    // GY-87 yoksa sadece ivme ve jiroskopla basit hesaplama
+    imu.update(sensors.ax, sensors.ay, sensors.az, 
+               sensors.gx, sensors.gy, sensors.gz, 
+               0, 0, 0, 0);
+  #endif
+  
+  // 3. Kumanda sinyallerini güncelle
   rx.update();
   
-  // Örnek: Kumanda 2. kanal (Throttle) değerini seri porttan izle
-  // static uint32_t lastPrint = 0;
-  // if (millis() - lastPrint > 100) {
-  //   Serial.print("Throttle: ");
-  //   Serial.println(rx.getChannel(2));
-  //   lastPrint = millis();
-  // }
-  
-  // Not: PID ve Output döngüleri SystemTimer.cpp (Core 1) içinde çalışıyor.
+  // Not: PID ve Output (Motor) kontrolleri SystemTimer.cpp 
+  // (Core 1) içerisinde senkronize bir şekilde yürütülmektedir.
 }
