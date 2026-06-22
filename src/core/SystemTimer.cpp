@@ -2,6 +2,7 @@
 #include "FlightManager.h"
 #include "FixedWingMixer.h"
 #include "../drivers/Output.h"
+#include "../def.h"
 #include "PID.h"
 
 static PID rollAnglePID(ANGLE_P_GAIN, ANGLE_I_GAIN, ANGLE_D_GAIN);
@@ -18,15 +19,16 @@ static float mapFloat(float x, float in_min, float in_max, float out_min, float 
 }
 
 void SystemManager::init() {
+    // Output sadece burada başlatılıyor (FixedWingMixer::init() çağrılmıyor)
     outputInit();
 
     MixerSettings settings;
-    settings.rollGain = 1.0f;
+    settings.rollGain  = 1.0f;
     settings.pitchGain = 1.0f;
-    settings.yawGain = 0.8f;
-    settings.aileronTrim = 0;
+    settings.yawGain   = 0.8f;
+    settings.aileronTrim  = 0;
     settings.elevatorTrim = 0;
-    settings.rudderTrim = 0;
+    settings.rudderTrim   = 0;
     settings.throttleTrim = 0;
     mixer.setSettings(settings);
 
@@ -41,26 +43,34 @@ void SystemManager::init() {
 }
 
 void SystemManager::core1_entry() {
-    unsigned long last_time = micros();
+    // Sabit frekanslı döngü: LOOP_TIME µs = 500 Hz
+    uint32_t next_tick = micros();
 
     while (true) {
-        unsigned long now = micros();
-        float dt = (now - last_time) / 1000000.0f;
-        if (dt <= 0.0f) {
-            dt = 0.001f;
+        uint32_t now = micros();
+
+        // Zamanlanmış tick'i bekle (busy-wait yerine sleep)
+        if ((int32_t)(now - next_tick) < 0) {
+            continue;
         }
-        last_time = now;
 
-        float targetRoll = mapFloat(flightManager.getAileron(), 1000.0f, 2000.0f, -MAX_ROLL_ANGLE, MAX_ROLL_ANGLE);
-        float targetPitch = mapFloat(flightManager.getElevator(), 1000.0f, 2000.0f, -MAX_PITCH_ANGLE, MAX_PITCH_ANGLE);
-        float targetYawRate = mapFloat(flightManager.getRudder(), 1000.0f, 2000.0f, -MAX_YAW_RATE, MAX_YAW_RATE);
+        // Gerçek dt: bir önceki tick'ten bu yana geçen süre
+        float dt = (float)LOOP_TIME / 1000000.0f;
+        next_tick += LOOP_TIME;
 
-        float desiredRollRate = rollAnglePID.compute(targetRoll, flightManager.getRoll(), dt);
+        // RC girişlerini aç sınıra çevir
+        float targetRoll    = mapFloat(flightManager.getAileron(),  1000.0f, 2000.0f, -MAX_ROLL_ANGLE,  MAX_ROLL_ANGLE);
+        float targetPitch   = mapFloat(flightManager.getElevator(), 1000.0f, 2000.0f, -MAX_PITCH_ANGLE, MAX_PITCH_ANGLE);
+        float targetYawRate = mapFloat(flightManager.getRudder(),   1000.0f, 2000.0f, -MAX_YAW_RATE,    MAX_YAW_RATE);
+
+        // Cascaded PID: açı → açısal hız
+        float desiredRollRate  = rollAnglePID.compute(targetRoll,  flightManager.getRoll(),  dt);
         float desiredPitchRate = pitchAnglePID.compute(targetPitch, flightManager.getPitch(), dt);
 
-        float rollCorr = rollRatePID.compute(desiredRollRate, flightManager.getGyroX(), dt);
+        // Açısal hız → servo düzeltmesi
+        float rollCorr  = rollRatePID.compute(desiredRollRate,  flightManager.getGyroX(), dt);
         float pitchCorr = pitchRatePID.compute(desiredPitchRate, flightManager.getGyroY(), dt);
-        float yawCorr = yawRatePID.compute(targetYawRate, flightManager.getGyroZ(), dt);
+        float yawCorr   = yawRatePID.compute(targetYawRate,     flightManager.getGyroZ(), dt);
 
         mixer.compute(
             flightManager.getThrottle(),
@@ -69,8 +79,7 @@ void SystemManager::core1_entry() {
             yawCorr,
             flightManager.getAileron(),
             flightManager.getElevator(),
-            flightManager.getRudder());
-
-        delayMicroseconds(2500);
+            flightManager.getRudder()
+        );
     }
 }

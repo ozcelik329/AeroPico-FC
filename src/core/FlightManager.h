@@ -2,6 +2,7 @@
 #define FLIGHT_MANAGER_H
 
 #include <Arduino.h>
+#include "pico/mutex.h"
 #include "../drivers/Sensors.h"
 #include "../drivers/RX.h"
 #include "SensorFusion.h"
@@ -29,18 +30,20 @@ class FlightManager {
     RXManager rx;
     SensorFusion fusion;
 
-    volatile float roll;
-    volatile float pitch;
-    volatile float yaw;
+    // Paylaşılan veriler için mutex
+    mutex_t _mutex;
 
-    volatile float gyroX;
-    volatile float gyroY;
-    volatile float gyroZ;
-
-    volatile uint16_t aileron;
-    volatile uint16_t elevator;
-    volatile uint16_t throttle;
-    volatile uint16_t rudder;
+    // Korunan veriler (mutex altında okunup yazılır)
+    float _roll   = 0.0f;
+    float _pitch  = 0.0f;
+    float _yaw    = 0.0f;
+    float _gyroX  = 0.0f;
+    float _gyroY  = 0.0f;
+    float _gyroZ  = 0.0f;
+    uint16_t _aileron  = 1500;
+    uint16_t _elevator = 1500;
+    uint16_t _throttle = 1000;
+    uint16_t _rudder   = 1500;
 
     void performSensorFusion();
 };

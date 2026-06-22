@@ -13,7 +13,8 @@ FixedWingMixer::FixedWingMixer() {
 }
 
 void FixedWingMixer::init() {
-    outputInit();
+    // outputInit() SystemManager::init() tarafından çağrılıyor,
+    // burada tekrar çağırmıyoruz.
 }
 
 void FixedWingMixer::setSettings(const MixerSettings& settings) {

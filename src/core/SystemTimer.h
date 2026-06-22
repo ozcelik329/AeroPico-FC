@@ -4,13 +4,15 @@
 #include <Arduino.h>
 #include "pico/multicore.h"
 
-class SystemManager {
+class SystemTimer {
   public:
-    static void init();             // 250MHz ve Core 1 başlatma
-    static void core1_entry();      // PID ve Motor kontrol döngüsü
-    
-    // Core 1'in döngü kontrolü için flag
+    static void init();           // Servo çıkışı + Core 1 başlatma
+    static void core1_entry();    // PID + Mixer döngüsü (Core 1)
+
     static volatile bool is_running;
 };
+
+// Geriye uyumluluk için alias
+using SystemManager = SystemTimer;
 
 #endif
