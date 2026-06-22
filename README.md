@@ -1,12 +1,8 @@
 # AeroPico FC
 
 [English](#english) | [Türkçe](#türkçe)
-
----
-
 <a name="english"></a>
 ## English
-[
 # AeroPico FC: Raspberry Pi Pico Fixed-Wing Flight Controller
 
 This project is a **fixed-wing aircraft flight controller** running on the Raspberry Pi Pico. Currently, the project provides flight control software at a hobby/prototype level and should not be considered an industrially certified flight computer.
@@ -148,12 +144,9 @@ This project utilizes architectural concepts and mathematical implementations in
 
 Developed by Muhammed Fatih Emre Özçelik/ozcelik329
 Copyright © 2026 Muhammed Fatih Emre Özçelik. All rights reserved.]
-
----
-
 <a name="türkçe"></a>
 ## Türkçe
-[# AeroPico FC: Raspberry Pi Pico Sabit Kanat Uçuş Kontrolcüsü
+# AeroPico FC: Raspberry Pi Pico Sabit Kanat Uçuş Kontrolcüsü
 
 Bu proje, Raspberry Pi Pico üzerinde çalışan bir **sabit kanatlı uçak uçuş kontrolcüsüdür**. Şu anda proje, hobi/seviye prototip düzeyinde bir kontrol yazılımı sunar ve endüstriyel sertifikalı bir uçuş bilgisayarı olarak değerlendirilmemelidir.
 
