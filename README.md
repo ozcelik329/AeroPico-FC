@@ -1,6 +1,6 @@
 ![PlatformIO](https://img.shields.io/badge/PlatformIO-Compatible-orange)
 ![RP2040](https://img.shields.io/badge/Platform-RP2040-7546C6)
-![Experimental](https://shields.io)
+![Experimental](https://shields.io/badge/Status-Experimental-green)
 
 # ✈️ AeroPico FC : Fixed-Wing Flight Controller
 
