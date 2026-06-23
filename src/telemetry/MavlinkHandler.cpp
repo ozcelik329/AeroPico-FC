@@ -3,7 +3,7 @@
 MavlinkHandler mavlink;
 
 void MavlinkHandler::init(uint32_t baud) {
-    MAV_SERIAL.begin(baud);
+    espUart.init(baud);
     Serial.println("[MAVLINK] Baslatildi.");
 }
 
