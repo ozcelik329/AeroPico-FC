@@ -1,26 +1,46 @@
 #include "Output.h"
-#include <Servo.h>
+#include "pwm.pio.h"
 
-static Servo srvAileron;
-static Servo srvElevator;
-static Servo srvRudder;
-static Servo srvMotor;
+static PIO pio = pio0;
+static uint sm_aileron, sm_elevator, sm_rudder, sm_throttle;
+
+static void initServoSM(uint sm, uint pin) {
+    uint offset = pio_add_program(pio, &pwm_servo_program);
+    pio_sm_config c = pwm_servo_program_get_default_config(offset);
+    sm_config_set_sideset_pins(&c, pin);
+    pio_gpio_init(pio, pin);
+    pio_sm_set_consecutive_pindirs(pio, sm, pin, 1, true);
+    // 125MHz / 125 = 1MHz → 1 tick = 1µs
+    sm_config_set_clkdiv(&c, 125.0f);
+    pio_sm_init(pio, sm, offset, &c);
+    pio_sm_set_enabled(pio, sm, true);
+}
+
+static void writePulse(uint sm, int pulse_us) {
+    int clamped = constrain(pulse_us, PWM_MIN, PWM_MAX);
+    pio_sm_put(pio, sm, (uint32_t)clamped);
+}
 
 void outputInit() {
-    srvAileron.attach(PIN_AILERON);
-    srvElevator.attach(PIN_ELEVATOR);
-    srvRudder.attach(PIN_RUDDER);
-    srvMotor.attach(PIN_THROTTLE);
+    sm_aileron  = pio_claim_unused_sm(pio, true);
+    sm_elevator = pio_claim_unused_sm(pio, true);
+    sm_rudder   = pio_claim_unused_sm(pio, true);
+    sm_throttle = pio_claim_unused_sm(pio, true);
 
-    srvAileron.writeMicroseconds(PWM_NEUTRAL);
-    srvElevator.writeMicroseconds(PWM_NEUTRAL);
-    srvRudder.writeMicroseconds(PWM_NEUTRAL);
-    srvMotor.writeMicroseconds(PWM_MIN);
+    initServoSM(sm_aileron,  PIN_AILERON);
+    initServoSM(sm_elevator, PIN_ELEVATOR);
+    initServoSM(sm_rudder,   PIN_RUDDER);
+    initServoSM(sm_throttle, PIN_THROTTLE);
+
+    writePulse(sm_aileron,  PWM_NEUTRAL);
+    writePulse(sm_elevator, PWM_NEUTRAL);
+    writePulse(sm_rudder,   PWM_NEUTRAL);
+    writePulse(sm_throttle, PWM_MIN);
 }
 
 void writeMotors(int throttle, int roll, int pitch, int yaw) {
-    srvAileron.writeMicroseconds(constrain(roll, PWM_MIN, PWM_MAX));
-    srvElevator.writeMicroseconds(constrain(pitch, PWM_MIN, PWM_MAX));
-    srvRudder.writeMicroseconds(constrain(yaw, PWM_MIN, PWM_MAX));
-    srvMotor.writeMicroseconds(constrain(throttle, PWM_MIN, PWM_MAX));
+    writePulse(sm_aileron,  roll);
+    writePulse(sm_elevator, pitch);
+    writePulse(sm_rudder,   yaw);
+    writePulse(sm_throttle, throttle);
 }
