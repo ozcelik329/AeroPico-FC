@@ -35,9 +35,37 @@ At the same time, the architecture does not cut corners. Dual-core task isolatio
 
 ## System Architecture
 
-```mermaidgraph TD    %% Core 0 - Data Acquisition & Pre-processing    subgraph C0 ["Core 0: Data Acquisition"]        IMU["MPU6050 IMU"] --> SP["Sensor Processing\nAcc & Gyro"]        SP --> MF["Madgwick Filter\nQuaternion → Euler"]        RC["RC Receiver\nChannels 1–4"] --> MX["🔒 Mutex\nData Protection"]        GPS["GPS Module"] --> MX        MF --> MX    end     %% Core 1 - Flight Control & Actuation    subgraph C1 ["Core 1: Flight Control"]        OP["Outer Loop: Angle PID"] --> IP["Inner Loop: Rate PID"]        IP --> FM["Mixer\nPID + RC → Servos"]        FM --> FSM{"Failsafe Monitor"}        FSM --> SC["Safety Limits\n1000–2000μs"]                NAV["Navigation & MAVLink"]    end     %% Cross-Core Connections    MX -- "Euler & RC" --> OP    MX -. "Gyro Rates" .-> IP    MX -- "Pos & Heading" --> NAV    NAV <==> MAV["MAVLink Interface"]     %% Actuators    SC --> A["Aileron"]    SC --> E["Elevator"]    SC --> R["Rudder"]    SC --> T["Throttle (ESC)"]     %% No styling - Default Monochrome ```
+```mermaid
+graph TD
+    %% Core 0 - Data Acquisition & Pre-processing
+    subgraph C0 ["Core 0: Data Acquisition"]
+        IMU["MPU6050 IMU"] --> SP["Sensor Processing\nAcc & Gyro"]
+        SP --> MF["Madgwick Filter\nQuaternion → Euler"]
+        RC["RC Receiver\nChannels 1–4"] --> MX["🔒 Mutex\nData Protection"]
+        GPS["GPS Module"] --> MX
+        MF --> MX
+    end
+    %% Core 1 - Flight Control & Actuation
+    subgraph C1 ["Core 1: Flight Control"]
+        OP["Outer Loop: Angle PID"] --> IP["Inner Loop: Rate PID"]
+        IP --> FM["Mixer\nPID + RC → Servos"]
+        FM --> FSM{"Failsafe Monitor"}
+        FSM --> SC["Safety Limits\n1000–2000μs"]
+        NAV["Navigation & MAVLink"]
+    end
+    %% Cross-Core Connections
+    MX -- "Euler & RC" --> OP
+    MX -. "Gyro Rates" .-> IP
+    MX -- "Pos & Heading" --> NAV
+    NAV <==> MAV["MAVLink Interface"]
+    %% Actuators
+    SC --> A["Aileron"]
+    SC --> E["Elevator"]
+    SC --> R["Rudder"]
+    SC --> T["Throttle (ESC)"]
+    %% No styling - Default Monochrome
 
-
+```
 
 ---
 
