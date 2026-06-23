@@ -25,7 +25,7 @@ The software follows a modular design to separate low-level hardware abstraction
 | `src/utils/` | Logger and mathematical helper functions. |
 ```mermaid
 flowchart TD
-    subgraph C0["🟢 Core 0 — Sensör & RX"]
+    subgraph C0[" Core 0 — Sensör & RX"]
         IMU["MPU6050 IMU"]
         SP["Sensör işleme\nHam ivme & jiroskop"]
         MF["Madgwick filtresi\nQuaternion → Euler açıları"]
@@ -36,7 +36,7 @@ flowchart TD
         RC --> MX
     end
 
-    subgraph C1["🟣 Core 1 — PID & Çıkış"]
+    subgraph C1[" Core 1 — PID & Çıkış"]
         OP["Outer loop: Angle PID\nHedef roll / pitch açısı"]
         IP["Inner loop: Rate PID\nHedef açısal hız → düzeltme"]
         FM["FixedWingMixer\nPID + RC → servo PWM"]
@@ -53,11 +53,7 @@ flowchart TD
     SC --> R["Rudder servo"]
     SC --> T["Throttle ESC"]
 
-    subgraph FUTURE["⬜ Gelecekte eklenecek"]
-        direction LR
-        TEL["Telemetri\nWiFi / LoRa + MAVLink"]
-        CAM["Kamera\nESP32-CAM / RP Zero"]
-        GCS["GCS — Rasp 3B+\nProcessing / uygulama + anten"]
+
     end
 ```
 
