@@ -155,9 +155,9 @@ The core firmware (located in `firmware/`) is strictly optimized for flight stab
 | GCS with tracking antenna | 📅 |
 
 ---
-
+ **Note:** This project is currently in the **prototype phase** and is intended for educational and experimental use. It is not certified for commercial or safety-critical applications.
+ ---
 ## 🛠 How to Build
-
 1. **Clone** this repository.
 2. Open the project in **PlatformIO** (VS Code).
 3. Verify `platformio.ini` targets the `earlephilhower` RP2040 core.
