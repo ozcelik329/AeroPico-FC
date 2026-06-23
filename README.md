@@ -3,7 +3,7 @@
 ![C++](https://img.shields.io/badge/Language-C++-00599C)
 ![MAVLink](https://img.shields.io/badge/Protocol-MAVLink-red)
 ![License](https://img.shields.io/badge/License-MIT-green)
-# AeroPico FC: High-Performance Fixed-Wing Avionics
+# AeroPico FC: High-Performance Fixed-Wing Flight Controller
 
 **AeroPico FC** is a high-performance, real-time flight control firmware engineered for fixed-wing UAV platforms. Built on the RP2040 architecture, it leverages dual-core concurrent processing to achieve deterministic flight stability and low-latency control loops essential for professional-grade aerial navigation.
 Design Philosophy: AeroPico FC prioritizes efficiency and deterministic behavior. By isolating high-frequency sensor fusion and PID control from communication-heavy tasks, the architecture maintains rock-solid performance even under heavy computational load.
