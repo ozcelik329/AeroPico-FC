@@ -57,8 +57,8 @@ graph TD
     SC --> T["Throttle (ESC)"]
 
     %% Styling (Color Coding)
-    style C0 fill:#e1f5fe,stroke:#01579b
-    style C1 fill:#fff3e0,stroke:#e65100
+    style C0 ,stroke:#01579b
+    style C1 ,stroke:#e65100
     style MX fill:#f96,stroke:#333
     style FSM fill:#f66,stroke:#333
     style MAV fill:#6cf,stroke:#333
