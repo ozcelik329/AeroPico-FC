@@ -11,28 +11,42 @@
   #include <Adafruit_BMP085_U.h>
 #endif
 
+// DMA-ready ping-pong buffer
+struct SensorBuffer {
+    float ax, ay, az;
+    float gx, gy, gz;
+    #ifdef USE_GY87
+        float mx, my, mz;
+        float pressure;
+    #endif
+    uint32_t timestamp;
+    bool valid;
+};
+
 class SensorManager {
   public:
     void init();
     void update();
 
-    // Ham veriler
-    float ax, ay, az;
-    float gx, gy, gz;
-    
+    // PID tarafı bu fonksiyonu çağırır — mutex korumalı
+    SensorBuffer getLatest();
+
     #ifdef USE_GY87
-      float mx, my, mz;
-      float pressure;
-      bool hasMag;
-      bool hasBaro;
+        bool hasMag  = false;
+        bool hasBaro = false;
     #endif
 
   private:
     Adafruit_MPU6050 mpu;
     #ifdef USE_GY87
-      Adafruit_HMC5883_Unified mag;
-      Adafruit_BMP085_Unified bmp;
+        Adafruit_HMC5883_Unified mag = Adafruit_HMC5883_Unified(12345);
+        Adafruit_BMP085_Unified  bmp = Adafruit_BMP085_Unified(10085);
     #endif
+
+    // Ping-pong buffer — biri yazılırken diğeri okunur
+    SensorBuffer _buf[2];
+    volatile uint8_t _writeIdx = 0;
+    mutex_t _mutex;
 };
 
 #endif
