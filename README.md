@@ -5,8 +5,10 @@
 ![License](https://img.shields.io/badge/License-MIT-green)
 
 <div align="center">
-  <img src="https://github.com/user-attachments/assets/491ff017-61b8-4a3e-8df7-625ca8892c37" width="658" height="298" />
+  <img src="https://github.com/user-attachments/assets/6c6febb1-9796-43b6-9766-6e915fd77fea" width="658" height="298" />
 </div>
+
+
 
 # ✈️ AeroPico FC : Fixed-Wing Flight Controller
 
