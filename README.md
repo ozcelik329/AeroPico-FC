@@ -58,7 +58,3 @@ I welcome contributions! If you have suggestions, bug reports, or feature reques
 
 ---
 
-**Strategic Advice:**
-Since we removed the Turkish section, your project will now look much more "global." When you update your repository with this file, remember to upload a simple `.png` or `.svg` diagram for the `` tag—this is the single most effective way to help new users **understand** your project's logic at a glance.
-
-Would you like me to help you draft a simple text-based diagram (using ASCII art) to include in the file in case you don't have an image file ready yet?
