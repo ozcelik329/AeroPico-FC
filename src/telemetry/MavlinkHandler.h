@@ -3,11 +3,12 @@
 
 #include <Arduino.h>
 #include <common/mavlink.h>
+#include "../drivers/PioUart.h"
 
 // Sistem tanımları
 #define MAV_SYSTEM_ID    1
 #define MAV_COMPONENT_ID MAV_COMP_ID_AUTOPILOT1
-#define MAV_SERIAL       Serial1   // ESP32-CAM UART bağlantısı
+#define MAV_SERIAL       espUart   // ESP32-CAM UART bağlantısı
 
 class MavlinkHandler {
   public:

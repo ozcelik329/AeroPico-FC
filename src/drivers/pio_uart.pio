@@ -1,0 +1,22 @@
+.program pio_uart_tx
+.side_set 1 opt
+
+; Baud rate: sistem saati / baud_rate
+; 125MHz / 57600 = ~2170 cycle per bit
+
+    pull        side 1 [7]  ; TX idle (HIGH), FIFO'dan al
+    set x, 7    side 0 [7]  ; Start bit (LOW)
+bitloop:
+    out pins, 1             ; Data biti gönder
+    jmp x-- bitloop [6]     ; 8 bit
+    nop         side 1 [6]  ; Stop bit (HIGH)
+
+.program pio_uart_rx
+; RX: start bit bekle, 8 bit oku
+
+    wait 0 pin 0            ; Start bit bekle (LOW)
+    set x, 7    [10]        ; 8 bit sayacı, yarım bit bekle
+bitloop:
+    in pins, 1              ; Bit oku
+    jmp x-- bitloop [6]     ; Sonraki bit
+    push                    ; ISR'yi FIFO'ya gönder
