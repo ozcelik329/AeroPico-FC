@@ -4,7 +4,7 @@
 ![MAVLink](https://img.shields.io/badge/Protocol-MAVLink-red)
 ![License](https://img.shields.io/badge/License-MIT-green)
 
-https://github.com/ozcelik329/AeroPico-FC/blob/main/AeroPico%20LOGO.png?raw=true<img width="658" height="298" alt="image" src="https://github.com/user-attachments/assets/491ff017-61b8-4a3e-8df7-625ca8892c37" />
+<img width="65,8" height="29,8" alt="image" src="https://github.com/user-attachments/assets/491ff017-61b8-4a3e-8df7-625ca8892c37" />
 
 # ✈️ AeroPico FC : Fixed-Wing Flight Controller
 
