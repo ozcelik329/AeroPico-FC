@@ -25,34 +25,40 @@ The software follows a modular design to separate low-level hardware abstraction
 | `src/utils/` | Logger and mathematical helper functions. |
 ```mermaid
 graph TD
-    %% Sensors & Input Layer
-    IMU["MPU6050 IMU"] --> SP["Sensor Processing\nAcc & Gyro"]
-    SP --> MF["Madgwick Filter\nQuaternion → Euler"]
-    RC["RC Receiver\nChannels 1–4"] --> MX["🔒 Mutex\nData Protection"]
-    GPS["GPS Module\nGlobal Position"] --> MX
-    
-    %% Core Processing Layer
-    MF --> MX
-    MX -- "Euler Angles & RC" --> OP["Outer Loop: Angle PID"]
-    MX -. "Gyro Rates" .-> IP["Inner Loop: Rate PID"]
-    MX -- "Position & Heading" --> NAV["Navigation & MAVLink"]
+    %% Core 0 - Data Acquisition & Pre-processing
+    subgraph C0 ["Core 0: Data Acquisition"]
+        IMU["MPU6050 IMU"] --> SP["Sensor Processing\nAcc & Gyro"]
+        SP --> MF["Madgwick Filter\nQuaternion → Euler"]
+        RC["RC Receiver\nChannels 1–4"] --> MX["🔒 Mutex\nData Protection"]
+        GPS["GPS Module"] --> MX
+        MF --> MX
+    end
 
-    %% Output & Safety Layer
-    OP --> IP
-    IP --> FM["Mixer\nPID + RC → Servos"]
-    FM --> FSM{"Failsafe Monitor"}
-    FSM --> SC["Safety Limits\nPWM 1000–2000μs"]
+    %% Core 1 - Flight Control & Actuation
+    subgraph C1 ["Core 1: Flight Control"]
+        OP["Outer Loop: Angle PID"] --> IP["Inner Loop: Rate PID"]
+        IP --> FM["Mixer\nPID + RC → Servos"]
+        FM --> FSM{"Failsafe Monitor"}
+        FSM --> SC["Safety Limits\n1000–2000μs"]
+        
+        NAV["Navigation & MAVLink"]
+    end
 
-    %% Actuation
+    %% Cross-Core Connections
+    MX -- "Euler & RC" --> OP
+    MX -. "Gyro Rates" .-> IP
+    MX -- "Pos & Heading" --> NAV
+    NAV <==> MAV["MAVLink Interface"]
+
+    %% Actuators
     SC --> A["Aileron"]
     SC --> E["Elevator"]
     SC --> R["Rudder"]
     SC --> T["Throttle (ESC)"]
 
-    %% Communication
-    NAV <==> MAV["MAVLink Interface\nTelemetry & GCS"]
-
-    %% Styling
+    %% Styling (Color Coding)
+    style C0 fill:#e1f5fe,stroke:#01579b
+    style C1 fill:#fff3e0,stroke:#e65100
     style MX fill:#f96,stroke:#333
     style FSM fill:#f66,stroke:#333
     style MAV fill:#6cf,stroke:#333
