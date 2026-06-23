@@ -47,5 +47,11 @@
 #define MAX_YAW_RATE    100.0f
 
 #define LOOP_TIME_MS    20 
-
+// Watchdog & Failsafe
+#define WATCHDOG_TIMEOUT_MS     2000   // 2 saniye cevap gelmezse reset
+#define FAILSAFE_TIMEOUT_MS     500    // 500ms RC sinyali gelmezse failsafe
+#define FAILSAFE_THROTTLE       PWM_MIN
+#define FAILSAFE_AILERON        PWM_NEUTRAL
+#define FAILSAFE_ELEVATOR       PWM_NEUTRAL
+#define FAILSAFE_RUDDER         PWM_NEUTRAL
 #endif // CONFIG_H
