@@ -23,39 +23,38 @@ The software follows a modular design to separate low-level hardware abstraction
 | `src/drivers/` | Hardware abstraction layers (MPU6050, GY-87, SBUS, PWM). |
 | `src/telemetry/` | MAVLink-based communication protocols for GCS integration. |
 | `src/utils/` | Logger and mathematical helper functions. |
-```mermaid
-flowchart TD
-    subgraph C0[" Core 0 — Sensör & RX"]
-        IMU["MPU6050 IMU"]
-        SP["Sensör işleme\nHam ivme & jiroskop"]
-        MF["Madgwick filtresi\nQuaternion → Euler açıları"]
-        RC["PWM RC alıcısı\nKanal 1–4 (1000–2000 µs)"]
-        MX["🔒 Mutex\nÇift-core veri koruması"]
+graph TD
+    %% Sensors & Input Layer
+    IMU["MPU6050 IMU"] --> SP["Sensor Processing\nAcc & Gyro"]
+    SP --> MF["Madgwick Filter\nQuaternion → Euler"]
+    RC["RC Receiver\nChannels 1–4"] --> MX["🔒 Mutex\nData Protection"]
+    GPS["GPS Module\nGlobal Position"] --> MX
+    
+    %% Core Processing Layer
+    MF --> MX
+    MX -- "Euler Angles & RC" --> OP["Outer Loop: Angle PID"]
+    MX -. "Gyro Rates" .-> IP["Inner Loop: Rate PID"]
+    MX -- "Position & Heading" --> NAV["Navigation & MAVLink"]
 
-        IMU --> SP --> MF --> MX
-        RC --> MX
-    end
+    %% Output & Safety Layer
+    OP --> IP
+    IP --> FM["Mixer\nPID + RC → Servos"]
+    FM --> FSM{"Failsafe Monitor"}
+    FSM --> SC["Safety Limits\nPWM 1000–2000μs"]
 
-    subgraph C1[" Core 1 — PID & Çıkış"]
-        OP["Outer loop: Angle PID\nHedef roll / pitch açısı"]
-        IP["Inner loop: Rate PID\nHedef açısal hız → düzeltme"]
-        FM["FixedWingMixer\nPID + RC → servo PWM"]
-        SC["Güvenlik & sınırlama\nPWM 1000–2000 µs arası kısıt"]
+    %% Actuation
+    SC --> A["Aileron"]
+    SC --> E["Elevator"]
+    SC --> R["Rudder"]
+    SC --> T["Throttle (ESC)"]
 
-        OP --> IP --> FM --> SC
-    end
+    %% Communication
+    NAV <==> MAV["MAVLink Interface\nTelemetry & GCS"]
 
-    MX -- "Euler açıları\nRC girişi" --> OP
-    MX -. "Gyro hızları" .-> IP
-
-    SC --> A["Aileron servo"]
-    SC --> E["Elevator servo"]
-    SC --> R["Rudder servo"]
-    SC --> T["Throttle ESC"]
-
-
-    end
-```
+    %% Styling
+    style MX fill:#f96,stroke:#333
+    style FSM fill:#f66,stroke:#333
+    style MAV fill:#6cf,stroke:#333
 
 
 ---
