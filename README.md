@@ -23,6 +23,7 @@ The software follows a modular design to separate low-level hardware abstraction
 | `src/drivers/` | Hardware abstraction layers (MPU6050, GY-87, SBUS, PWM). |
 | `src/telemetry/` | MAVLink-based communication protocols for GCS integration. |
 | `src/utils/` | Logger and mathematical helper functions. |
+```mermaid
 graph TD
     %% Sensors & Input Layer
     IMU["MPU6050 IMU"] --> SP["Sensor Processing\nAcc & Gyro"]
@@ -56,7 +57,7 @@ graph TD
     style FSM fill:#f66,stroke:#333
     style MAV fill:#6cf,stroke:#333
 
-
+```
 ---
 
 ### 🚀 Roadmap
