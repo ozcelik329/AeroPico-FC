@@ -121,6 +121,20 @@ graph TD
 | ⚠️ RC failsafe timeout | 500 ms |
 
 ---
+## 🚀 Optional & Companion Features
+The **AeroPico Flight Controller** is designed as a core system that can be expanded with modular companion hardware. These features are **optional** and not required for the basic flight operation.
+
+### Modular Expansion Modules
+* **ESP32-CAM (Companion):** Provides remote camera streaming and enhanced WiFi telemetry. Found in the `companion/` directory.
+* **GPS Integration:** Supports external GPS modules via UART. The firmware includes a pre-configured MAVLink parser to process GPS location data (GPRMC/GPGGA) if connected.
+    * *Note: Requires assigning an available UART port in the configuration.*
+
+### Modularity Philosophy
+The core firmware (located in `firmware/`) is strictly optimized for flight stability using the RP2040’s real-time capabilities. Companion modules and external sensors are treated as independent data sources:
+1. **Pico (FC)** handles all high-priority flight loops.
+2. **Companion Modules** operate as separate entities, communicating asynchronously to prevent any interference with flight-critical tasks.
+
+> **Plug-and-Play:** You can deploy the core flight firmware today and add GPS or camera streaming modules later without modifying the core control logic.
 
 ## 🗺 Roadmap
 
