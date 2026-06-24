@@ -16,6 +16,9 @@ class SensorFusion {
     void __not_in_flash_func(updateIMU)(float gx, float gy, float gz,
                                         float ax, float ay, float az);
 
+    // Sıcaklık kompanzasyonu
+    void setTemperature(float tempC);
+
     float getRoll() const;
     float getPitch() const;
     float getYaw() const;
@@ -25,6 +28,10 @@ class SensorFusion {
     float roll, pitch, yaw;
     float beta;
     uint32_t lastUpdate;
+
+    // Sıcaklık kompanzasyonu
+    float _tempC         = 25.0f;  // Referans sıcaklık
+    float _gyroTempCoeff = 0.004f; // °C başına drift katsayısı (MPU6050 datasheet)
 
     void __not_in_flash_func(computeAngles)();
     static float invSqrt(float x);

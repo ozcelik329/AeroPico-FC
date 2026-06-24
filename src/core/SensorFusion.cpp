@@ -12,9 +12,19 @@ void SensorFusion::init(float beta) {
     lastUpdate = micros();
 }
 
+void SensorFusion::setTemperature(float tempC) {
+    _tempC = tempC;
+}
+
 void __not_in_flash_func(SensorFusion::update)(float gx, float gy, float gz,
                                                 float ax, float ay, float az,
                                                 float mx, float my, float mz) {
+    // Sıcaklık kompanzasyonu
+    float tempOffset = (_tempC - 25.0f) * _gyroTempCoeff;
+    gx -= tempOffset;
+    gy -= tempOffset;
+    gz -= tempOffset;
+
     uint32_t now = micros();
     float dt = (now - lastUpdate) / 1000000.0f;
     if (dt <= 0.0f) dt = 0.001f;
@@ -108,6 +118,12 @@ void __not_in_flash_func(SensorFusion::update)(float gx, float gy, float gz,
 
 void __not_in_flash_func(SensorFusion::updateIMU)(float gx, float gy, float gz,
                                                    float ax, float ay, float az) {
+    // Sıcaklık kompanzasyonu
+    float tempOffset = (_tempC - 25.0f) * _gyroTempCoeff;
+    gx -= tempOffset;
+    gy -= tempOffset;
+    gz -= tempOffset;
+
     uint32_t now = micros();
     float dt = (now - lastUpdate) / 1000000.0f;
     if (dt <= 0.0f) dt = 0.001f;
