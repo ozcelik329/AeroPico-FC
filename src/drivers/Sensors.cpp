@@ -89,8 +89,7 @@ bool SensorManager::_mpu_dma_ready() {
     return !dma_channel_is_busy(_dma_chan);
 }
 
-void SensorManager::_mpu_parse(SensorBuffer& buf) {
-    // Big-endian → int16
+void __not_in_flash_func(SensorManager::_mpu_parse)(SensorBuffer& buf) {
     auto to_int16 = [](uint8_t hi, uint8_t lo) -> int16_t {
         return (int16_t)((hi << 8) | lo);
     };
@@ -98,17 +97,33 @@ void SensorManager::_mpu_parse(SensorBuffer& buf) {
     int16_t raw_ax = to_int16(_dma_buf[0],  _dma_buf[1]);
     int16_t raw_ay = to_int16(_dma_buf[2],  _dma_buf[3]);
     int16_t raw_az = to_int16(_dma_buf[4],  _dma_buf[5]);
-    // [6-7] sıcaklık — atla
+    int16_t raw_t  = to_int16(_dma_buf[6],  _dma_buf[7]);  // sıcaklık
     int16_t raw_gx = to_int16(_dma_buf[8],  _dma_buf[9]);
     int16_t raw_gy = to_int16(_dma_buf[10], _dma_buf[11]);
     int16_t raw_gz = to_int16(_dma_buf[12], _dma_buf[13]);
 
-    buf.ax = raw_ax * ACCEL_SCALE;
-    buf.ay = raw_ay * ACCEL_SCALE;
-    buf.az = raw_az * ACCEL_SCALE;
+    // Ham ivme
+    float ax_raw = raw_ax * ACCEL_SCALE;
+    float ay_raw = raw_ay * ACCEL_SCALE;
+    float az_raw = raw_az * ACCEL_SCALE;
+
+    // IIR Low-Pass Filter: y[n] = alpha * x[n] + (1 - alpha) * y[n-1]
+    _ax_f = IIR_ALPHA * ax_raw + (1.0f - IIR_ALPHA) * _ax_f;
+    _ay_f = IIR_ALPHA * ay_raw + (1.0f - IIR_ALPHA) * _ay_f;
+    _az_f = IIR_ALPHA * az_raw + (1.0f - IIR_ALPHA) * _az_f;
+
+    buf.ax = _ax_f;
+    buf.ay = _ay_f;
+    buf.az = _az_f;
+
+    // Jiroskop filtrelenmez — Madgwick zaten entegrasyon yapıyor
     buf.gx = raw_gx * GYRO_SCALE;
     buf.gy = raw_gy * GYRO_SCALE;
     buf.gz = raw_gz * GYRO_SCALE;
+
+    // Sıcaklık: MPU6050 datasheet formülü
+    buf.tempC = (float)raw_t / 340.0f + 36.53f;
+
     buf.timestamp = micros();
     buf.valid = true;
 }
