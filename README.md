@@ -1,4 +1,3 @@
-![Work In Progress](https://shields.io/badge/WorkInProgress-red)
 ![PlatformIO](https://img.shields.io/badge/PlatformIO-Compatible-orange)
 ![RP2040](https://img.shields.io/badge/Platform-RP2040-7546C6)
 ![C++](https://img.shields.io/badge/Language-C++-00599C)
