@@ -64,4 +64,15 @@
 #define FAILSAFE_ELEVATOR       PWM_NEUTRAL
 #define FAILSAFE_RUDDER         PWM_NEUTRAL
 
+// --- Simülasyon Modu ---
+// SITL_MODE aktifken gerçek donanım kullanılmaz
+// Sensör verileri simüle edilir, servo çıkışları Serial'a yazdırılır
+// Aktif etmek için platformio.ini'ye -DSITL_MODE ekle
+#ifdef SITL_MODE
+    #define SITL_ROLL_RATE      15.0f   // °/s simüle roll hızı
+    #define SITL_PITCH_RATE     5.0f    // °/s simüle pitch hızı
+    #define SITL_YAW_RATE       2.0f    // °/s simüle yaw hızı
+    #define SITL_ACCEL_NOISE    0.02f   // simüle ivmeölçer gürültüsü
+    #define SITL_GYRO_NOISE     0.005f  // simüle jiroskop gürültüsü
+#endif
 #endif
