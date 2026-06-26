@@ -1,9 +1,17 @@
 #include "FlightManager.h"
+#include "../utils/Logger.h"
 
 void FlightManager::init() {
+    Logger::log("FlightManager: sensors.init()");
     sensors.init();
+
+    Logger::log("FlightManager: fusion.init()");
     fusion.init(0.08f);
+
+    Logger::log("FlightManager: rx.init()");
     rx.init();
+
+    Logger::log("FlightManager: init complete");
 }
 
 void FlightManager::update() {

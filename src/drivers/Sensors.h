@@ -49,6 +49,7 @@ class SensorManager {
     void init();
     void update();
     SensorBuffer getLatest();
+    bool isImuAvailable() const { return _imuAvailable; }
 
     #ifdef USE_GY87
         bool hasMag  = false;
@@ -62,6 +63,7 @@ class SensorManager {
 
     // IIR filter state
     float _ax_f = 0.0f, _ay_f = 0.0f, _az_f = 0.0f;
+    bool _imuAvailable = false;
 
     void _mpu_write_reg(uint8_t reg, uint8_t val);
     void _mpu_start_dma_read();
