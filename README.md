@@ -7,7 +7,7 @@
 <div align="center">
   <img src="https://github.com/user-attachments/assets/0a66fec3-2c89-4f69-b286-e269c3606a84" width="658" height="298" />
 </div>
-# ✈️ AeroPico FC : Fixed-Wing Flight Controller
+## ✈️ AeroPico FC : Fixed-Wing Flight Controller
 
 > ⚠️ **COPYRIGHT NOTICE** This project is proprietary. It is for personal/educational study only. Commercial use or unauthorized redistribution is strictly prohibited.
 
