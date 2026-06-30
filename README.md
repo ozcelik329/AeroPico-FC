@@ -10,7 +10,7 @@
 ## ✈️ AeroPico FC : Fixed-Wing Flight Controller
 
 
-## ⚠️ Intellectual Property Notice
+## Intellectual Property Notice
 **Copyright © 2026 Muhammed Fatih Emre Özçelik. All Rights Reserved.**
 
 This project is **proprietary software**. The source code is provided for educational, non-commercial study, and evaluation purposes only. Any commercial use, redistribution, modification, or inclusion of this code in other software/products is **strictly prohibited** without explicit written permission from the author. 
