@@ -1,25 +1,22 @@
 #include "PID.h"
+#include "pico/platform.h"
 
-PID::PID(float p, float i, float d)
-    : kp(p), ki(i), kd(d), prev_error(0), integral(0) {}
+float __not_in_flash_func(PID::compute)(float target, float current, float dt, bool saturated) {
+    float error = target - current;
+    
+    // Anti-Windup (Risk 3 FIX - Koşullu Entegrasyon)
+    if (!saturated) {
+        _integral += error * dt;
+        _integral = constrain(_integral, -PID_I_LIMIT, PID_I_LIMIT);
+    }
 
-float __not_in_flash_func(PID::compute)(float setpoint, float measured_value, float dt) {
-    float error = setpoint - measured_value;
+    float derivative = (error - _last_error) / dt;
+    _last_error = error;
 
-    float P = kp * error;
-
-    integral += error * dt;
-    integral = constrain(integral, -100.0f, 100.0f);
-    float I = ki * integral;
-
-    float D = kd * ((error - prev_error) / dt);
-
-    prev_error = error;
-
-    return P + I + D;
+    return (_kp * error) + (_ki * _integral) + (_kd * derivative);
 }
 
 void PID::reset() {
-    integral   = 0.0f;
-    prev_error = 0.0f;
+    _integral = 0;
+    _last_error = 0;
 }

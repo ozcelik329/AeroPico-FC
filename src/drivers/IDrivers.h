@@ -52,5 +52,31 @@ class IRxDriver {
     virtual uint32_t lastValidMs() const = 0;
     virtual uint16_t getChannel(int ch) const = 0;
 };
+#ifndef IDRIVERS_H
+#define IDRIVERS_H
+
+#include "../types.h"
+
+class IImuDriver {
+public:
+    virtual bool init() = 0;
+    virtual void update() = 0;
+    virtual SensorBuffer getLatest() = 0;
+};
+
+class IRxDriver {
+public:
+    virtual void init() = 0;
+    virtual void update() = 0;
+    virtual uint16_t getChannel(int ch) = 0;
+    virtual bool isValid() = 0;
+};
+
+class IServoOutput {
+public:
+    virtual void init() = 0;
+    virtual void write(uint16_t thr, uint16_t ail, uint16_t ele, uint16_t rud) = 0;
+};
+
 
 #endif

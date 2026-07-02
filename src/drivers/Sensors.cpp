@@ -316,4 +316,55 @@ bool SensorManager::hasBaro() const { return _hasBaro; }
 #else
 bool SensorManager::hasMag() const { return false; }
 bool SensorManager::hasBaro() const { return false; }
+#include "Sensors.h"
+#include "hardware/dma.h"
+#include "hardware/i2c.h"
+
+void SensorManager::clearBus() {
+    gpio_set_function(PIN_SDA, GPIO_FUNC_SIO);
+    gpio_set_function(PIN_SCL, GPIO_FUNC_SIO);
+    gpio_set_dir(PIN_SCL, GPIO_OUT);
+    for(int i=0; i<9; i++) {
+        gpio_put(PIN_SCL, 1); sleep_us(5);
+        gpio_put(PIN_SCL, 0); sleep_us(5);
+    }
+}
+
+bool SensorManager::init() {
+    clearBus(); // I2C Lockup koruması
+    i2c_init(I2C_HW, 400000);
+    gpio_set_function(PIN_SDA, GPIO_FUNC_I2C);
+    gpio_set_function(PIN_SCL, GPIO_FUNC_I2C);
+    
+    // MPU6050 Uyandırma
+    uint8_t wakeup[2] = {0x6B, 0x00};
+    i2c_write_blocking(I2C_HW, MPU6050_ADDR, wakeup, 2, false);
+
+    // DMA Setup (Task A2)
+    _dma_chan = dma_claim_unused_channel(true);
+    dma_channel_config c = dma_channel_get_default_config(_dma_chan);
+    channel_config_set_transfer_data_size(&c, DMA_SIZE_8);
+    channel_config_set_read_increment(&c, false);
+    channel_config_set_write_increment(&c, true);
+    channel_config_set_dreq(&c, i2c_get_dreq(I2C_HW, false));
+    dma_channel_configure(_dma_chan, &c, _raw, &i2c_get_hw(I2C_HW)->data_cmd, 14, false);
+    
+    return true;
+}
+
+void __not_in_flash_func(SensorManager::update)() {
+    if (!dma_channel_is_busy(_dma_chan)) {
+        uint8_t reg = 0x3B;
+        i2c_write_blocking(I2C_HW, MPU6050_ADDR, &reg, 1, true);
+        dma_channel_set_write_addr(_dma_chan, _raw, true);
+        
+        // Verileri fiziksel birimlere çevir
+        _data.ax = (int16_t)(_raw[0]<<8|_raw[1]) / 16384.0f;
+        _data.ay = (int16_t)(_raw[2]<<8|_raw[3]) / 16384.0f;
+        _data.az = (int16_t)(_raw[4]<<8|_raw[5]) / 16384.0f;
+        _data.gx = (int16_t)(_raw[8]<<8|_raw[9]) / 131.0f;
+        _data.gy = (int16_t)(_raw[10]<<8|_raw[11]) / 131.0f;
+        _data.gz = (int16_t)(_raw[12]<<8|_raw[13]) / 131.0f;
+    }
+}
 #endif

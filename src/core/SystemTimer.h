@@ -7,7 +7,8 @@
 class SystemTimer {
 public:
     static constexpr uint32_t LOOP_TIME_US = LOOP_TIME;
-
+    static void markCore1Alive();
+    static bool isCore1Stale();
     enum LoopPhase {
         PHASE_CONSUME = 0,
         PHASE_PID,

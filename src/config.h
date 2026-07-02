@@ -69,4 +69,36 @@
 #define FAILSAFE_ELEVATOR       PWM_NEUTRAL
 #define FAILSAFE_RUDDER         PWM_NEUTRAL
 
+#ifndef CONFIG_H
+#define CONFIG_H
+
+#include <Arduino.h>
+
+// --- BUG-101 FIX: UART/SBUS Yapılandırması ---
+#define PIN_SBUS_RX     1       // RP2350 UART0_RX pini
+#define SBUS_SERIAL     Serial1 // Donanımsal UART0
+
+// --- Risk 2 FIX: I2C ve Sensör Yapılandırması ---
+#define I2C_HW          i2c0
+#define PIN_SDA         4
+#define PIN_SCL         5
+#define MPU6050_ADDR    0x68
+
+// --- Aktüatör Pinleri (A1/B1 HAL) ---
+#define PIN_AILERON     16
+#define PIN_ELEVATOR    17
+#define PIN_RUDDER      18
+#define PIN_THROTTLE    19
+
+// --- Zamanlama ve Güvenlik (Risk 1 FIX) ---
+#define LOOP_FREQ       500
+#define LOOP_TIME_US    2000    // 500Hz = 2ms
+#define WATCHDOG_MS     2000
+
+// --- Kontrol Limitleri ---
+#define ANGLE_LIMIT     30.0f   // Derece
+#define PID_I_LIMIT     100.0f
+#define RC_DEADBAND     15      // Mikrosaniye
+
+#endif
 #endif

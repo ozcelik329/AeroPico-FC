@@ -2,19 +2,18 @@
 #define FLIGHT_MODE_CONTROLLER_H
 
 #include <Arduino.h>
-#include "ArmDefs.h"
+
+enum FlightMode { MANUAL = 0, STABILIZE = 1, AUTO = 2 };
 
 class FlightModeController {
-  public:
-    void init();
-    void update(uint16_t throttle, uint16_t rudder);
-    bool isArmed() const { return _armed; }
+public:
+    void update(uint16_t sw_val);
+    FlightMode getMode() { return _current_mode; }
 
-  private:
-    bool     _armed           = false;
-    uint32_t _armHoldStart    = 0;
-    uint32_t _disarmHoldStart = 0;
+private:
+    FlightMode _current_mode = MANUAL;
+    FlightMode _pending_mode = MANUAL;
+    uint8_t _debounce_counter = 0; // Hata Fix: Switch Debounce
 };
 
 #endif
-

@@ -79,8 +79,21 @@ void taskTelemetry(void* pvParameters) {
 
 void setup() {
     Serial.begin(115200);
-
+    watchdog_enable(WATCHDOG_MS, true);
     watchdog_enable(WATCHDOG_TIMEOUT_MS, true);
+        if(!imu.init()) {
+        Serial.println("MPU6050 FAIL");
+        while(1);
+    }
+    rx.init();
+    servos.init();
+    
+    flightControl.init(&imu, &rx, &servos);
+
+    // Çekirdek 1'i başlat (Bare-metal mode)
+    multicore_launch_core1(core1_entry);
+    
+    Serial.println("AeroPico FC picoport2 Ready.");
 
     Logger::init();
     flightManager.init(&sensorManager, &rxManager);
@@ -114,4 +127,47 @@ void setup() {
     vTaskStartScheduler();
 }
 
-void loop() {}
+void loop() {
+        // --- CORE 0: Yönetim ve Watchdog ---
+    
+    // BUG-102 / Risk 1 FIX: Çapraz çekirdek denetimi
+    if (!SystemTimer::isCore1Stale()) {
+        watchdog_update(); // Sadece Core 1 yaşıyorsa watchdog besle
+    } else {
+        // Core 1 kilitlendi! Watchdog beslenmediği için sistem resetlenecek.
+        Serial.println("CRITICAL: Core 1 Stalled!");
+    }
+    
+    // Telemetri ve MAVLink işlemleri buraya (A7)
+    delay(10);
+}
+#include <Arduino.h>
+#include "config.h"
+#include "core/FlightManager.h"
+#include "core/SystemTimer.h"
+#include "drivers/Sensors.h"
+#include "drivers/RX.h"
+#include "drivers/Output.h"
+#include "hardware/watchdog.h"
+#include "hardware/multicore.h"
+
+// Global Nesneler
+FlightManager flightControl;
+SensorManager imu;
+RXManager rx;
+OutputManager servos;
+
+// --- CORE 1: Uçuş Kontrol Döngüsü ---
+void core1_entry() {
+    while(1) {
+        uint32_t start_time = micros();
+        
+        flightControl.update(); // 500Hz Kontrol
+        
+        SystemTimer::markCore1Alive(); // Kalp atışı gönder
+        
+        // Hassas zamanlama (A2)
+        while(micros() - start_time < LOOP_TIME_US);
+    }
+}
+

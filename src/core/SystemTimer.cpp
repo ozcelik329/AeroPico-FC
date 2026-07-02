@@ -203,3 +203,16 @@ void SystemManager::core1_entry() {
         endTiming(PHASE_TOTAL);
     }
 }
+
+
+// SRAM'de saklanan atomik kalp atışı (Risk 1 FIX)
+volatile uint32_t core1_heartbeat = 0;
+
+void __not_in_flash_func(SystemTimer::markCore1Alive)() {
+    core1_heartbeat = micros();
+    __dmb(); // Bellek bariyeri
+}
+
+bool SystemTimer::isCore1Stale() {
+    return (micros() - core1_heartbeat) > 10000; // 10ms tolerans
+}

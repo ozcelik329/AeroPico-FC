@@ -117,3 +117,39 @@ void FlightManager::updateControllers(const FlightData& data) {
     // Şu an altimetre yok; altitude controller için yerleşik değer gönderiliyor
     _altController.update(0.0f, data.throttle, data.failsafe);
 }
+#include "FlightManager.h"
+
+void FlightManager::init(IImuDriver* imu, IRxDriver* rx, IServoOutput* out) {
+    _imu = imu; _rx = rx; _out = out;
+    _ekf.init();
+    _rollPID.reset();
+    _pitchPID.reset();
+}
+
+void __not_in_flash_func(FlightManager::update)() {
+    _imu->update();
+    SensorBuffer s = _imu->getLatest();
+    
+    // EKF Adımları
+    _ekf.predict(s.gx * 0.0174f, s.gy * 0.0174f, s.gz * 0.0174f, 0.002f);
+    _ekf.updateIMU(s.ax, s.ay, s.az);
+
+    _rx->update();
+    _modeCtrl.update(_rx->getChannel(4));
+
+    // Arming (A7 - Disarm logic)
+    if (_rx->getChannel(2) < 1100 && _rx->getChannel(3) > 1900) _armed = true;
+    if (_rx->getChannel(2) < 1100 && _rx->getChannel(3) < 1100) _armed = false;
+
+    if (_armed && _rx->isValid()) {
+        float rollTarget = (_rx->getChannel(0) - 1500) * 0.06f;
+        float pitchTarget = (_rx->getChannel(1) - 1500) * 0.04f;
+        
+        float rollOut = _rollPID.compute(rollTarget, _ekf.roll, 0.002f, false);
+        float pitchOut = _pitchPID.compute(pitchTarget, _ekf.pitch, 0.002f, false);
+        
+        _out->write(_rx->getChannel(2), (uint16_t)(1500 + rollOut), (uint16_t)(1500 + pitchOut), 1500);
+    } else {
+        _out->write(1000, 1500, 1500, 1500); // Failsafe / Disarmed
+    }
+}
