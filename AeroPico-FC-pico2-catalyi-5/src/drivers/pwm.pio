@@ -1,0 +1,8 @@
+.program pwm_servo
+
+.wrap_target
+    pull noblock        ; TX FIFO'dan değer al, yoksa X'i koru
+    mov x, osr         ; değeri X'e yaz
+loop:
+    jmp x-- loop       ; X kadar bekle (HIGH süre)
+.wrap
