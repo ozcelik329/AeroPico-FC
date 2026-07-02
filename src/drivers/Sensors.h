@@ -7,6 +7,7 @@
 #include "hardware/i2c.h"
 #include "hardware/dma.h"
 #include "pico/platform.h"
+#include "IDrivers.h"
 
 #ifdef USE_GY87
   #include <Adafruit_HMC5883_U.h>
@@ -32,27 +33,21 @@
 // Yüksek alpha = daha az filtreleme, daha az gecikme
 #define IIR_ALPHA    0.15f
 
-struct SensorBuffer {
-    float ax, ay, az;   // Filtrelenmiş ivme
-    float gx, gy, gz;   // Ham jiroskop (filtre gerekmez)
-    float tempC;         // Sıcaklık (°C)
-    #ifdef USE_GY87
-        float mx, my, mz;
-        float pressure;
-    #endif
-    uint32_t timestamp;
-    bool valid;
-};
+#include "../types.h"
 
-class SensorManager {
+class SensorManager : public IImuDriver, public IMagDriver, public IBaroDriver, public IGpsDriver {
   public:
     void init();
     void update();
     SensorBuffer getLatest();
 
+    // Driver capability queries
+    bool hasMag() const override;
+    bool hasBaro() const override;
+
     #ifdef USE_GY87
-        bool hasMag  = false;
-        bool hasBaro = false;
+      bool _hasMag  = false;
+      bool _hasBaro = false;
     #endif
 
   private:

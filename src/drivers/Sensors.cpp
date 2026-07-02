@@ -55,13 +55,13 @@ void SensorManager::init() {
     #ifdef USE_GY87
         // HMC5883L ve BMP085 Wire üzerinden — DMA değil
         Wire.begin();
-        hasMag = mag.begin();
-        if (!hasMag) Serial.println("[SENSOR] HMC5883L bulunamadi!");
-        else         Serial.println("[SENSOR] HMC5883L hazir.");
+        _hasMag = mag.begin();
+        if (!_hasMag) Serial.println("[SENSOR] HMC5883L bulunamadi!");
+        else          Serial.println("[SENSOR] HMC5883L hazir.");
 
-        hasBaro = bmp.begin();
-        if (!hasBaro) Serial.println("[SENSOR] BMP085 bulunamadi!");
-        else          Serial.println("[SENSOR] BMP085 hazir.");
+        _hasBaro = bmp.begin();
+        if (!_hasBaro) Serial.println("[SENSOR] BMP085 bulunamadi!");
+        else           Serial.println("[SENSOR] BMP085 hazir.");
     #endif
 
     // İlk DMA okumayı başlat
@@ -138,7 +138,7 @@ void SensorManager::update() {
     _mpu_parse(buf);
 
     #ifdef USE_GY87
-        if (hasMag) {
+        if (_hasMag) {
             sensors_event_t mag_event;
             mag.getEvent(&mag_event);
             buf.mx = mag_event.magnetic.x;
@@ -148,7 +148,7 @@ void SensorManager::update() {
             buf.mx = buf.my = buf.mz = 0.0f;
         }
 
-        if (hasBaro) {
+        if (_hasBaro) {
             sensors_event_t bmp_event;
             bmp.getEvent(&bmp_event);
             buf.pressure = bmp_event.pressure;
@@ -171,3 +171,11 @@ SensorBuffer SensorManager::getLatest() {
     mutex_exit(&_mutex);
     return copy;
 }
+
+#ifdef USE_GY87
+bool SensorManager::hasMag() const { return _hasMag; }
+bool SensorManager::hasBaro() const { return _hasBaro; }
+#else
+bool SensorManager::hasMag() const { return false; }
+bool SensorManager::hasBaro() const { return false; }
+#endif

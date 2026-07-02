@@ -10,6 +10,13 @@
 
 FlightManager flightManager;
 
+// Concrete drivers
+#include "drivers/Sensors.h"
+#include "drivers/RX.h"
+
+SensorManager sensorManager;
+RXManager rxManager;
+
 void taskSensor(void* pvParameters) {
     for (;;) {
         flightManager.update();
@@ -30,19 +37,22 @@ void taskTelemetry(void* pvParameters) {
         mavlink.update();  // Tüm stream'ler burada yönetiliyor
 
         // Blackbox: 50 Hz — bağımsız olarak devam eder
-        blackbox.log(
-            flightManager.getRoll(),
-            flightManager.getPitch(),
-            flightManager.getYaw(),
-            flightManager.getGyroX(),
-            flightManager.getGyroY(),
-            flightManager.getGyroZ(),
-            flightManager.getThrottle(),
-            flightManager.getAileron(),
-            flightManager.getElevator(),
-            flightManager.getRudder(),
-            false
-        );
+        FlightData d;
+        if (flightManager.peekLatest(d)) {
+            blackbox.log(
+                d.roll,
+                d.pitch,
+                d.yaw,
+                d.gyroX,
+                d.gyroY,
+                d.gyroZ,
+                d.throttle,
+                d.aileron,
+                d.elevator,
+                d.rudder,
+                false
+            );
+        }
 
         vTaskDelay(pdMS_TO_TICKS(20)); // 50 Hz
     }
@@ -54,7 +64,7 @@ void setup() {
     watchdog_enable(WATCHDOG_TIMEOUT_MS, true);
 
     Logger::init();
-    flightManager.init();
+    flightManager.init(&sensorManager, &rxManager);
     mavlink.init();
     blackbox.init();
 

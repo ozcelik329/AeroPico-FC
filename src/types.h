@@ -2,5 +2,17 @@
 #define TYPES_H
 
 #include <Arduino.h>
-struct RC_Values { int16_t roll, pitch, yaw, throttle; };
+#include "config.h"
+// Ortak veri tipleri
+struct SensorBuffer {
+	float ax, ay, az;
+	float gx, gy, gz;
+	float tempC;
+#ifdef USE_GY87
+	float mx, my, mz;
+	float pressure;
+#endif
+	uint32_t timestamp;
+	bool valid;
+};
 #endif

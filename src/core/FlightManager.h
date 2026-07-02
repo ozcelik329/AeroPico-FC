@@ -2,15 +2,14 @@
 #define FLIGHT_MANAGER_H
 
 #include <Arduino.h>
-#include "../drivers/Sensors.h"
-#include "../drivers/RX.h"
+#include "../drivers/IDrivers.h"
 #include "SensorFusion.h"
-#include "RingBuffer.h"
+#include "ThreadSafeRingBuffer.h"
+#include "FlightModeController.h"
+#include "NavigationController.h"
+#include "AltitudeController.h"
 
-#define ARM_THROTTLE_MAX    1050
-#define ARM_RUDDER_MIN      1900
-#define DISARM_RUDDER_MAX   1100
-#define ARM_HOLD_MS         1000
+#include "ArmDefs.h"
 
 // Core 0 → Core 1 arası paylaşılan veri paketi
 struct FlightData {
@@ -24,6 +23,8 @@ struct FlightData {
 class FlightManager {
   public:
     void init();
+    // Initialize FlightManager with concrete drivers (dependency injection)
+    void init(IImuDriver* imuDrv, IRxDriver* rxDrv);
     void update();
 
     float getRoll();
@@ -36,25 +37,38 @@ class FlightManager {
     uint16_t getElevator();
     uint16_t getThrottle();
     uint16_t getRudder();
-    bool isArmed() const { return _armed; }
+    bool isArmed() { return _modeController.isArmed(); }
+
+    // Consumer: called by the single consumer (Core 1) to consume pending samples
+    void consumeLatest();
+
+    // Peek latest without consuming — safe for telemetry (secondary reader)
+    bool peekLatest(FlightData& out) const;
 
   private:
-    SensorManager sensors;
-    RXManager rx;
+    // Injected drivers (do not instantiate concrete types here)
+    IImuDriver* _imu = nullptr;
+    IRxDriver*  _rx  = nullptr;
     SensorFusion fusion;
 
-    // Lock-free ring buffer — 4 slot yeterli (500Hz üretim, 500Hz tüketim)
-    RingBuffer<FlightData, 4> _ringBuf;
+    // Thread-safe ring buffer for multi-producer / multi-consumer usage
+    ThreadSafeRingBuffer<FlightData, 4> _ringBuf;
 
     // Son okunan veri (Core 1 tarafında cache)
     FlightData _latest = {};
 
-    bool     _armed           = false;
-    uint32_t _armHoldStart    = 0;
-    uint32_t _disarmHoldStart = 0;
+    // Controllers — FlightManager only orchestrates
+    FlightModeController _modeController;
+    NavigationController _navController;
+    AltitudeController  _altController;
 
     void performSensorFusion();
-    void updateArmDisarm(uint16_t throttle, uint16_t rudder);
+    void updateControllers(const FlightData& data);
+
+    // Sequence counter to provide atomic-like snapshot semantics for `_latest`
+    volatile uint32_t _latest_seq = 0;
+    FlightData readLatestSnapshot() const;
+    
 };
 
 extern FlightManager flightManager;

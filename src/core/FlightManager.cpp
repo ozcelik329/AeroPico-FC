@@ -1,17 +1,27 @@
 #include "FlightManager.h"
 
 void FlightManager::init() {
-    sensors.init();
+    // Deprecated: preserve default behavior if concrete drivers were set earlier
+    if (_imu) _imu->init();
     fusion.init(0.08f);
-    rx.init();
+    if (_rx) _rx->init();
+    _modeController.init();
+    _navController.init();
+    _altController.init();
+}
+
+void FlightManager::init(IImuDriver* imuDrv, IRxDriver* rxDrv) {
+    _imu = imuDrv;
+    _rx  = rxDrv;
+    init();
 }
 
 void FlightManager::update() {
-    sensors.update();
+    if (_imu) _imu->update();
     performSensorFusion();
-    rx.update();
+    if (_rx) _rx->update();
 
-    SensorBuffer buf = sensors.getLatest();
+    SensorBuffer buf = _imu ? _imu->getLatest() : SensorBuffer{};
 
     FlightData data;
     data.gyroX = buf.gx;
@@ -22,26 +32,26 @@ void FlightManager::update() {
     data.yaw   = fusion.getYaw();
     data.timestamp = micros();
 
-    if (!rx.isValid()) {
+    if (!_rx || !_rx->isValid()) {
         data.aileron  = PWM_NEUTRAL;
         data.elevator = PWM_NEUTRAL;
         data.throttle = PWM_MIN;
         data.rudder   = PWM_NEUTRAL;
         data.failsafe = true;
     } else {
-        data.aileron  = rx.getChannel(RC_ROLL_CHANNEL);
-        data.elevator = rx.getChannel(RC_PITCH_CHANNEL);
-        data.throttle = rx.getChannel(RC_THROTTLE_CHANNEL);
-        data.rudder   = rx.getChannel(RC_YAW_CHANNEL);
+        data.aileron  = _rx->getChannel(RC_ROLL_CHANNEL);
+        data.elevator = _rx->getChannel(RC_PITCH_CHANNEL);
+        data.throttle = _rx->getChannel(RC_THROTTLE_CHANNEL);
+        data.rudder   = _rx->getChannel(RC_YAW_CHANNEL);
         data.failsafe = false;
     }
 
-    updateArmDisarm(data.throttle, data.rudder);
+    updateControllers(data);
     _ringBuf.push(data);  // Lock-free yazma
 }
 
 void FlightManager::performSensorFusion() {
-    SensorBuffer buf = sensors.getLatest();
+    SensorBuffer buf = _imu ? _imu->getLatest() : SensorBuffer{};
 
     fusion.setTemperature(buf.tempC);
 
@@ -56,50 +66,54 @@ void FlightManager::performSensorFusion() {
     #endif
 }
 
-// Core 1 tarafında çağrılır — lock-free okuma
-static FlightData _getLatest(RingBuffer<FlightData, 4>& buf, FlightData& cache) {
+// Consumer: pop all pending items and update the cached `_latest` (called by single consumer Core 1)
+void FlightManager::consumeLatest() {
     FlightData tmp;
-    while (buf.pop(tmp)) {
-        cache = tmp;  // En güncel veriyi al
+    while (_ringBuf.pop(tmp)) {
+        // mark write in progress (odd)
+        _latest_seq++;
+        _latest = tmp;
+        __dmb();
+        // mark write done (even)
+        _latest_seq++;
     }
-    return cache;
 }
 
-float    FlightManager::getRoll()     { return _getLatest(_ringBuf, _latest).roll; }
-float    FlightManager::getPitch()    { return _getLatest(_ringBuf, _latest).pitch; }
-float    FlightManager::getYaw()      { return _getLatest(_ringBuf, _latest).yaw; }
-float    FlightManager::getGyroX()    { return _getLatest(_ringBuf, _latest).gyroX; }
-float    FlightManager::getGyroY()    { return _getLatest(_ringBuf, _latest).gyroY; }
-float    FlightManager::getGyroZ()    { return _getLatest(_ringBuf, _latest).gyroZ; }
-uint16_t FlightManager::getAileron()  { return _getLatest(_ringBuf, _latest).aileron; }
-uint16_t FlightManager::getElevator() { return _getLatest(_ringBuf, _latest).elevator; }
-uint16_t FlightManager::getThrottle() { return _getLatest(_ringBuf, _latest).throttle; }
-uint16_t FlightManager::getRudder()   { return _getLatest(_ringBuf, _latest).rudder; }
+// Peek the most recent item without consuming (safe for telemetry on Core 0)
+bool FlightManager::peekLatest(FlightData& out) const {
+    return _ringBuf.peek(out);
+}
 
-void FlightManager::updateArmDisarm(uint16_t throttle, uint16_t rudder) {
-    uint32_t now = millis();
-
-    if (!_armed) {
-        if (throttle < ARM_THROTTLE_MAX && rudder > ARM_RUDDER_MIN) {
-            if (_armHoldStart == 0) _armHoldStart = now;
-            if (now - _armHoldStart >= ARM_HOLD_MS) {
-                _armed = true;
-                _armHoldStart = 0;
-                Serial.println("[ARM] Sistem arm edildi!");
-            }
-        } else {
-            _armHoldStart = 0;
-        }
-    } else {
-        if (throttle < ARM_THROTTLE_MAX && rudder < DISARM_RUDDER_MAX) {
-            if (_disarmHoldStart == 0) _disarmHoldStart = now;
-            if (now - _disarmHoldStart >= ARM_HOLD_MS) {
-                _armed = false;
-                _disarmHoldStart = 0;
-                Serial.println("[ARM] Sistem disarm edildi!");
-            }
-        } else {
-            _disarmHoldStart = 0;
-        }
+// Read a consistent snapshot of `_latest` using sequence counter
+FlightData FlightManager::readLatestSnapshot() const {
+    FlightData copy;
+    while (true) {
+        uint32_t s1 = _latest_seq;
+        if (s1 & 1) continue; // writer in progress
+        copy = _latest;
+        uint32_t s2 = _latest_seq;
+        if (s1 == s2) break;
     }
+    return copy;
+}
+
+float    FlightManager::getRoll()     { return readLatestSnapshot().roll; }
+float    FlightManager::getPitch()    { return readLatestSnapshot().pitch; }
+float    FlightManager::getYaw()      { return readLatestSnapshot().yaw; }
+float    FlightManager::getGyroX()    { return readLatestSnapshot().gyroX; }
+float    FlightManager::getGyroY()    { return readLatestSnapshot().gyroY; }
+float    FlightManager::getGyroZ()    { return readLatestSnapshot().gyroZ; }
+uint16_t FlightManager::getAileron()  { return readLatestSnapshot().aileron; }
+uint16_t FlightManager::getElevator() { return readLatestSnapshot().elevator; }
+uint16_t FlightManager::getThrottle() { return readLatestSnapshot().throttle; }
+uint16_t FlightManager::getRudder()   { return readLatestSnapshot().rudder; }
+
+void FlightManager::updateControllers(const FlightData& data) {
+    // Orkestrasyon: öncelikle mod/arm güncelle
+    _modeController.update(data.throttle, data.rudder);
+
+    // Navigation ve altitude kontrolörlerine güncel kumanda ve sensör verilerini ilet
+    _navController.update(data.aileron, data.elevator, data.failsafe);
+    // Şu an altimetre yok; altitude controller için yerleşik değer gönderiliyor
+    _altController.update(0.0f, data.throttle, data.failsafe);
 }

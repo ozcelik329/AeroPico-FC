@@ -62,6 +62,9 @@ void SystemManager::core1_entry() {
             continue;
         }
 
+        // Tüketici: buffer'dan yeni örnekleri al (SINGLE consumer - Core 1)
+        flightManager.consumeLatest();
+
         // RC girişlerini aç sınıra çevir
         float targetRoll    = mapFloat(flightManager.getAileron(),  1000.0f, 2000.0f, -MAX_ROLL_ANGLE,  MAX_ROLL_ANGLE);
         float targetPitch   = mapFloat(flightManager.getElevator(), 1000.0f, 2000.0f, -MAX_PITCH_ANGLE, MAX_PITCH_ANGLE);

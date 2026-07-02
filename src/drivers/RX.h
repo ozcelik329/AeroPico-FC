@@ -4,8 +4,9 @@
 #include <Arduino.h>
 #include "../config.h"
 #include "sbus.h"
+#include "IDrivers.h"
 
-class RXManager {
+class RXManager : public IRxDriver {
   public:
     void init();
     void update();
