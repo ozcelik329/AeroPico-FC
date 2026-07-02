@@ -2,6 +2,7 @@
 #include <FreeRTOS.h>
 #include <task.h>
 #include "hardware/watchdog.h"
+#include "pico/time.h"
 #include "core/FlightManager.h"
 #include "core/SystemTimer.h"
 #include "utils/Logger.h"
@@ -13,14 +14,32 @@ FlightManager flightManager;
 // Concrete drivers
 #include "drivers/Sensors.h"
 #include "drivers/RX.h"
-
 SensorManager sensorManager;
 RXManager rxManager;
+
+// Core 1 (uçuş kontrol döngüsü) taze mi? Bkz. SystemTimer::core1HeartbeatUs.
+// Eşik: LOOP_TIME (2ms) döngüsüne göre bolca marj bırakan, ama donanım
+// watchdog süresinden (WATCHDOG_TIMEOUT_MS) çok daha kısa bir değer.
+static constexpr uint32_t CORE1_STALE_THRESHOLD_US = 20000; // 20 ms
+
+static bool isCore1Alive() {
+    uint32_t age = micros() - SystemTimer::getCore1HeartbeatUs();
+    return age < CORE1_STALE_THRESHOLD_US;
+}
 
 void taskSensor(void* pvParameters) {
     for (;;) {
         flightManager.update();
-        watchdog_update();
+
+        // Watchdog'u yalnızca Core 1 gerçekten taze/canlıysa besle.
+        // Core 1 kilitlenirse besleme durur ve donanım watchdog'u
+        // WATCHDOG_TIMEOUT_MS içinde chip'i resetler.
+        if (isCore1Alive()) {
+            watchdog_update();
+        } else {
+            Logger::log("[WATCHDOG] Core1 heartbeat bayat! Besleme durduruldu.");
+        }
+
         vTaskDelay(pdMS_TO_TICKS(2));
     }
 }

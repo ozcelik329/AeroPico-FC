@@ -15,6 +15,11 @@
 #define PIN_SDA         4
 #define PIN_SCL         5
 
+// --- Debug Timing GPIO Pinleri ---
+#define PIN_DEBUG_CONSUME 2
+#define PIN_DEBUG_PID     3
+#define PIN_DEBUG_MIXER   6
+
 // --- PIO UART — ESP32-CAM MAVLink ---
 #define PIN_ESP_TX      12
 #define PIN_ESP_RX      13
