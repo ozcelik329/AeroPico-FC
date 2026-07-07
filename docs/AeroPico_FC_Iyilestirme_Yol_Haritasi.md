@@ -48,6 +48,7 @@ Hedef: Boot, RC girisi, kontrol dongusu ve sensor verisi icin once guvenli temel
 | F1-10 | Tamamlandi | `-Ofast` yerine `-O2 -fno-fast-math` kullan | `platformio.ini` |
 | F1-11 | Tamamlandi | Filtreleri `filters/` katmanina ayir | `filters/RunningMedian.h`, `Sensors.h` |
 | F1-12 | Tamamlandi | SBUS pin/UART derleme zamani dogrulamasi ekle | `board/PinValidation.h`, `RX.cpp`, `config.h` |
+| F1-13 | Tamamlandi | Watchdog beslemesini ucus dongusu sagligina bagla | `WatchdogGate.*`, `main.cpp`, `test/test_watchdog_gate/` |
 
 Cikis kriteri:
 
@@ -161,7 +162,7 @@ Hedef: GPS/otonom moda hemen girmeden, ileride EKF ve urun farklilastirmasi icin
 
 - 2026-07-07 yerel dogrulama: `pio test -e native` sonucu 33/33 test basarili.
 - 2026-07-07 yerel dogrulama: `pio run -e pico` basarili.
-- 2026-07-07 Faz 8 dogrulama: `pio test -e native` sonucu 42/42 test basarili.
+- 2026-07-07 Faz 8 dogrulama: `pio test -e native` sonucu 46/46 test basarili.
 - 2026-07-07 Faz 8 dogrulama: `pio run -e pico` basarili.
 - Donanim elde olmadigi icin heartbeat, SBUS UART0/GP1, sensor health ve blackbox alanlari sahada beklemede.
 - GitHub Actions dosyasi mevcut; uzak CI sonucu repo GitHub'a baglandiktan sonra dogrulanmali.

@@ -5,6 +5,7 @@
 #include "pico/time.h"
 #include "core/FlightManager.h"
 #include "core/SystemTimer.h"
+#include "core/WatchdogGate.h"
 #include "utils/Logger.h"
 #include "utils/BootLogger.h"
 #include "telemetry/MavlinkHandler.h"
@@ -21,10 +22,16 @@ SensorManager sensorManager;
 RXManager rxManager;
 
 static constexpr uint32_t CORE1_STALE_THRESHOLD_US = 20000;
+static constexpr uint32_t WATCHDOG_BLOCK_LOG_PERIOD_MS = 500;
 
-static bool isCore1Alive() {
-    uint32_t age = micros() - SystemTimer::getCore1HeartbeatUs();
-    return age < CORE1_STALE_THRESHOLD_US;
+static WatchdogDecision evaluateWatchdogGate() {
+    return WatchdogGate::evaluate(
+        micros(),
+        SystemTimer::getCore1HeartbeatUs(),
+        SystemTimer::is_running,
+        SystemTimer::checkTimingBudgets(),
+        CORE1_STALE_THRESHOLD_US
+    );
 }
 
 static bool provideFlightData(FlightData& out) {
@@ -61,13 +68,22 @@ extern "C" void vApplicationMallocFailedHook() {
 }
 
 void taskSensor(void* pvParameters) {
+    uint32_t lastWatchdogBlockLogMs = 0;
+
     for (;;) {
         flightManager.update();
 
-        if (isCore1Alive()) {
+        WatchdogDecision watchdogDecision = evaluateWatchdogGate();
+        if (watchdogDecision.shouldFeed) {
             watchdog_update();
         } else {
-            Logger::log("[WATCHDOG] Core1 heartbeat bayat! Besleme durduruldu.");
+            uint32_t nowMs = millis();
+            if (nowMs - lastWatchdogBlockLogMs >= WATCHDOG_BLOCK_LOG_PERIOD_MS) {
+                lastWatchdogBlockLogMs = nowMs;
+                Serial.printf("[WATCHDOG] Besleme durduruldu: %s age=%uus\n",
+                              watchdogDecision.reason,
+                              watchdogDecision.heartbeatAgeUs);
+            }
         }
 
         vTaskDelay(pdMS_TO_TICKS(2));

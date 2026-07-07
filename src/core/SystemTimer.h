@@ -35,11 +35,9 @@ public:
 
     static volatile bool is_running;
 
-    // --- Core 1 canlılık izleme (watchdog kör noktası düzeltmesi) ---
-    // Core 1 her döngü turunda bu değeri günceller (armed/disarmed farketmeksizin).
-    // Core 0, bu değeri okuyup taze mi diye kontrol eder ve ancak taze ise
-    // watchdog_update() çağırır. Core 1 kilitlenirse besleme durur, donanım
-    // watchdog'u WATCHDOG_TIMEOUT_MS içinde chip'i resetler.
+    // Core 1 her dongu turunda bu degeri gunceller. Watchdog beslemesi
+    // yalnizca WatchdogGate ucus dongusunu running + fresh heartbeat +
+    // timing-budget-ok olarak degerlendirirse yapilir.
     static volatile uint32_t core1HeartbeatUs;
     static uint32_t getCore1HeartbeatUs();
 };

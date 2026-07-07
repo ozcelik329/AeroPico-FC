@@ -67,8 +67,9 @@ Mevcut durum:
 
 - Scheduler testleri eklendi.
 - Preflight testleri eklendi.
-- Native test sayisi 42/42 basarili.
+- Native test sayisi 46/46 basarili.
 - Pico firmware derlemesi basarili.
+- Watchdog besleme karari `WatchdogGate` ile test edilebilir hale getirildi; artik Core 0 yalnizca flight loop running, heartbeat fresh ve timing budget OK ise watchdog besler.
 
 Sonraki testler:
 
@@ -77,3 +78,4 @@ Sonraki testler:
 - `test_rc_loss`
 - `test_param_profiles`
 - `test_scheduler_overrun`
+- `test_watchdog_gate`
