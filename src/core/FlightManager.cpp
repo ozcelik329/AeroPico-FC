@@ -89,9 +89,13 @@ void FlightManager::clearRCOverride() {
     _rcPipeline.clearOverride();
 }
 
+void FlightManager::setPreflightArmAllowed(bool allowed) {
+    _preflightArmAllowed = allowed;
+}
+
 void FlightManager::updateControllers(const FlightData& data) {
     // Orkestrasyon: öncelikle mod/arm güncelle
-    _modeController.update(data.throttle, data.rudder, data.failsafe);
+    _modeController.update(data.throttle, data.rudder, data.failsafe, _preflightArmAllowed);
 
     // Navigation ve altitude kontrolörlerine güncel kumanda ve sensör verilerini ilet
     _navController.update(data.aileron, data.elevator, data.failsafe);

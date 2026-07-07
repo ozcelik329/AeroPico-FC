@@ -30,6 +30,7 @@ class FlightManager {
     uint16_t getThrottle();
     uint16_t getRudder();
     bool isArmed() { return _modeController.isArmed(); }
+    void setPreflightArmAllowed(bool allowed);
 
     void setRCOverride(uint16_t aileron, uint16_t elevator, uint16_t throttle, uint16_t rudder);
     void clearRCOverride();
@@ -54,6 +55,7 @@ class FlightManager {
     FlightModeController _modeController;
     NavigationController _navController;
     AltitudeController  _altController;
+    bool _preflightArmAllowed = false;
 
     void updateControllers(const FlightData& data);
 

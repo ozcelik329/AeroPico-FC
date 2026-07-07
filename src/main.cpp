@@ -6,6 +6,8 @@
 #include "core/FlightManager.h"
 #include "core/SystemTimer.h"
 #include "core/WatchdogGate.h"
+#include "core/Scheduler.h"
+#include "core/PreflightHealth.h"
 #include "utils/Logger.h"
 #include "utils/BootLogger.h"
 #include "telemetry/MavlinkHandler.h"
@@ -23,6 +25,9 @@ RXManager rxManager;
 
 static constexpr uint32_t CORE1_STALE_THRESHOLD_US = 20000;
 static constexpr uint32_t WATCHDOG_BLOCK_LOG_PERIOD_MS = 500;
+static Scheduler telemetryScheduler;
+static PreflightHealth preflightHealth;
+static PreflightResult lastPreflightResult = {false, "not evaluated", 0};
 
 static WatchdogDecision evaluateWatchdogGate() {
     return WatchdogGate::evaluate(
@@ -55,6 +60,63 @@ static void applyPidGains(float angleP, float angleI, float angleD,
     SystemTimer::applyPidGains(angleP, angleI, angleD, rateP, rateI, rateD);
 }
 
+static PreflightResult evaluatePreflight() {
+    preflightHealth.reset();
+    preflightHealth.setCheck(PreflightCheckId::Boot, true, true, "");
+    preflightHealth.setCheck(PreflightCheckId::Sensor, true, sensorManager.isImuAvailable(), "IMU not available");
+    preflightHealth.setCheck(PreflightCheckId::RC, true, rxManager.isValid() && !rxManager.isFailsafe(), "RC signal invalid");
+    preflightHealth.setCheck(PreflightCheckId::Failsafe, true, !rxManager.isFailsafe(), "RC failsafe active");
+    preflightHealth.setCheck(PreflightCheckId::Scheduler, true, SystemTimer::checkTimingBudgets(), "Timing budget exceeded");
+    preflightHealth.setCheck(PreflightCheckId::GPS, false, false, "GPS not configured");
+    return preflightHealth.evaluate();
+}
+
+static void updatePreflightArmGate() {
+    lastPreflightResult = evaluatePreflight();
+    flightManager.setPreflightArmAllowed(lastPreflightResult.canArm);
+}
+
+static void runMavlinkTelemetry() {
+    mavlink.update();
+}
+
+static void runBlackboxLog() {
+    FlightData d;
+    if (!flightManager.peekLatest(d)) {
+        return;
+    }
+
+    blackbox.log(
+        d.roll,
+        d.pitch,
+        d.yaw,
+        d.gyroX,
+        d.gyroY,
+        d.gyroZ,
+        d.throttle,
+        d.aileron,
+        d.elevator,
+        d.rudder,
+        d.failsafe,
+        d.sensorHealth
+    );
+}
+
+static void runHealthReport() {
+    lastPreflightResult = evaluatePreflight();
+
+    if (!lastPreflightResult.canArm) {
+        mavlink.sendStatusText(lastPreflightResult.firstFailureReason);
+    }
+
+    if (!SystemTimer::checkTimingBudgets()) {
+        TimingBudgetStatus status = SystemTimer::getTimingBudgetStatus();
+        blackbox.logTimingBudget(status);
+        mavlink.sendStatusText("Timing budget exceeded");
+        SystemTimer::logTimingStats();
+    }
+}
+
 extern "C" void vApplicationStackOverflowHook(TaskHandle_t xTask, char* pcTaskName) {
     Serial.printf("[FREERTOS] Stack overflow in %s\n", pcTaskName);
     taskDISABLE_INTERRUPTS();
@@ -71,6 +133,7 @@ void taskSensor(void* pvParameters) {
     uint32_t lastWatchdogBlockLogMs = 0;
 
     for (;;) {
+        updatePreflightArmGate();
         flightManager.update();
 
         WatchdogDecision watchdogDecision = evaluateWatchdogGate();
@@ -96,37 +159,14 @@ void taskFlight(void* pvParameters) {
 }
 
 void taskTelemetry(void* pvParameters) {
-    uint32_t lastTimingReportMs = 0;
+    telemetryScheduler.reset();
+    telemetryScheduler.addTask("mavlink", 20, runMavlinkTelemetry);
+    telemetryScheduler.addTask("blackbox", 5, runBlackboxLog);
+    telemetryScheduler.addTask("health", 1, runHealthReport);
+
     for (;;) {
-        mavlink.update();
-
-        FlightData d;
-        if (flightManager.peekLatest(d)) {
-            blackbox.log(
-                d.roll,
-                d.pitch,
-                d.yaw,
-                d.gyroX,
-                d.gyroY,
-                d.gyroZ,
-                d.throttle,
-                d.aileron,
-                d.elevator,
-                d.rudder,
-                d.failsafe,
-                d.sensorHealth
-            );
-        }
-
-        if (!SystemTimer::checkTimingBudgets() && millis() - lastTimingReportMs >= 1000) {
-            lastTimingReportMs = millis();
-            TimingBudgetStatus status = SystemTimer::getTimingBudgetStatus();
-            blackbox.logTimingBudget(status);
-            mavlink.sendStatusText("Timing budget exceeded");
-            SystemTimer::logTimingStats();
-        }
-
-        vTaskDelay(pdMS_TO_TICKS(20));
+        telemetryScheduler.tick(micros());
+        vTaskDelay(pdMS_TO_TICKS(5));
     }
 }
 

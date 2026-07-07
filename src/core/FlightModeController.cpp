@@ -11,6 +11,10 @@ void FlightModeController::update(uint16_t throttle, uint16_t rudder) {
 }
 
 void FlightModeController::update(uint16_t throttle, uint16_t rudder, bool failsafe) {
+    update(throttle, rudder, failsafe, true);
+}
+
+void FlightModeController::update(uint16_t throttle, uint16_t rudder, bool failsafe, bool preflightOk) {
     uint32_t now = millis();
 
     if (failsafe) {
@@ -24,6 +28,11 @@ void FlightModeController::update(uint16_t throttle, uint16_t rudder, bool fails
     }
 
     if (!_armed) {
+        if (!preflightOk) {
+            _armHoldStart = 0;
+            return;
+        }
+
         if (throttle < ARM_THROTTLE_MAX && rudder >= ARM_RUDDER_MIN) {
             if (_armHoldStart == 0) _armHoldStart = now;
             if (now - _armHoldStart >= ARM_HOLD_MS) {

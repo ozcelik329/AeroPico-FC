@@ -9,6 +9,7 @@ class FlightModeController {
     void init();
     void update(uint16_t throttle, uint16_t rudder);
     void update(uint16_t throttle, uint16_t rudder, bool failsafe);
+    void update(uint16_t throttle, uint16_t rudder, bool failsafe, bool preflightOk);
     bool isArmed() const { return _armed; }
 
   private:

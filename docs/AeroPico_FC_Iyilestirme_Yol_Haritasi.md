@@ -145,6 +145,8 @@ Hedef: Mevcut calisan cekirdegi, daha profesyonel FC mimarisine yaklastirmak.
 | F8-06 | Basladi | Multi-rate scheduler tasarimi: 400/200/100/50/20/10/5/1Hz | `core/Scheduler.*`, `test/test_scheduler/` |
 | F8-07 | Bekliyor | Runtime parametre kapsamlarini genislet: servo reverse, trim, mixer, failsafe, RC | `telemetry/ParamManager.*` |
 | F8-08 | Basladi | Boot sequence, driver registration, dependency graph, health check ve self-test akisini kod seviyesinde ayir | `core/PreflightHealth.*`, `test/test_preflight/` |
+| F8-09 | Tamamlandi | Scheduler'i telemetry/log/health akisina bagla | `main.cpp`, `core/Scheduler.*` |
+| F8-10 | Tamamlandi | Preflight sonucunu arm kapisina bagla | `main.cpp`, `FlightModeController.*`, `FlightManager.*` |
 
 ## Safha 7 - Inovasyon ve Estimator Hazirligi
 
@@ -164,6 +166,8 @@ Hedef: GPS/otonom moda hemen girmeden, ileride EKF ve urun farklilastirmasi icin
 - 2026-07-07 yerel dogrulama: `pio run -e pico` basarili.
 - 2026-07-07 Faz 8 dogrulama: `pio test -e native` sonucu 46/46 test basarili.
 - 2026-07-07 Faz 8 dogrulama: `pio run -e pico` basarili.
+- 2026-07-07 Scheduler/preflight entegrasyonu: `pio test -e native` sonucu 47/47 test basarili.
+- 2026-07-07 Scheduler/preflight entegrasyonu: `pio run -e pico` basarili.
 - Donanim elde olmadigi icin heartbeat, SBUS UART0/GP1, sensor health ve blackbox alanlari sahada beklemede.
 - GitHub Actions dosyasi mevcut; uzak CI sonucu repo GitHub'a baglandiktan sonra dogrulanmali.
 

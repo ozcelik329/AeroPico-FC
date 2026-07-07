@@ -24,9 +24,9 @@ Proje artik basit bir Arduino/PlatformIO denemesinden cikmis, testli ve katmanla
 Hala ticari urun seviyesine gelmek icin en kritik eksikler:
 
 - HAL henuz tum suruculeri gercekten soyutlamiyor.
-- Scheduler henuz ucus akisina tam entegre degil.
+- Scheduler telemetry/log/health akislari icin entegre edilmeye baslandi; control loop entegrasyonu henuz bekliyor.
 - Runtime parametre sistemi PID disinda dar.
-- Preflight health kararlari henuz gercek sistem durumuna tam baglanmadi.
+- Preflight health kararlari arming kapisina baglandi; sensor/RC/timing kontrolleri ilk seviyede kullaniliyor.
 - HIL ve donanim uzerinde dogrulama yok.
 - EKF / mission / RTL gibi yuksek seviye ozellikler bilincli olarak ertelenmeli.
 
@@ -36,8 +36,8 @@ Hala ticari urun seviyesine gelmek icin en kritik eksikler:
 |---|---:|---|
 | Mimari temizlik | 7/10 | Katmanlar olusuyor; `FlightManager` kuculmeye basladi. HAL ve scheduler entegrasyonu tamamlanmali. |
 | Test kapsami | 8/10 | Native test seti guclu. HIL, donanim ve fault-injection eksik. |
-| Gercek zaman uygunlugu | 6.5/10 | Timing budget var; scheduler basladi. WCET ve CPU load olcumu eksik. |
-| Guvenlik/failsafe | 6.5/10 | Watchdog gate, failsafe RC degerleri, sensor health var. Preflight ve failsafe manager olgunlasmali. |
+| Gercek zaman uygunlugu | 7/10 | Timing budget var; scheduler telemetry/log/health icin kullaniliyor. WCET ve CPU load olcumu eksik. |
+| Guvenlik/failsafe | 7/10 | Watchdog gate, preflight arm gate, failsafe RC degerleri ve sensor health var. Failsafe manager olgunlasmali. |
 | Donanim soyutlama | 4.5/10 | HAL arayuzleri basladi; suruculer hala Pico SDK / Arduino / PIO detaylarina bagli. |
 | Ucus kontrol kalitesi | 6.5/10 | PID anti-windup, mixer testleri var. Feed-forward, tuning workflow ve actuator model eksik. |
 | Haberlesme | 6/10 | MAVLink ve param callback var. Mission, stream scheduler ve kalici parametreler eksik. |
@@ -61,7 +61,7 @@ AeroPico FC v0.2.0, RP2350 tabanli sabit kanatli bir flight controller cekirdegi
 ### Kritik Eksikler
 
 - HAL arayuzleri var ama `Sensors`, `RX`, `Output`, `PioUart` tamamen HAL arkasina alinmis degil.
-- Scheduler sinifi var ama `taskSensor`, `taskTelemetry`, `taskFlight` icinde tam kullanilmiyor.
+- Scheduler `taskTelemetry` icinde MAVLink, blackbox ve health raporu icin kullaniliyor; sensor/control task'lari henuz scheduler'a alinmadi.
 - `SystemTimer` hala PID, mixer, output ve timing islerini ayni yerde tutuyor.
 - `FlightData` hala birden fazla state turunu tek struct icinde tasiyor.
 - Parametre sistemi sadece dar bir PID odagina sahip.
@@ -169,7 +169,7 @@ Bu mimari RP2350 icin mantikli. Ucus kontrol dongusu Core 1 uzerinde izole edilm
 
 ### Scheduler
 
-`Scheduler` sinifi eklendi ve native test edildi. Ancak henuz gorevler buna baglanmadi.
+`Scheduler` sinifi eklendi, native test edildi ve `taskTelemetry` icinde dusuk riskli islere baglandi.
 
 Hedef scheduler haritasi:
 
@@ -184,12 +184,13 @@ Hedef scheduler haritasi:
 | 5Hz | Logging |
 | 1Hz | Health report |
 
-Onerilen gecis:
+Guncel gecis:
 
-1. Telemetry ve health report scheduler'a baglansin.
-2. Blackbox logging 5Hz veya konfigure edilebilir hale gelsin.
-3. Sensor update ve RC input ayrilsin.
-4. Control loop en son scheduler modeline alinsin.
+1. Telemetry 20Hz scheduler task'i olarak calisiyor.
+2. Blackbox logging 5Hz scheduler task'i olarak calisiyor.
+3. Health/timing report 1Hz scheduler task'i olarak calisiyor.
+4. Sensor update ve RC input ayrilmis pipeline'lar, ancak scheduler'a baglanmadi.
+5. Control loop en son scheduler modeline alinmali.
 
 ### Timing Budget
 
@@ -357,7 +358,7 @@ baglanmali.
 - Brownout/battery monitoring yok.
 - Emergency landing veya safe mode yok.
 - FailsafeManager merkezi degil.
-- PreflightHealth var ama gercek sistem durumlarina tam bagli degil.
+- PreflightHealth arming kapisina bagli; IMU, RC/failsafe ve timing durumunu kullaniyor.
 - Actuator fault detection yok.
 - RC loss testleri RCPipeline seviyesinde var; tam sistem seviyesinde yok.
 
@@ -483,13 +484,13 @@ AeroPico, PX4/ArduPilot'un ozellik sayisini kopyalamamali. Daha iyi konum:
    - Risk: Her tuning icin firmware rebuild.
    - Oneri: ParamManager kapsam genisletilsin.
 
-5. PreflightHealth gercek veriye baglanmadi.
-   - Risk: Arm karari halen daginik.
-   - Oneri: BootCheck, SensorCheck, RCCheck, MemoryCheck implementasyonu.
+5. PreflightHealth ilk seviyede gercek veriye baglandi.
+   - Kalan risk: Battery, memory, actuator ve detayli sensor confidence henuz yok.
+   - Oneri: BootCheck, BatteryCheck, MemoryCheck ve SensorQuality implementasyonu.
 
-6. Scheduler entegre degil.
-   - Risk: Task frekanslari daginik ve zor izlenebilir.
-   - Oneri: Dusuk riskli telemetry/log/health isleri scheduler'a baglansin.
+6. Scheduler kismen entegre.
+   - Kalan risk: Sensor ve control frekanslari hala task seviyesinde daginik.
+   - Oneri: RC/sensor update once, control loop en son scheduler'a baglansin.
 
 7. HIL yok.
    - Risk: Donanim hatalari CI'da yakalanmaz.
@@ -509,8 +510,8 @@ AeroPico, PX4/ArduPilot'un ozellik sayisini kopyalamamali. Daha iyi konum:
 ### v0.3 - Profesyonel Cekirdek
 
 - HAL entegrasyonunu Output ve Timer ile baslat.
-- Scheduler'i telemetry/log/health icin kullan.
-- PreflightHealth'i gercek boot/sensor/RC durumuna bagla.
+- Scheduler'i telemetry/log/health icin kullan. (Basladi)
+- PreflightHealth'i gercek boot/sensor/RC durumuna bagla. (Basladi)
 - ParamManager'i servo ve failsafe parametreleriyle genislet.
 - FailsafeManager ekle.
 
@@ -586,8 +587,8 @@ flowchart LR
 
 | Oncelik | Is | Beklenen Kazanc |
 |---|---|---|
-| P0 | Scheduler'i telemetry/log/health icin entegre et | Determinizm ve izlenebilirlik |
-| P0 | PreflightHealth'i gercek sensor/RC/boot durumuna bagla | Guvenli arm karari |
+| P0 | Scheduler'i RC/sensor pipeline frekanslarina genislet | Determinizm ve izlenebilirlik |
+| P0 | PreflightHealth'i battery/memory/actuator check'leriyle genislet | Guvenli arm karari |
 | P1 | Output surucusunu tam HAL PWM arkasina al | Platform soyutlama |
 | P1 | Sensors.cpp dosyasini MPU6050/Mag/Baro olarak bol | Bakim kolayligi |
 | P1 | FailsafeManager ekle | Merkezi guvenlik mantigi |
@@ -602,8 +603,8 @@ AeroPico FC v0.2.0, su an dogru yolda olan ve mimari olarak hizla olgunlasan bir
 
 Bu rapora gore bir sonraki en dogru teknik adim:
 
-1. Scheduler'i once dusuk riskli `telemetry`, `logging`, `health` islerine baglamak.
-2. PreflightHealth'i gercek boot/sensor/RC durumlariyla beslemek.
+1. Scheduler'i RC/sensor pipeline frekanslarina kademeli baglamak.
+2. PreflightHealth'i battery, memory, actuator ve sensor-quality check'leriyle genisletmek.
 3. HAL entegrasyonuna `Output` ve `Timer` ile baslamak.
 
 Bu uc adim tamamlandiginda proje "testli prototip" seviyesinden "profesyonel flight controller altyapisi" seviyesine belirgin sekilde yaklasacaktir.

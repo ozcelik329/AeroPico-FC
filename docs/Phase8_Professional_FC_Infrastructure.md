@@ -37,7 +37,13 @@ Hedef frekanslar:
 - 5Hz logging
 - 1Hz health report
 
-Sonraki adim: Mevcut FreeRTOS task yapisini koruyarak once telemetry/health/log gibi dusuk riskli isleri scheduler'a baglamak.
+Durum: Mevcut FreeRTOS task yapisi korunarak telemetry/health/log gibi dusuk riskli isler scheduler'a baglandi.
+
+- 20Hz MAVLink telemetry
+- 5Hz blackbox logging
+- 1Hz health/timing report
+
+Sonraki adim: RC/sensor pipeline frekanslarini scheduler modeline almak; control loop'u en sona birakmak.
 
 ## 3. Health / Preflight
 
@@ -51,6 +57,8 @@ Ilk desteklenen karar:
 - ARM olabilir mi?
 - Hayirsa ilk sebep ne?
 - Kac zorunlu check basarisiz?
+
+Durum: Preflight sonucu `FlightModeController` arm kapisina baglandi. IMU availability, RC validity, RC failsafe ve timing budget ilk seviyede arming kararina giriyor.
 
 Sonraki adim: BootCheck, SensorCheck, RCCheck, BatteryCheck, MemoryCheck ve FailsafeCheck kaynaklarini gercek sistem durumuna baglamak.
 
@@ -67,7 +75,7 @@ Mevcut durum:
 
 - Scheduler testleri eklendi.
 - Preflight testleri eklendi.
-- Native test sayisi 46/46 basarili.
+- Native test sayisi 47/47 basarili.
 - Pico firmware derlemesi basarili.
 - Watchdog besleme karari `WatchdogGate` ile test edilebilir hale getirildi; artik Core 0 yalnizca flight loop running, heartbeat fresh ve timing budget OK ise watchdog besler.
 
