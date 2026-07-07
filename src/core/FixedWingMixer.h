@@ -14,6 +14,13 @@ struct MixerSettings {
     int throttleTrim;
 };
 
+struct MixerOutput {
+    int throttle;
+    int aileron;
+    int elevator;
+    int rudder;
+};
+
 class FixedWingMixer {
   public:
     FixedWingMixer();
@@ -26,6 +33,13 @@ class FixedWingMixer {
                  uint16_t inputAileron,
                  uint16_t inputElevator,
                  uint16_t inputRudder);
+    MixerOutput computeOutputs(uint16_t rawThrottle,
+                               float rollCorrection,
+                               float pitchCorrection,
+                               float yawCorrection,
+                               uint16_t inputAileron,
+                               uint16_t inputElevator,
+                               uint16_t inputRudder);
 
   private:
     MixerSettings settings;

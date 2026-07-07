@@ -133,6 +133,17 @@ void __not_in_flash_func(SensorFusion::updateIMU)(float gx, float gy, float gz,
     if (norm < 1e-6f) return;
     ax /= norm; ay /= norm; az /= norm;
 
+    // Mahony-stili ivme tabanlı düzeltme (6-DOF yolu)
+    float vx = 2.0f * (q1 * q3 - q0 * q2);
+    float vy = 2.0f * (q0 * q1 + q2 * q3);
+    float vz = q0 * q0 - q1 * q1 - q2 * q2 + q3 * q3;
+    float ex = (ay * vz - az * vy);
+    float ey = (az * vx - ax * vz);
+    float ez = (ax * vy - ay * vx);
+    gx += beta * ex;
+    gy += beta * ey;
+    gz += beta * ez;
+
     float qDot1 = 0.5f * (-q1 * gx - q2 * gy - q3 * gz);
     float qDot2 = 0.5f * ( q0 * gx + q2 * gz - q3 * gy);
     float qDot3 = 0.5f * ( q0 * gy - q1 * gz + q3 * gx);
@@ -151,12 +162,18 @@ float SensorFusion::getRoll()  const { return roll; }
 float SensorFusion::getPitch() const { return pitch; }
 float SensorFusion::getYaw()   const { return yaw; }
 
+#ifdef UNIT_TEST
+void SensorFusion::setQuaternionForTest(float w, float x, float y, float z) {
+    q0 = w;
+    q1 = x;
+    q2 = y;
+    q3 = z;
+    computeAngles();
+}
+#endif
+
 void __not_in_flash_func(SensorFusion::computeAngles)() {
     roll  = atan2(2.0f * (q0 * q1 + q2 * q3), 1.0f - 2.0f * (q1 * q1 + q2 * q2)) * 180.0f / PI;
-    pitch = asin (2.0f * (q0 * q2 - q3 * q1)) * 180.0f / PI;
+    pitch = asin(constrain(2.0f * (q0 * q2 - q3 * q1), -1.0f, 1.0f)) * 180.0f / PI;
     yaw   = atan2(2.0f * (q0 * q3 + q1 * q2), 1.0f - 2.0f * (q2 * q2 + q3 * q3)) * 180.0f / PI;
-}
-
-float SensorFusion::invSqrt(float x) {
-    return 1.0f / sqrt(x);
 }

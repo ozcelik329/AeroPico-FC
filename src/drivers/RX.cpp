@@ -1,13 +1,24 @@
 #include "RX.h"
+#include "../board/PinValidation.h"
 #include "sbus.h"
 
+#if SBUS_UART_INDEX == 0
+bfs::SbusRx sbus_rx(&Serial1);
+#elif SBUS_UART_INDEX == 1
 bfs::SbusRx sbus_rx(&Serial2);
+#endif
+
 bfs::SbusData sbus_data;
 
 void RXManager::init() {
-    // Serial2 → GP1 (RX), transistör ile invert edilmiş SBUS
+#if SBUS_UART_INDEX == 0
+    // Serial1 (UART0) -> GP1 (RX), transistör ile invert edilmiş SBUS
+    Serial1.setRX(PIN_SBUS_RX);
+    Serial1.begin(100000, SERIAL_8E2);
+#elif SBUS_UART_INDEX == 1
     Serial2.setRX(PIN_SBUS_RX);
     Serial2.begin(100000, SERIAL_8E2);
+#endif
     sbus_rx.Begin();
 
     valid          = false;

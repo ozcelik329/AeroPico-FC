@@ -9,10 +9,141 @@ void SensorManager::_mpu_write_reg(uint8_t reg, uint8_t val) {
     i2c_write_blocking(_i2c, MPU6050_ADDR, buf, 2, false);
 }
 
+bool SensorManager::_readWhoAmI(uint8_t& whoami) {
+    uint8_t reg = MPU6050_REG_WHOAMI;
+    if (i2c_write_blocking(_i2c, MPU6050_ADDR, &reg, 1, true) != 1) return false;
+    if (i2c_read_blocking(_i2c, MPU6050_ADDR, &whoami, 1, false) != 1) return false;
+    return true;
+}
+
+bool SensorManager::_readRawSample(int16_t& raw_ax, int16_t& raw_ay, int16_t& raw_az,
+                                   int16_t& raw_gx, int16_t& raw_gy, int16_t& raw_gz) {
+    uint8_t reg = MPU6050_REG_ACCEL;
+    uint8_t raw[14];
+    if (i2c_write_blocking(_i2c, MPU6050_ADDR, &reg, 1, true) != 1) return false;
+    if (i2c_read_blocking(_i2c, MPU6050_ADDR, raw, sizeof(raw), false) != (int)sizeof(raw)) return false;
+
+    auto to_int16 = [](uint8_t hi, uint8_t lo) -> int16_t {
+        return (int16_t)((hi << 8) | lo);
+    };
+
+    raw_ax = to_int16(raw[0], raw[1]);
+    raw_ay = to_int16(raw[2], raw[3]);
+    raw_az = to_int16(raw[4], raw[5]);
+    raw_gx = to_int16(raw[8], raw[9]);
+    raw_gy = to_int16(raw[10], raw[11]);
+    raw_gz = to_int16(raw[12], raw[13]);
+    return true;
+}
+
+bool SensorManager::isImuAvailable() const { return _imuAvailable; }
+bool SensorManager::isDmaOk() const { return _dma_chan >= 0 && _mpu_tx_dma_chan >= 0; }
+
+bool SensorManager::runBootCalibration() {
+    if (!_imuAvailable) return false;
+
+    Serial.println("[SENSOR] Boot kalibrasyonu basliyor (uçak sabit olmali)...");
+    float sumGx = 0.0f, sumGy = 0.0f, sumGz = 0.0f;
+    float sumAx = 0.0f, sumAy = 0.0f, sumAz = 0.0f;
+    int validSamples = 0;
+
+    for (int i = 0; i < BOOT_CAL_SAMPLES; i++) {
+        int16_t rax, ray, raz, rgx, rgy, rgz;
+        if (!_readRawSample(rax, ray, raz, rgx, rgy, rgz)) {
+            delay(2);
+            continue;
+        }
+        sumGx += rgx * GYRO_SCALE;
+        sumGy += rgy * GYRO_SCALE;
+        sumGz += rgz * GYRO_SCALE;
+        sumAx += rax * ACCEL_SCALE;
+        sumAy += ray * ACCEL_SCALE;
+        sumAz += raz * ACCEL_SCALE;
+        validSamples++;
+        delay(2);
+    }
+
+    if (validSamples < BOOT_CAL_SAMPLES / 2) {
+        Serial.println("[SENSOR] Boot kalibrasyonu yetersiz ornek!");
+        return false;
+    }
+
+    _gyroBiasX = sumGx / validSamples;
+    _gyroBiasY = sumGy / validSamples;
+    _gyroBiasZ = sumGz / validSamples;
+    _accelBiasX = sumAx / validSamples;
+    _accelBiasY = sumAy / validSamples;
+    // Z ekseninde ~1g yerçekimi kalır; düz uçak varsayımı
+    _accelBiasZ = (sumAz / validSamples) - 1.0f;
+    _imuCalibration = {
+        _gyroBiasX, _gyroBiasY, _gyroBiasZ,
+        _accelBiasX, _accelBiasY, _accelBiasZ,
+        true
+    };
+
+    Serial.printf("[SENSOR] Gyro bias: %.3f, %.3f, %.3f deg/s\n",
+                  _gyroBiasX, _gyroBiasY, _gyroBiasZ);
+    Serial.printf("[SENSOR] Accel bias: %.4f, %.4f, %.4f g\n",
+                  _accelBiasX, _accelBiasY, _accelBiasZ);
+    return true;
+}
+
+ImuCalibration SensorManager::getImuCalibration() const {
+    return _imuCalibration;
+}
+
+void SensorManager::setImuCalibration(const ImuCalibration& calibration) {
+    if (!calibration.valid) return;
+    _imuCalibration = calibration;
+    _gyroBiasX = calibration.gyroBiasX;
+    _gyroBiasY = calibration.gyroBiasY;
+    _gyroBiasZ = calibration.gyroBiasZ;
+    _accelBiasX = calibration.accelBiasX;
+    _accelBiasY = calibration.accelBiasY;
+    _accelBiasZ = calibration.accelBiasZ;
+}
+
+void SensorManager::beginMagCalibration() {
+    _magCalCollecting = true;
+    _magMinX = _magMinY = _magMinZ = 1000000.0f;
+    _magMaxX = _magMaxY = _magMaxZ = -1000000.0f;
+}
+
+bool SensorManager::observeMagCalibrationSample(float mx, float my, float mz) {
+    if (!_magCalCollecting) return false;
+    _magMinX = min(_magMinX, mx);
+    _magMinY = min(_magMinY, my);
+    _magMinZ = min(_magMinZ, mz);
+    _magMaxX = max(_magMaxX, mx);
+    _magMaxY = max(_magMaxY, my);
+    _magMaxZ = max(_magMaxZ, mz);
+    return true;
+}
+
+MagCalibration SensorManager::finishMagCalibration() {
+    _magCalCollecting = false;
+    _magCalibration.hardIronX = (_magMinX + _magMaxX) * 0.5f;
+    _magCalibration.hardIronY = (_magMinY + _magMaxY) * 0.5f;
+    _magCalibration.hardIronZ = (_magMinZ + _magMaxZ) * 0.5f;
+    _magCalibration.valid = true;
+    return _magCalibration;
+}
+
+MagCalibration SensorManager::getMagCalibration() const {
+    return _magCalibration;
+}
+
+void SensorManager::setMagCalibration(const MagCalibration& calibration) {
+    if (!calibration.valid) return;
+    _magCalibration = calibration;
+}
+
 void SensorManager::init() {
     mutex_init(&_mutex);
     _buf[0] = {};
     _buf[1] = {};
+    _buf[0].health = SensorHealth::WarmingUp;
+    _buf[1].health = SensorHealth::WarmingUp;
 
     // I2C başlat — Wire yerine doğrudan SDK
     i2c_init(_i2c, 400000);
@@ -20,6 +151,24 @@ void SensorManager::init() {
     gpio_set_function(PIN_SCL, GPIO_FUNC_I2C);
     gpio_pull_up(PIN_SDA);
     gpio_pull_up(PIN_SCL);
+
+    uint8_t whoami = 0;
+    if (!_readWhoAmI(whoami) || whoami != MPU6050_WHOAMI_VAL) {
+        _imuAvailable = false;
+        Serial.printf("[SENSOR] MPU6050 WHOAMI hatasi: 0x%02X (beklenen 0x%02X)\n",
+                      whoami, MPU6050_WHOAMI_VAL);
+    } else {
+        _imuAvailable = true;
+    }
+
+    if (!_imuAvailable) {
+        Serial.println("[SENSOR] MPU6050 devre disi birakildi.");
+        _buf[0].valid = false;
+        _buf[0].health = SensorHealth::Invalid;
+        _buf[1].valid = false;
+        _buf[1].health = SensorHealth::Invalid;
+        return;
+    }
 
     // MPU6050 uyandır
     _mpu_write_reg(MPU6050_REG_PWR, 0x00);
@@ -69,8 +218,21 @@ void SensorManager::init() {
     );
 
     #ifdef USE_GY87
-        // HMC5883L ve BMP085 native SDK I2C üzerinden asenkron okunacak
         _i2c_dma_chan = dma_claim_unused_channel(true);
+        dma_channel_config aux_cfg = dma_channel_get_default_config(_i2c_dma_chan);
+        channel_config_set_transfer_data_size(&aux_cfg, DMA_SIZE_8);
+        channel_config_set_read_increment(&aux_cfg, false);
+        channel_config_set_write_increment(&aux_cfg, true);
+        channel_config_set_dreq(&aux_cfg, i2c_get_dreq(_i2c, false));
+        dma_channel_configure(
+            _i2c_dma_chan,
+            &aux_cfg,
+            nullptr,
+            &i2c_get_hw(_i2c)->data_cmd,
+            0,
+            false
+        );
+
         _hasMag = _initMag();
         if (!_hasMag) Serial.println("[SENSOR] HMC5883L bulunamadi!");
         else          Serial.println("[SENSOR] HMC5883L hazir.");
@@ -118,7 +280,12 @@ bool SensorManager::_i2c_read_regs_dma(uint8_t slave_addr, uint8_t reg, uint8_t*
     dma_channel_set_trans_count(_i2c_dma_chan, len, false);
     dma_channel_start(_i2c_dma_chan);
 
+    uint32_t startUs = micros();
     while (dma_channel_is_busy(_i2c_dma_chan)) {
+        if ((uint32_t)(micros() - startUs) > I2C_DMA_TIMEOUT_US) {
+            dma_channel_abort(_i2c_dma_chan);
+            return false;
+        }
         tight_loop_contents();
     }
 
@@ -235,12 +402,23 @@ void __not_in_flash_func(SensorManager::_mpu_parse)(SensorBuffer& buf) {
     int16_t raw_gy = to_int16(_dma_buf[10], _dma_buf[11]);
     int16_t raw_gz = to_int16(_dma_buf[12], _dma_buf[13]);
 
-    // Ham ivme
-    float ax_raw = raw_ax * ACCEL_SCALE;
-    float ay_raw = raw_ay * ACCEL_SCALE;
-    float az_raw = raw_az * ACCEL_SCALE;
+    float gx_raw = raw_gx * GYRO_SCALE - _gyroBiasX;
+    float gy_raw = raw_gy * GYRO_SCALE - _gyroBiasY;
+    float gz_raw = raw_gz * GYRO_SCALE - _gyroBiasZ;
+
+    // Küçük median penceresi tek örnek sıçramalarını bastırır.
+    buf.gx = _gxMedian.update(gx_raw);
+    buf.gy = _gyMedian.update(gy_raw);
+    buf.gz = _gzMedian.update(gz_raw);
 
     // IIR Low-Pass Filter: y[n] = alpha * x[n] + (1 - alpha) * y[n-1]
+    float ax_raw = raw_ax * ACCEL_SCALE - _accelBiasX;
+    float ay_raw = raw_ay * ACCEL_SCALE - _accelBiasY;
+    float az_raw = raw_az * ACCEL_SCALE - _accelBiasZ;
+    ax_raw = _axMedian.update(ax_raw);
+    ay_raw = _ayMedian.update(ay_raw);
+    az_raw = _azMedian.update(az_raw);
+
     _ax_f = IIR_ALPHA * ax_raw + (1.0f - IIR_ALPHA) * _ax_f;
     _ay_f = IIR_ALPHA * ay_raw + (1.0f - IIR_ALPHA) * _ay_f;
     _az_f = IIR_ALPHA * az_raw + (1.0f - IIR_ALPHA) * _az_f;
@@ -249,16 +427,34 @@ void __not_in_flash_func(SensorManager::_mpu_parse)(SensorBuffer& buf) {
     buf.ay = _ay_f;
     buf.az = _az_f;
 
-    // Jiroskop filtrelenmez — Madgwick zaten entegrasyon yapıyor
-    buf.gx = raw_gx * GYRO_SCALE;
-    buf.gy = raw_gy * GYRO_SCALE;
-    buf.gz = raw_gz * GYRO_SCALE;
-
     // Sıcaklık: MPU6050 datasheet formülü
     buf.tempC = (float)raw_t / 340.0f + 36.53f;
 
     buf.timestamp = micros();
     buf.valid = true;
+    buf.health = SensorHealth::Ok;
+
+#if SENSOR_DEBUG_LOG_ENABLED
+    uint32_t nowMs = millis();
+    if (nowMs - _lastSensorDebugLogMs >= SENSOR_DEBUG_LOG_INTERVAL_MS) {
+        _lastSensorDebugLogMs = nowMs;
+        Serial.printf(
+            "[SENSOR_FILTER] acc_raw=%.4f,%.4f,%.4f acc_f=%.4f,%.4f,%.4f gyro_raw=%.3f,%.3f,%.3f gyro_f=%.3f,%.3f,%.3f\n",
+            raw_ax * ACCEL_SCALE - _accelBiasX,
+            raw_ay * ACCEL_SCALE - _accelBiasY,
+            raw_az * ACCEL_SCALE - _accelBiasZ,
+            buf.ax,
+            buf.ay,
+            buf.az,
+            gx_raw,
+            gy_raw,
+            gz_raw,
+            buf.gx,
+            buf.gy,
+            buf.gz
+        );
+    }
+#endif
 }
 
 void SensorManager::update() {
@@ -278,9 +474,13 @@ void SensorManager::update() {
                 int16_t mx = (int16_t)(_hmc_dma_buf[0] << 8 | _hmc_dma_buf[1]);
                 int16_t my = (int16_t)(_hmc_dma_buf[4] << 8 | _hmc_dma_buf[5]);
                 int16_t mz = (int16_t)(_hmc_dma_buf[2] << 8 | _hmc_dma_buf[3]);
-                buf.mx = mx * 0.92f;
-                buf.my = my * 0.92f;
-                buf.mz = mz * 0.92f;
+                float mxScaled = mx * 0.92f;
+                float myScaled = my * 0.92f;
+                float mzScaled = mz * 0.92f;
+                observeMagCalibrationSample(mxScaled, myScaled, mzScaled);
+                buf.mx = mxScaled - (_magCalibration.valid ? _magCalibration.hardIronX : 0.0f);
+                buf.my = myScaled - (_magCalibration.valid ? _magCalibration.hardIronY : 0.0f);
+                buf.mz = mzScaled - (_magCalibration.valid ? _magCalibration.hardIronZ : 0.0f);
             }
         } else {
             buf.mx = buf.my = buf.mz = 0.0f;
@@ -307,6 +507,14 @@ SensorBuffer SensorManager::getLatest() {
     mutex_enter_blocking(&_mutex);
     SensorBuffer copy = _buf[_writeIdx];
     mutex_exit(&_mutex);
+
+    if (!copy.valid) {
+        copy.health = _imuAvailable ? SensorHealth::WarmingUp : SensorHealth::Invalid;
+    } else if ((uint32_t)(micros() - copy.timestamp) > SENSOR_STALE_TIMEOUT_US) {
+        copy.health = SensorHealth::Stale;
+        copy.valid = false;
+    }
+
     return copy;
 }
 

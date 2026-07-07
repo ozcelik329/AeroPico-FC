@@ -3,6 +3,7 @@
 
 #include <Arduino.h>
 #include "../config.h"
+#include "../filters/RunningMedian.h"
 #include "hardware/i2c.h"
 #include "hardware/dma.h"
 #include "pico/platform.h"
@@ -30,7 +31,8 @@
 #define MPU6050_REG_GYRO_CFG  0x1B
 #define MPU6050_REG_ACCEL_CFG 0x1C
 #define MPU6050_REG_DLPF    0x1A
-#define MPU6050_REG_TEMP    0x41  // Sıcaklık register'ı
+#define MPU6050_REG_WHOAMI  0x75
+#define MPU6050_WHOAMI_VAL  0x68
 
 #define MPU6050_RAW_LEN     14
 
@@ -40,7 +42,10 @@
 // IIR Low-Pass Filter alpha değeri (0.0-1.0)
 // Düşük alpha = daha fazla filtreleme, daha fazla gecikme
 // Yüksek alpha = daha az filtreleme, daha az gecikme
+#define MPU6050_REG_TEMP    0x41  // Sıcaklık register'ı
+
 #define IIR_ALPHA    0.15f
+#define BOOT_CAL_SAMPLES    256
 
 #include "../types.h"
 
@@ -50,9 +55,20 @@ class SensorManager : public IImuDriver, public IMagDriver, public IBaroDriver, 
     void update();
     SensorBuffer getLatest();
 
+    bool isImuAvailable() const override;
+    bool isDmaOk() const override;
+    bool runBootCalibration() override;
+    ImuCalibration getImuCalibration() const;
+    void setImuCalibration(const ImuCalibration& calibration);
+
     // Driver capability queries
     bool hasMag() const override;
     bool hasBaro() const override;
+    void beginMagCalibration();
+    bool observeMagCalibrationSample(float mx, float my, float mz);
+    MagCalibration finishMagCalibration();
+    MagCalibration getMagCalibration() const;
+    void setMagCalibration(const MagCalibration& calibration);
 
     #ifdef USE_GY87
       bool _hasMag  = false;
@@ -60,6 +76,8 @@ class SensorManager : public IImuDriver, public IMagDriver, public IBaroDriver, 
     #endif
 
   private:
+    bool _imuAvailable = false;
+
     int _dma_chan = -1;
     int _mpu_tx_dma_chan = -1;
     uint8_t _dma_buf[MPU6050_RAW_LEN];
@@ -68,6 +86,26 @@ class SensorManager : public IImuDriver, public IMagDriver, public IBaroDriver, 
 
     // IIR filter state
     float _ax_f = 0.0f, _ay_f = 0.0f, _az_f = 0.0f;
+    RunningMedian<float, SENSOR_MEDIAN_WINDOW> _axMedian;
+    RunningMedian<float, SENSOR_MEDIAN_WINDOW> _ayMedian;
+    RunningMedian<float, SENSOR_MEDIAN_WINDOW> _azMedian;
+    RunningMedian<float, SENSOR_MEDIAN_WINDOW> _gxMedian;
+    RunningMedian<float, SENSOR_MEDIAN_WINDOW> _gyMedian;
+    RunningMedian<float, SENSOR_MEDIAN_WINDOW> _gzMedian;
+    uint32_t _lastSensorDebugLogMs = 0;
+
+    // Boot kalibrasyon ofsetleri
+    float _gyroBiasX = 0.0f, _gyroBiasY = 0.0f, _gyroBiasZ = 0.0f;
+    float _accelBiasX = 0.0f, _accelBiasY = 0.0f, _accelBiasZ = 0.0f;
+    ImuCalibration _imuCalibration = {};
+    MagCalibration _magCalibration = {};
+    bool _magCalCollecting = false;
+    float _magMinX = 0.0f, _magMinY = 0.0f, _magMinZ = 0.0f;
+    float _magMaxX = 0.0f, _magMaxY = 0.0f, _magMaxZ = 0.0f;
+
+    bool _readWhoAmI(uint8_t& whoami);
+    bool _readRawSample(int16_t& raw_ax, int16_t& raw_ay, int16_t& raw_az,
+                        int16_t& raw_gx, int16_t& raw_gy, int16_t& raw_gz);
 
     void _mpu_write_reg(uint8_t reg, uint8_t val);
     void _mpu_start_dma_read();

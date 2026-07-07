@@ -1,4 +1,5 @@
 #include "ParamManager.h"
+#include "MavlinkHandler.h"
 
 #ifdef MAVLINK_PARAMS_ENABLED
 
@@ -7,6 +8,33 @@ ParamManager paramManager;
 void ParamManager::init() {
     Serial.println("[PARAMS] Parametre yoneticisi baslatildi.");
     Serial.printf("[PARAMS] %d parametre yuklu.\n", PARAM_COUNT);
+}
+
+void ParamManager::setPidGainsApplyHandler(PidGainsApplyHandler handler) {
+    _pidGainsApplyHandler = handler;
+}
+
+int ParamManager::_findParamIndex(const char* name) const {
+    for (uint8_t i = 0; i < PARAM_COUNT; i++) {
+        if (strncmp(_params[i].name, name, 16) == 0) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+bool ParamManager::setParamByName(const char* name, float value) {
+    int index = _findParamIndex(name);
+    if (index < 0) return false;
+
+    _params[index].value = constrain(value, _params[index].minVal, _params[index].maxVal);
+    if (_pidGainsApplyHandler) {
+        _pidGainsApplyHandler(
+            getAngleP(), getAngleI(), getAngleD(),
+            getRateP(), getRateI(), getRateD()
+        );
+    }
+    return true;
 }
 
 void ParamManager::handleMessage(const mavlink_message_t& msg) {
@@ -57,20 +85,12 @@ void ParamManager::_handleParamSet(const mavlink_message_t& msg) {
     mavlink_param_set_t set;
     mavlink_msg_param_set_decode(&msg, &set);
 
-    for (uint8_t i = 0; i < PARAM_COUNT; i++) {
-        if (strncmp(_params[i].name, set.param_id, 16) == 0) {
-            // Sınır kontrolü
-            float newVal = constrain(set.param_value,
-                                     _params[i].minVal,
-                                     _params[i].maxVal);
-            _params[i].value = newVal;
-
-            Serial.printf("[PARAMS] %s = %.4f\n", _params[i].name, newVal);
-
-            // Onay olarak geri gönder
-            sendParam(i);
-            return;
-        }
+    int index = _findParamIndex(set.param_id);
+    if (index >= 0) {
+        setParamByName(_params[index].name, set.param_value);
+        Serial.printf("[PARAMS] %s = %.4f\n", _params[index].name, _params[index].value);
+        sendParam(index);
+        return;
     }
 
     Serial.println("[PARAMS] Bilinmeyen parametre!");

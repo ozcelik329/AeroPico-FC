@@ -7,10 +7,24 @@ void FlightModeController::init() {
 }
 
 void FlightModeController::update(uint16_t throttle, uint16_t rudder) {
+    update(throttle, rudder, false);
+}
+
+void FlightModeController::update(uint16_t throttle, uint16_t rudder, bool failsafe) {
     uint32_t now = millis();
 
+    if (failsafe) {
+        if (_armed) {
+            Serial.println("[ARM] Failsafe nedeniyle disarm edildi!");
+        }
+        _armed = false;
+        _armHoldStart = 0;
+        _disarmHoldStart = 0;
+        return;
+    }
+
     if (!_armed) {
-        if (throttle < ARM_THROTTLE_MAX && rudder > ARM_RUDDER_MIN) {
+        if (throttle < ARM_THROTTLE_MAX && rudder >= ARM_RUDDER_MIN) {
             if (_armHoldStart == 0) _armHoldStart = now;
             if (now - _armHoldStart >= ARM_HOLD_MS) {
                 _armed = true;
@@ -21,7 +35,7 @@ void FlightModeController::update(uint16_t throttle, uint16_t rudder) {
             _armHoldStart = 0;
         }
     } else {
-        if (throttle < ARM_THROTTLE_MAX && rudder < DISARM_RUDDER_MAX) {
+        if (throttle < ARM_THROTTLE_MAX && rudder <= DISARM_RUDDER_MAX) {
             if (_disarmHoldStart == 0) _disarmHoldStart = now;
             if (now - _disarmHoldStart >= ARM_HOLD_MS) {
                 _armed = false;

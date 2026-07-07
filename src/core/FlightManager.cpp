@@ -20,6 +20,9 @@ void FlightManager::update() {
     if (_imu) _imu->update();
     performSensorFusion();
     if (_rx) _rx->update();
+    if (_rcOverrideActive && (millis() - _rcOverrideLastMs > MAVLINK_RC_OVERRIDE_TIMEOUT_MS)) {
+        clearRCOverride();
+    }
 
     SensorBuffer buf = _imu ? _imu->getLatest() : SensorBuffer{};
 
@@ -30,6 +33,7 @@ void FlightManager::update() {
     data.roll  = fusion.getRoll();
     data.pitch = fusion.getPitch();
     data.yaw   = fusion.getYaw();
+    data.sensorHealth = buf.health;
     data.timestamp = micros();
 
     if (!_rx || !_rx->isValid()) {
@@ -38,6 +42,12 @@ void FlightManager::update() {
         data.throttle = PWM_MIN;
         data.rudder   = PWM_NEUTRAL;
         data.failsafe = true;
+    } else if (_rcOverrideActive) {
+        data.aileron  = _rcOverrideAileron;
+        data.elevator = _rcOverrideElevator;
+        data.throttle = _rcOverrideThrottle;
+        data.rudder   = _rcOverrideRudder;
+        data.failsafe = false;
     } else {
         data.aileron  = _rx->getChannel(RC_ROLL_CHANNEL);
         data.elevator = _rx->getChannel(RC_PITCH_CHANNEL);
@@ -52,6 +62,9 @@ void FlightManager::update() {
 
 void FlightManager::performSensorFusion() {
     SensorBuffer buf = _imu ? _imu->getLatest() : SensorBuffer{};
+    if (!buf.valid || buf.health != SensorHealth::Ok) {
+        return;
+    }
 
     fusion.setTemperature(buf.tempC);
 
@@ -108,9 +121,22 @@ uint16_t FlightManager::getElevator() { return readLatestSnapshot().elevator; }
 uint16_t FlightManager::getThrottle() { return readLatestSnapshot().throttle; }
 uint16_t FlightManager::getRudder()   { return readLatestSnapshot().rudder; }
 
+void FlightManager::setRCOverride(uint16_t aileron, uint16_t elevator, uint16_t throttle, uint16_t rudder) {
+    _rcOverrideActive = true;
+    _rcOverrideLastMs = millis();
+    _rcOverrideAileron = constrain(aileron, PWM_MIN, PWM_MAX);
+    _rcOverrideElevator = constrain(elevator, PWM_MIN, PWM_MAX);
+    _rcOverrideThrottle = constrain(throttle, PWM_MIN, PWM_MAX);
+    _rcOverrideRudder = constrain(rudder, PWM_MIN, PWM_MAX);
+}
+
+void FlightManager::clearRCOverride() {
+    _rcOverrideActive = false;
+}
+
 void FlightManager::updateControllers(const FlightData& data) {
     // Orkestrasyon: öncelikle mod/arm güncelle
-    _modeController.update(data.throttle, data.rudder);
+    _modeController.update(data.throttle, data.rudder, data.failsafe);
 
     // Navigation ve altitude kontrolörlerine güncel kumanda ve sensör verilerini ilet
     _navController.update(data.aileron, data.elevator, data.failsafe);

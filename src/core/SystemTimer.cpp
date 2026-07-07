@@ -5,14 +5,21 @@
 #include "../def.h"
 #include "../config.h"
 #include "PID.h"
+#include <FreeRTOS.h>
+#include <task.h>
 #include <pico/time.h>
 #include <hardware/gpio.h>
 
-static PID rollAnglePID(ANGLE_P_GAIN, ANGLE_I_GAIN, ANGLE_D_GAIN);
-static PID pitchAnglePID(ANGLE_P_GAIN, ANGLE_I_GAIN, ANGLE_D_GAIN);
-static PID rollRatePID(RATE_P_GAIN, RATE_I_GAIN, RATE_D_GAIN);
-static PID pitchRatePID(RATE_P_GAIN, RATE_I_GAIN, RATE_D_GAIN);
-static PID yawRatePID(RATE_P_GAIN, RATE_I_GAIN, RATE_D_GAIN);
+static PID rollAnglePID(ANGLE_P_GAIN, ANGLE_I_GAIN, ANGLE_D_GAIN,
+                        -MAX_YAW_RATE, MAX_YAW_RATE, PID_INTEGRAL_LIMIT);
+static PID pitchAnglePID(ANGLE_P_GAIN, ANGLE_I_GAIN, ANGLE_D_GAIN,
+                         -MAX_YAW_RATE, MAX_YAW_RATE, PID_INTEGRAL_LIMIT);
+static PID rollRatePID(RATE_P_GAIN, RATE_I_GAIN, RATE_D_GAIN,
+                       -PID_SERVO_CORRECTION_LIMIT, PID_SERVO_CORRECTION_LIMIT, PID_INTEGRAL_LIMIT);
+static PID pitchRatePID(RATE_P_GAIN, RATE_I_GAIN, RATE_D_GAIN,
+                        -PID_SERVO_CORRECTION_LIMIT, PID_SERVO_CORRECTION_LIMIT, PID_INTEGRAL_LIMIT);
+static PID yawRatePID(RATE_P_GAIN, RATE_I_GAIN, RATE_D_GAIN,
+                      -PID_SERVO_CORRECTION_LIMIT, PID_SERVO_CORRECTION_LIMIT, PID_INTEGRAL_LIMIT);
 static FixedWingMixer mixer;
 
 static volatile uint32_t phaseStartUs[SystemTimer::PHASE_COUNT];
@@ -101,12 +108,34 @@ bool SystemTimer::checkTimingBudgets() {
     return true;
 }
 
+TimingBudgetStatus SystemTimer::getTimingBudgetStatus() {
+    TimingBudgetStatus status;
+    status.consumeUs = phaseMaxUs[PHASE_CONSUME];
+    status.pidUs = phaseMaxUs[PHASE_PID];
+    status.mixerUs = phaseMaxUs[PHASE_MIXER];
+    status.totalUs = phaseMaxUs[PHASE_TOTAL];
+    status.consumeExceeded = phaseBudgetExceeded[PHASE_CONSUME];
+    status.pidExceeded = phaseBudgetExceeded[PHASE_PID];
+    status.mixerExceeded = phaseBudgetExceeded[PHASE_MIXER];
+    status.totalExceeded = phaseBudgetExceeded[PHASE_TOTAL];
+    return status;
+}
+
 void SystemTimer::logTimingStats() {
     Serial.printf("Timing budgets: consume=%u/%uus pid=%u/%uus mixer=%u/%uus total=%u/%uus\n",
         phaseMaxUs[PHASE_CONSUME], PHASE_CONSUME_BUDGET_US,
         phaseMaxUs[PHASE_PID], PHASE_PID_BUDGET_US,
         phaseMaxUs[PHASE_MIXER], PHASE_MIXER_BUDGET_US,
         phaseMaxUs[PHASE_TOTAL], PHASE_TOTAL_BUDGET_US);
+}
+
+void SystemTimer::applyPidGains(float angleP, float angleI, float angleD,
+                                float rateP, float rateI, float rateD) {
+    rollAnglePID.setGains(angleP, angleI, angleD);
+    pitchAnglePID.setGains(angleP, angleI, angleD);
+    rollRatePID.setGains(rateP, rateI, rateD);
+    pitchRatePID.setGains(rateP, rateI, rateD);
+    yawRatePID.setGains(rateP, rateI, rateD);
 }
 
 static float mapFloat(float x, float in_min, float in_max, float out_min, float out_max) {
@@ -136,20 +165,15 @@ void SystemManager::init() {
     initTimingMeasurements();
     is_running = true;
     core1HeartbeatUs = micros();
-    multicore_launch_core1(core1_entry);
 }
 
 void SystemManager::core1_entry() {
-    // Sabit frekanslı döngü: LOOP_TIME µs = 500 Hz
-    uint32_t next_tick = micros();
+    const TickType_t loopPeriodTicks = pdMS_TO_TICKS(LOOP_TIME_US / 1000);
+    TickType_t nextWake = xTaskGetTickCount();
+    uint32_t lastTickUs = micros();
 
     while (true) {
         uint32_t now = micros();
-
-        // Zamanlanmış tick'i bekle (busy-wait yerine sleep)
-        if ((int32_t)(now - next_tick) < 0) {
-            continue;
-        }
 
         // Heartbeat: armed/disarmed farketmeksizin HER turda güncellenir.
         // Core 0 bunu okuyup Core 1'in canlı olduğunu doğrular.
@@ -158,12 +182,16 @@ void SystemManager::core1_entry() {
 
         beginTiming(PHASE_TOTAL);
 
-        // Gerçek dt: bir önceki tick'ten bu yana geçen süre
-        float dt = (float)LOOP_TIME / 1000000.0f;
-        next_tick += LOOP_TIME;
+        float dt = (float)(now - lastTickUs) / 1000000.0f;
+        lastTickUs = now;
+        if (dt <= 0.0f || dt > 0.05f) {
+            dt = (float)LOOP_TIME_US / 1000000.0f;
+        }
+
         if (!flightManager.isArmed()) {
             writeMotors(PWM_MIN, PWM_NEUTRAL, PWM_NEUTRAL, PWM_NEUTRAL);
             endTiming(PHASE_TOTAL);
+            vTaskDelayUntil(&nextWake, loopPeriodTicks);
             continue;
         }
 
@@ -201,5 +229,6 @@ void SystemManager::core1_entry() {
         endTiming(PHASE_MIXER);
 
         endTiming(PHASE_TOTAL);
+        vTaskDelayUntil(&nextWake, loopPeriodTicks);
     }
 }

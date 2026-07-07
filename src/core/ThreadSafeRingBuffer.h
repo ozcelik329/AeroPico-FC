@@ -29,12 +29,10 @@ class ThreadSafeRingBuffer {
     }
 
     bool peek(T& item) const {
-        // const-correctness: cast away to lock
-        ThreadSafeRingBuffer* self = (ThreadSafeRingBuffer*)this;
-        std::lock_guard<std::mutex> g(self->_mtx);
-        if (self->_head == self->_tail) return false;
-        uint8_t last = (self->_head == 0) ? (SIZE - 1) : (self->_head - 1);
-        item = self->_buf[last];
+        std::lock_guard<std::mutex> g(_mtx);
+        if (_head == _tail) return false;
+        uint8_t last = (_head == 0) ? (SIZE - 1) : (_head - 1);
+        item = _buf[last];
         return true;
     }
 
@@ -75,23 +73,22 @@ class ThreadSafeRingBuffer {
     }
 
     bool peek(T& item) const {
-        ThreadSafeRingBuffer* self = (ThreadSafeRingBuffer*)this;
-        mutex_enter_blocking(&self->_mutex);
-        if (self->_head == self->_tail) { mutex_exit(&self->_mutex); return false; }
-        uint8_t last = (self->_head == 0) ? (SIZE - 1) : (self->_head - 1);
-        item = self->_buf[last];
-        mutex_exit(&self->_mutex);
+        mutex_enter_blocking(&_mutex);
+        if (_head == _tail) { mutex_exit(&_mutex); return false; }
+        uint8_t last = (_head == 0) ? (SIZE - 1) : (_head - 1);
+        item = _buf[last];
+        mutex_exit(&_mutex);
         return true;
     }
 
-    bool isEmpty() const { ThreadSafeRingBuffer* self = (ThreadSafeRingBuffer*)this; mutex_enter_blocking(&self->_mutex); bool e = (self->_head == self->_tail); mutex_exit(&self->_mutex); return e; }
-    bool isFull()  const { ThreadSafeRingBuffer* self = (ThreadSafeRingBuffer*)this; mutex_enter_blocking(&self->_mutex); bool f = (((self->_head + 1) % SIZE) == self->_tail); mutex_exit(&self->_mutex); return f; }
+    bool isEmpty() const { mutex_enter_blocking(&_mutex); bool e = (_head == _tail); mutex_exit(&_mutex); return e; }
+    bool isFull()  const { mutex_enter_blocking(&_mutex); bool f = (((_head + 1) % SIZE) == _tail); mutex_exit(&_mutex); return f; }
 
   private:
     volatile uint8_t _head;
     volatile uint8_t _tail;
     T _buf[SIZE];
-    mutex_t _mutex;
+    mutable mutex_t _mutex;
 };
 #endif
 

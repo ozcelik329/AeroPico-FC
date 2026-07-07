@@ -9,6 +9,9 @@ class IImuDriver {
     virtual void init() = 0;
     virtual void update() = 0;
     virtual SensorBuffer getLatest() = 0;
+    virtual bool isImuAvailable() const = 0;
+    virtual bool isDmaOk() const = 0;
+    virtual bool runBootCalibration() = 0;
 };
 
 class IMagDriver {

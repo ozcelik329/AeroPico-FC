@@ -8,6 +8,7 @@ class FlightModeController {
   public:
     void init();
     void update(uint16_t throttle, uint16_t rudder);
+    void update(uint16_t throttle, uint16_t rudder, bool failsafe);
     bool isArmed() const { return _armed; }
 
   private:
@@ -17,4 +18,3 @@ class FlightModeController {
 };
 
 #endif
-

@@ -9,9 +9,6 @@
 #include "../drivers/PioUart.h"
 #include "../config.h"
 
-#define MAV_SYSTEM_ID    1
-#define MAV_COMPONENT_ID MAV_COMP_ID_AUTOPILOT1
-
 // Desteklenen parametreler
 #define PARAM_COUNT 6
 
@@ -24,7 +21,12 @@ struct Param {
 
 class ParamManager {
   public:
+    using PidGainsApplyHandler = void (*)(float angleP, float angleI, float angleD,
+                                          float rateP, float rateI, float rateD);
+
     void init();
+    void setPidGainsApplyHandler(PidGainsApplyHandler handler);
+    bool setParamByName(const char* name, float value);
 
     // Gelen MAVLink mesajını işle
     void handleMessage(const mavlink_message_t& msg);
@@ -52,10 +54,12 @@ class ParamManager {
         {"RATE_I",  RATE_I_GAIN,  0.0f,  1.0f},
         {"RATE_D",  RATE_D_GAIN,  0.0f,  1.0f},
     };
+    PidGainsApplyHandler _pidGainsApplyHandler = nullptr;
 
     void _handleParamRequestList(const mavlink_message_t& msg);
     void _handleParamSet(const mavlink_message_t& msg);
     void _sendPacket(mavlink_message_t& msg);
+    int _findParamIndex(const char* name) const;
 };
 
 extern ParamManager paramManager;

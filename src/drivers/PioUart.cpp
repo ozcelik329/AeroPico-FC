@@ -2,6 +2,7 @@
 
 PioUart espUart;
 
+#ifndef UNIT_TEST
 void PioUart::init(uint32_t baud) {
     // TX
     _offset_tx = pio_add_program(_pio, &pio_uart_tx_program);
@@ -49,3 +50,4 @@ bool PioUart::available() {
 uint8_t PioUart::read() {
     return (uint8_t)pio_sm_get_blocking(_pio, _sm_rx);
 }
+#endif

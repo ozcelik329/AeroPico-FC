@@ -6,34 +6,64 @@
 #include "core/FlightManager.h"
 #include "core/SystemTimer.h"
 #include "utils/Logger.h"
+#include "utils/BootLogger.h"
 #include "telemetry/MavlinkHandler.h"
 #include "telemetry/Blackbox.h"
+#ifdef MAVLINK_PARAMS_ENABLED
+#include "telemetry/ParamManager.h"
+#endif
 
 FlightManager flightManager;
 
-// Concrete drivers
 #include "drivers/Sensors.h"
 #include "drivers/RX.h"
 SensorManager sensorManager;
 RXManager rxManager;
 
-// Core 1 (uçuş kontrol döngüsü) taze mi? Bkz. SystemTimer::core1HeartbeatUs.
-// Eşik: LOOP_TIME (2ms) döngüsüne göre bolca marj bırakan, ama donanım
-// watchdog süresinden (WATCHDOG_TIMEOUT_MS) çok daha kısa bir değer.
-static constexpr uint32_t CORE1_STALE_THRESHOLD_US = 20000; // 20 ms
+static constexpr uint32_t CORE1_STALE_THRESHOLD_US = 20000;
 
 static bool isCore1Alive() {
     uint32_t age = micros() - SystemTimer::getCore1HeartbeatUs();
     return age < CORE1_STALE_THRESHOLD_US;
 }
 
+static bool provideFlightData(FlightData& out) {
+    return flightManager.peekLatest(out);
+}
+
+static bool provideArmState() {
+    return flightManager.isArmed();
+}
+
+static void applyRCOverride(uint16_t aileron, uint16_t elevator, uint16_t throttle, uint16_t rudder) {
+    flightManager.setRCOverride(aileron, elevator, throttle, rudder);
+}
+
+static void clearRCOverride() {
+    flightManager.clearRCOverride();
+}
+
+static void applyPidGains(float angleP, float angleI, float angleD,
+                          float rateP, float rateI, float rateD) {
+    SystemTimer::applyPidGains(angleP, angleI, angleD, rateP, rateI, rateD);
+}
+
+extern "C" void vApplicationStackOverflowHook(TaskHandle_t xTask, char* pcTaskName) {
+    Serial.printf("[FREERTOS] Stack overflow in %s\n", pcTaskName);
+    taskDISABLE_INTERRUPTS();
+    while (true) {}
+}
+
+extern "C" void vApplicationMallocFailedHook() {
+    Serial.println("[FREERTOS] Malloc failed!");
+    taskDISABLE_INTERRUPTS();
+    while (true) {}
+}
+
 void taskSensor(void* pvParameters) {
     for (;;) {
         flightManager.update();
 
-        // Watchdog'u yalnızca Core 1 gerçekten taze/canlıysa besle.
-        // Core 1 kilitlenirse besleme durur ve donanım watchdog'u
-        // WATCHDOG_TIMEOUT_MS içinde chip'i resetler.
         if (isCore1Alive()) {
             watchdog_update();
         } else {
@@ -46,16 +76,14 @@ void taskSensor(void* pvParameters) {
 
 void taskFlight(void* pvParameters) {
     SystemTimer::init();
-    for (;;) {
-        vTaskDelay(pdMS_TO_TICKS(1000));
-    }
+    SystemTimer::core1_entry();
 }
 
 void taskTelemetry(void* pvParameters) {
+    uint32_t lastTimingReportMs = 0;
     for (;;) {
-        mavlink.update();  // Tüm stream'ler burada yönetiliyor
+        mavlink.update();
 
-        // Blackbox: 50 Hz — bağımsız olarak devam eder
         FlightData d;
         if (flightManager.peekLatest(d)) {
             blackbox.log(
@@ -69,29 +97,93 @@ void taskTelemetry(void* pvParameters) {
                 d.aileron,
                 d.elevator,
                 d.rudder,
-                false
+                d.failsafe,
+                d.sensorHealth
             );
         }
 
-        vTaskDelay(pdMS_TO_TICKS(20)); // 50 Hz
+        if (!SystemTimer::checkTimingBudgets() && millis() - lastTimingReportMs >= 1000) {
+            lastTimingReportMs = millis();
+            TimingBudgetStatus status = SystemTimer::getTimingBudgetStatus();
+            blackbox.logTimingBudget(status);
+            mavlink.sendStatusText("Timing budget exceeded");
+            SystemTimer::logTimingStats();
+        }
+
+        vTaskDelay(pdMS_TO_TICKS(20));
     }
 }
 
 void setup() {
     Serial.begin(115200);
+    delay(100);
 
     watchdog_enable(WATCHDOG_TIMEOUT_MS, true);
 
+    BootLogger::printBanner();
+
+    if (watchdog_caused_reboot()) {
+        BootLogger::warn("Watchdog", "Onceki oturum watchdog ile resetlendi");
+    }
+
     Logger::init();
     flightManager.init(&sensorManager, &rxManager);
+
+    bool imuOk = sensorManager.isImuAvailable();
+    if (imuOk) {
+        BootLogger::okWithValue("MPU6050", "WHOAMI=0x68");
+        if (sensorManager.runBootCalibration()) {
+            BootLogger::ok("Gyro/Accel Bias Cal");
+        } else {
+            BootLogger::warn("Gyro/Accel Bias Cal", "Yetersiz ornek veya basarisiz");
+        }
+    } else {
+        BootLogger::fail("MPU6050", "WHOAMI dogrulanamadi veya bagli degil");
+    }
+
+#ifdef USE_GY87
+    if (sensorManager.hasBaro()) BootLogger::ok("BMP085");
+    else BootLogger::fail("BMP085", "Barometre bulunamadi");
+
+    if (sensorManager.hasMag()) BootLogger::ok("HMC5883L");
+    else BootLogger::fail("HMC5883L", "Manyetometre bulunamadi");
+#endif
+
+    BootLogger::ok("RC Receiver (SBUS/UART0)");
+
+    mavlink.setFlightDataProvider(provideFlightData);
+    mavlink.setArmStateProvider(provideArmState);
+    mavlink.setRCOverrideHandler(applyRCOverride);
+    mavlink.setClearRCOverrideHandler(clearRCOverride);
     mavlink.init();
     blackbox.init();
 
-    if (watchdog_caused_reboot()) {
-        Logger::log("[WATCHDOG] Onceki oturum watchdog ile resetlendi!");
-    }
+#ifdef MAVLINK_PARAMS_ENABLED
+    paramManager.setPidGainsApplyHandler(applyPidGains);
+    paramManager.init();
+    applyPidGains(
+        paramManager.getAngleP(), paramManager.getAngleI(), paramManager.getAngleD(),
+        paramManager.getRateP(), paramManager.getRateI(), paramManager.getRateD()
+    );
+#endif
 
-    Logger::log("AeroPico FC Baslatildi!");
+    bool baroOk = sensorManager.hasBaro();
+    bool magOk  = sensorManager.hasMag();
+    bool dmaOk  = sensorManager.isDmaOk();
+    bool rxOk   = true;
+
+    BootLogger::printHealthReport(
+        500,
+        imuOk,
+        baroOk,
+        magOk,
+        rxOk,
+        dmaOk,
+        false,
+        false,
+        rp2040.getFreeHeap()
+    );
+    BootLogger::printReadyMessage();
 
     xTaskCreateAffinitySet(
         taskSensor, "SensorTask",

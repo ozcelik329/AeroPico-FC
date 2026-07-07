@@ -1,10 +1,29 @@
 #include "MavlinkHandler.h"
+#ifdef MAVLINK_PARAMS_ENABLED
+#include "ParamManager.h"
+#endif
 
 MavlinkHandler mavlink;
 
 void MavlinkHandler::init(uint32_t baud) {
     espUart.init(baud);
     Serial.println("[MAVLINK] Baslatildi.");
+}
+
+void MavlinkHandler::setFlightDataProvider(FlightDataProvider provider) {
+    _flightDataProvider = provider;
+}
+
+void MavlinkHandler::setArmStateProvider(ArmStateProvider provider) {
+    _armStateProvider = provider;
+}
+
+void MavlinkHandler::setRCOverrideHandler(RCOverrideHandler handler) {
+    _rcOverrideHandler = handler;
+}
+
+void MavlinkHandler::setClearRCOverrideHandler(ClearRCOverrideHandler handler) {
+    _clearRCOverrideHandler = handler;
 }
 
 void MavlinkHandler::update() {
@@ -31,7 +50,7 @@ void MavlinkHandler::update() {
     if (now - _lastAttitudeSent >= STREAM_ATTITUDE_MS) {
         _lastAttitudeSent = now;
         FlightData d;
-        if (flightManager.peekLatest(d)) {
+        if (_flightDataProvider && _flightDataProvider(d)) {
             sendAttitude(d.roll, d.pitch, d.yaw, d.gyroX, d.gyroY, d.gyroZ);
         }
     }
@@ -40,7 +59,7 @@ void MavlinkHandler::update() {
     if (now - _lastRCSent >= STREAM_RC_MS) {
         _lastRCSent = now;
         FlightData d;
-        if (flightManager.peekLatest(d)) {
+        if (_flightDataProvider && _flightDataProvider(d)) {
             sendRCChannels(d.aileron, d.elevator, d.throttle, d.rudder);
         }
     }
@@ -48,7 +67,14 @@ void MavlinkHandler::update() {
     // SYS_STATUS — 2 Hz
     if (now - _lastSysStatusSent >= STREAM_SYS_STATUS_MS) {
         _lastSysStatusSent = now;
-        sendSysStatus(flightManager.isArmed(), false);
+        FlightData d = {};
+        bool hasData = _flightDataProvider && _flightDataProvider(d);
+        bool armed = _armStateProvider ? _armStateProvider() : false;
+        sendSysStatus(
+            armed,
+            hasData ? d.failsafe : true,
+            hasData ? d.sensorHealth : SensorHealth::Invalid
+        );
     }
 }
 
@@ -69,16 +95,53 @@ void MavlinkHandler::_handleMessage(mavlink_message_t& msg) {
             break;
         }
         case MAVLINK_MSG_ID_RC_CHANNELS_OVERRIDE: {
-            // İleride: GCS'ten gelen RC override komutları
             mavlink_rc_channels_override_t rc;
             mavlink_msg_rc_channels_override_decode(&msg, &rc);
-            // TODO: FlightManager'a ilet
+            _applyRCOverrideRaw(rc.chan1_raw, rc.chan2_raw, rc.chan3_raw, rc.chan4_raw);
             break;
         }
+#ifdef MAVLINK_PARAMS_ENABLED
+        case MAVLINK_MSG_ID_PARAM_REQUEST_LIST:
+        case MAVLINK_MSG_ID_PARAM_SET:
+            paramManager.handleMessage(msg);
+            break;
+#endif
         default:
             break;
     }
 }
+
+void MavlinkHandler::_applyRCOverrideRaw(uint16_t rawCh1, uint16_t rawCh2, uint16_t rawCh3, uint16_t rawCh4) {
+    const uint16_t ignore = UINT16_MAX;
+    if (rawCh1 == ignore && rawCh2 == ignore && rawCh3 == ignore && rawCh4 == ignore) {
+        if (_clearRCOverrideHandler) {
+            _clearRCOverrideHandler();
+        }
+        return;
+    }
+
+    FlightData d = {};
+    bool hasData = _flightDataProvider && _flightDataProvider(d);
+    uint16_t ch1 = (rawCh1 == ignore && hasData) ? d.aileron  : rawCh1;
+    uint16_t ch2 = (rawCh2 == ignore && hasData) ? d.elevator : rawCh2;
+    uint16_t ch3 = (rawCh3 == ignore && hasData) ? d.throttle : rawCh3;
+    uint16_t ch4 = (rawCh4 == ignore && hasData) ? d.rudder   : rawCh4;
+
+    if (rawCh1 == ignore && !hasData) ch1 = PWM_NEUTRAL;
+    if (rawCh2 == ignore && !hasData) ch2 = PWM_NEUTRAL;
+    if (rawCh3 == ignore && !hasData) ch3 = PWM_MIN;
+    if (rawCh4 == ignore && !hasData) ch4 = PWM_NEUTRAL;
+
+    if (_rcOverrideHandler) {
+        _rcOverrideHandler(ch1, ch2, ch3, ch4);
+    }
+}
+
+#ifdef UNIT_TEST
+void MavlinkHandler::handleRCOverrideForTest(uint16_t ch1, uint16_t ch2, uint16_t ch3, uint16_t ch4) {
+    _applyRCOverrideRaw(ch1, ch2, ch3, ch4);
+}
+#endif
 
 void MavlinkHandler::sendHeartbeat() {
     mavlink_message_t msg;
@@ -134,24 +197,59 @@ void MavlinkHandler::sendRCChannels(uint16_t ch1, uint16_t ch2,
     MAV_SERIAL.write(buf, len);
 }
 
-void MavlinkHandler::sendSysStatus(bool armed, bool failsafe) {
+void MavlinkHandler::sendSysStatus(bool armed, bool failsafe, SensorHealth sensorHealth) {
     mavlink_message_t msg;
     uint8_t buf[MAVLINK_MAX_PACKET_LEN];
 
+    (void)armed;
+    (void)failsafe;
+
+    // Batarya izleme yok — MAVLink sentinel: bilinmiyor (-1)
+    const int8_t battery_remaining = -1;
+    const int16_t battery_current  = -1;
+    const uint32_t sensorBits =
+        MAV_SYS_STATUS_SENSOR_3D_GYRO |
+        MAV_SYS_STATUS_SENSOR_3D_ACCEL |
+        MAV_SYS_STATUS_SENSOR_ABSOLUTE_PRESSURE |
+        MAV_SYS_STATUS_SENSOR_3D_MAG;
+    const bool sensorsHealthy = sensorHealth == SensorHealth::Ok;
+    const uint32_t healthBits = sensorsHealthy ? sensorBits : 0;
+
     mavlink_msg_sys_status_pack(
         MAV_SYSTEM_ID, MAV_COMPONENT_ID, &msg,
-        0, 0, 0,
-        0,       // CPU yükü
-        0,       // batarya
-        -1, -1,  // akım, kalan
+        sensorBits,
+        sensorBits,
+        healthBits,
+        0,
+        0,
+        battery_current,
+        battery_remaining,
         0, 0, 0, 0, 0, 0,
-        0, 0, 0  // MAVLink v2 ek parametreler
+        0, 0, 0
     );
 
     uint16_t len = mavlink_msg_to_send_buffer(buf, &msg);
     MAV_SERIAL.write(buf, len);
 }
 
+void MavlinkHandler::sendStatusText(const char* text, uint8_t severity) {
+    mavlink_message_t msg;
+    uint8_t buf[MAVLINK_MAX_PACKET_LEN];
+
+    char statustext[50] = {};
+    strncpy(statustext, text, sizeof(statustext) - 1);
+
+    mavlink_msg_statustext_pack(
+        MAV_SYSTEM_ID, MAV_COMPONENT_ID, &msg,
+        severity,
+        statustext,
+        0,
+        0
+    );
+
+    uint16_t len = mavlink_msg_to_send_buffer(buf, &msg);
+    MAV_SERIAL.write(buf, len);
+}
 
 bool MavlinkHandler::isESP32Alive() const {
     return _esp32Alive;

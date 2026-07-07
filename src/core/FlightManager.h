@@ -11,15 +11,6 @@
 
 #include "ArmDefs.h"
 
-// Core 0 → Core 1 arası paylaşılan veri paketi
-struct FlightData {
-    float roll, pitch, yaw;
-    float gyroX, gyroY, gyroZ;
-    uint16_t aileron, elevator, throttle, rudder;
-    bool failsafe;
-    uint32_t timestamp;
-};
-
 class FlightManager {
   public:
     void init();
@@ -38,6 +29,9 @@ class FlightManager {
     uint16_t getThrottle();
     uint16_t getRudder();
     bool isArmed() { return _modeController.isArmed(); }
+
+    void setRCOverride(uint16_t aileron, uint16_t elevator, uint16_t throttle, uint16_t rudder);
+    void clearRCOverride();
 
     // Consumer: called by the single consumer (Core 1) to consume pending samples
     void consumeLatest();
@@ -64,6 +58,13 @@ class FlightManager {
 
     void performSensorFusion();
     void updateControllers(const FlightData& data);
+
+    bool _rcOverrideActive = false;
+    uint32_t _rcOverrideLastMs = 0;
+    uint16_t _rcOverrideAileron = PWM_NEUTRAL;
+    uint16_t _rcOverrideElevator = PWM_NEUTRAL;
+    uint16_t _rcOverrideThrottle = PWM_MIN;
+    uint16_t _rcOverrideRudder = PWM_NEUTRAL;
 
     // Sequence counter to provide atomic-like snapshot semantics for `_latest`
     volatile uint32_t _latest_seq = 0;

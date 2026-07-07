@@ -1,6 +1,10 @@
 #include "FixedWingMixer.h"
 #include <math.h>
+#ifdef UNIT_TEST
+static void writeMotors(int, int, int, int) {}
+#else
 #include "../drivers/Output.h"
+#endif
 
 FixedWingMixer::FixedWingMixer() {
     settings.rollGain = 1.0f;
@@ -31,6 +35,36 @@ int FixedWingMixer::mapThrottle(uint16_t throttle) {
     return constrain((int)throttle + settings.throttleTrim, PWM_MIN, PWM_MAX);
 }
 
+static int mapPulse(uint16_t value) {
+    long mapped = ((long)value - 1000L) * (PWM_MAX - PWM_MIN) / 1000L + PWM_MIN;
+    return constrain((int)mapped, PWM_MIN, PWM_MAX);
+}
+
+MixerOutput FixedWingMixer::computeOutputs(uint16_t rawThrottle,
+                                           float rollCorrection,
+                                           float pitchCorrection,
+                                           float yawCorrection,
+                                           uint16_t inputAileron,
+                                           uint16_t inputElevator,
+                                           uint16_t inputRudder) {
+    int baseAileron = mapPulse(inputAileron);
+    int baseElevator = mapPulse(inputElevator);
+    int baseRudder = mapPulse(inputRudder);
+
+    MixerOutput out;
+    out.aileron = applyServoMix(baseAileron,
+                                rollCorrection * settings.rollGain,
+                                settings.aileronTrim);
+    out.elevator = applyServoMix(baseElevator,
+                                 pitchCorrection * settings.pitchGain,
+                                 settings.elevatorTrim);
+    out.rudder = applyServoMix(baseRudder,
+                               yawCorrection * settings.yawGain,
+                               settings.rudderTrim);
+    out.throttle = mapThrottle(rawThrottle);
+    return out;
+}
+
 void FixedWingMixer::compute(uint16_t rawThrottle,
                              float rollCorrection,
                              float pitchCorrection,
@@ -38,21 +72,15 @@ void FixedWingMixer::compute(uint16_t rawThrottle,
                              uint16_t inputAileron,
                              uint16_t inputElevator,
                              uint16_t inputRudder) {
-    int baseAileron = map(inputAileron, 1000, 2000, PWM_MIN, PWM_MAX);
-    int baseElevator = map(inputElevator, 1000, 2000, PWM_MIN, PWM_MAX);
-    int baseRudder = map(inputRudder, 1000, 2000, PWM_MIN, PWM_MAX);
+    MixerOutput out = computeOutputs(
+        rawThrottle,
+        rollCorrection,
+        pitchCorrection,
+        yawCorrection,
+        inputAileron,
+        inputElevator,
+        inputRudder
+    );
 
-    int aileronPWM = applyServoMix(baseAileron,
-                                  rollCorrection * settings.rollGain,
-                                  settings.aileronTrim);
-    int elevatorPWM = applyServoMix(baseElevator,
-                                   pitchCorrection * settings.pitchGain,
-                                   settings.elevatorTrim);
-    int rudderPWM = applyServoMix(baseRudder,
-                                  yawCorrection * settings.yawGain,
-                                  settings.rudderTrim);
-
-    int motorPWM = mapThrottle(rawThrottle);
-
-    writeMotors(motorPWM, aileronPWM, elevatorPWM, rudderPWM);
+    writeMotors(out.throttle, out.aileron, out.elevator, out.rudder);
 }
