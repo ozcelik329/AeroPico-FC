@@ -4,15 +4,29 @@
 // Wire → i2c0 (SDA=4, SCL=5 config.h'da tanımlı)
 static i2c_inst_t* _i2c = i2c0;
 
+void SensorManager::_setFault(SensorFaultCode code) {
+    if (code != SensorFaultCode::None) {
+        _faultCode = code;
+    }
+}
+
 void SensorManager::_mpu_write_reg(uint8_t reg, uint8_t val) {
     uint8_t buf[2] = {reg, val};
-    i2c_write_blocking(_i2c, MPU6050_ADDR, buf, 2, false);
+    if (i2c_write_blocking(_i2c, MPU6050_ADDR, buf, 2, false) != 2) {
+        _setFault(SensorFaultCode::I2cRawWriteFailed);
+    }
 }
 
 bool SensorManager::_readWhoAmI(uint8_t& whoami) {
     uint8_t reg = MPU6050_REG_WHOAMI;
-    if (i2c_write_blocking(_i2c, MPU6050_ADDR, &reg, 1, true) != 1) return false;
-    if (i2c_read_blocking(_i2c, MPU6050_ADDR, &whoami, 1, false) != 1) return false;
+    if (i2c_write_blocking(_i2c, MPU6050_ADDR, &reg, 1, true) != 1) {
+        _setFault(SensorFaultCode::I2cWhoamiWriteFailed);
+        return false;
+    }
+    if (i2c_read_blocking(_i2c, MPU6050_ADDR, &whoami, 1, false) != 1) {
+        _setFault(SensorFaultCode::I2cWhoamiReadFailed);
+        return false;
+    }
     return true;
 }
 
@@ -20,8 +34,14 @@ bool SensorManager::_readRawSample(int16_t& raw_ax, int16_t& raw_ay, int16_t& ra
                                    int16_t& raw_gx, int16_t& raw_gy, int16_t& raw_gz) {
     uint8_t reg = MPU6050_REG_ACCEL;
     uint8_t raw[14];
-    if (i2c_write_blocking(_i2c, MPU6050_ADDR, &reg, 1, true) != 1) return false;
-    if (i2c_read_blocking(_i2c, MPU6050_ADDR, raw, sizeof(raw), false) != (int)sizeof(raw)) return false;
+    if (i2c_write_blocking(_i2c, MPU6050_ADDR, &reg, 1, true) != 1) {
+        _setFault(SensorFaultCode::I2cRawWriteFailed);
+        return false;
+    }
+    if (i2c_read_blocking(_i2c, MPU6050_ADDR, raw, sizeof(raw), false) != (int)sizeof(raw)) {
+        _setFault(SensorFaultCode::I2cRawReadFailed);
+        return false;
+    }
 
     auto to_int16 = [](uint8_t hi, uint8_t lo) -> int16_t {
         return (int16_t)((hi << 8) | lo);
@@ -38,6 +58,28 @@ bool SensorManager::_readRawSample(int16_t& raw_ax, int16_t& raw_ay, int16_t& ra
 
 bool SensorManager::isImuAvailable() const { return _imuAvailable; }
 bool SensorManager::isDmaOk() const { return _dma_chan >= 0 && _mpu_tx_dma_chan >= 0; }
+
+SensorFaultCode SensorManager::getFaultCode() const {
+    return _faultCode;
+}
+
+const char* SensorManager::getFaultText() const {
+    switch (_faultCode) {
+        case SensorFaultCode::None: return "None";
+        case SensorFaultCode::I2cWhoamiWriteFailed: return "I2C WHOAMI write failed";
+        case SensorFaultCode::I2cWhoamiReadFailed: return "I2C WHOAMI read failed";
+        case SensorFaultCode::WhoamiMismatch: return "MPU6050 WHOAMI mismatch";
+        case SensorFaultCode::I2cRawWriteFailed: return "I2C raw write failed";
+        case SensorFaultCode::I2cRawReadFailed: return "I2C raw read failed";
+        case SensorFaultCode::DmaChannelClaimFailed: return "DMA channel claim failed";
+        case SensorFaultCode::DmaTransferTimeout: return "DMA transfer timeout";
+        case SensorFaultCode::AuxI2cWriteFailed: return "Aux I2C write failed";
+        case SensorFaultCode::AuxDmaTransferTimeout: return "Aux DMA transfer timeout";
+        case SensorFaultCode::MagReadFailed: return "Mag read failed";
+        case SensorFaultCode::BaroReadFailed: return "Baro read failed";
+        default: return "Unknown sensor fault";
+    }
+}
 
 bool SensorManager::runBootCalibration() {
     if (!_imuAvailable) return false;
@@ -155,6 +197,9 @@ void SensorManager::init() {
     uint8_t whoami = 0;
     if (!_readWhoAmI(whoami) || whoami != MPU6050_WHOAMI_VAL) {
         _imuAvailable = false;
+        if (whoami != MPU6050_WHOAMI_VAL) {
+            _setFault(SensorFaultCode::WhoamiMismatch);
+        }
         Serial.printf("[SENSOR] MPU6050 WHOAMI hatasi: 0x%02X (beklenen 0x%02X)\n",
                       whoami, MPU6050_WHOAMI_VAL);
     } else {
@@ -184,8 +229,18 @@ void SensorManager::init() {
     Serial.println("[SENSOR] MPU6050 (ham I2C+DMA) hazir.");
 
     // DMA kanalları al: RX için bir, TX komutları için ayrı bir kanal
-    _dma_chan = dma_claim_unused_channel(true);
-    _mpu_tx_dma_chan = dma_claim_unused_channel(true);
+    _dma_chan = dma_claim_unused_channel(false);
+    _mpu_tx_dma_chan = dma_claim_unused_channel(false);
+    if (_dma_chan < 0 || _mpu_tx_dma_chan < 0) {
+        _setFault(SensorFaultCode::DmaChannelClaimFailed);
+        _imuAvailable = false;
+        Serial.println("[SENSOR] MPU6050 DMA kanali alinamadi.");
+        _buf[0].valid = false;
+        _buf[0].health = SensorHealth::Invalid;
+        _buf[1].valid = false;
+        _buf[1].health = SensorHealth::Invalid;
+        return;
+    }
 
     dma_channel_config rx_cfg = dma_channel_get_default_config(_dma_chan);
     channel_config_set_transfer_data_size(&rx_cfg, DMA_SIZE_8);
@@ -218,28 +273,35 @@ void SensorManager::init() {
     );
 
     #ifdef USE_GY87
-        _i2c_dma_chan = dma_claim_unused_channel(true);
-        dma_channel_config aux_cfg = dma_channel_get_default_config(_i2c_dma_chan);
-        channel_config_set_transfer_data_size(&aux_cfg, DMA_SIZE_8);
-        channel_config_set_read_increment(&aux_cfg, false);
-        channel_config_set_write_increment(&aux_cfg, true);
-        channel_config_set_dreq(&aux_cfg, i2c_get_dreq(_i2c, false));
-        dma_channel_configure(
-            _i2c_dma_chan,
-            &aux_cfg,
-            nullptr,
-            &i2c_get_hw(_i2c)->data_cmd,
-            0,
-            false
-        );
+        _i2c_dma_chan = dma_claim_unused_channel(false);
+        if (_i2c_dma_chan < 0) {
+            _setFault(SensorFaultCode::DmaChannelClaimFailed);
+            Serial.println("[SENSOR] Yardimci I2C DMA kanali alinamadi.");
+            _hasMag = false;
+            _hasBaro = false;
+        } else {
+            dma_channel_config aux_cfg = dma_channel_get_default_config(_i2c_dma_chan);
+            channel_config_set_transfer_data_size(&aux_cfg, DMA_SIZE_8);
+            channel_config_set_read_increment(&aux_cfg, false);
+            channel_config_set_write_increment(&aux_cfg, true);
+            channel_config_set_dreq(&aux_cfg, i2c_get_dreq(_i2c, false));
+            dma_channel_configure(
+                _i2c_dma_chan,
+                &aux_cfg,
+                nullptr,
+                &i2c_get_hw(_i2c)->data_cmd,
+                0,
+                false
+            );
 
-        _hasMag = _initMag();
-        if (!_hasMag) Serial.println("[SENSOR] HMC5883L bulunamadi!");
-        else          Serial.println("[SENSOR] HMC5883L hazir.");
+            _hasMag = _initMag();
+            if (!_hasMag) Serial.println("[SENSOR] HMC5883L bulunamadi!");
+            else          Serial.println("[SENSOR] HMC5883L hazir.");
 
-        _hasBaro = _initBaro();
-        if (!_hasBaro) Serial.println("[SENSOR] BMP085 bulunamadi!");
-        else           Serial.println("[SENSOR] BMP085 hazir.");
+            _hasBaro = _initBaro();
+            if (!_hasBaro) Serial.println("[SENSOR] BMP085 bulunamadi!");
+            else           Serial.println("[SENSOR] BMP085 hazir.");
+        }
     #endif
 
     // İlk DMA okumayı başlat
@@ -247,6 +309,11 @@ void SensorManager::init() {
 }
 
 void SensorManager::_mpu_start_dma_read() {
+    if (_dma_chan < 0 || _mpu_tx_dma_chan < 0) {
+        _setFault(SensorFaultCode::DmaChannelClaimFailed);
+        return;
+    }
+
     // Register adresini yaz, sonra okuma isteği gönder; tüm komutları DMA ile veriyoruz
     _mpu_dma_cmd[0] = (uint16_t)(_reg_addr & 0xFF);
     for (int i = 0; i < MPU6050_RAW_LEN; i++) {
@@ -264,16 +331,26 @@ void SensorManager::_mpu_start_dma_read() {
 
     dma_channel_start(_dma_chan);
     dma_channel_start(_mpu_tx_dma_chan);
+    _mpuDmaStartUs = micros();
 }
 
 #ifdef USE_GY87
 bool SensorManager::_i2c_write_reg(uint8_t slave_addr, uint8_t reg, uint8_t val) {
     uint8_t buf[2] = {reg, val};
     int written = i2c_write_blocking(_i2c, slave_addr, buf, 2, false);
-    return written == 2;
+    if (written != 2) {
+        _setFault(SensorFaultCode::AuxI2cWriteFailed);
+        return false;
+    }
+    return true;
 }
 
 bool SensorManager::_i2c_read_regs_dma(uint8_t slave_addr, uint8_t reg, uint8_t* dest, size_t len) {
+    if (_i2c_dma_chan < 0) {
+        _setFault(SensorFaultCode::DmaChannelClaimFailed);
+        return false;
+    }
+
     if (!_i2c_write_reg(slave_addr, reg, 0)) return false;
 
     dma_channel_set_write_addr(_i2c_dma_chan, dest, false);
@@ -284,6 +361,7 @@ bool SensorManager::_i2c_read_regs_dma(uint8_t slave_addr, uint8_t reg, uint8_t*
     while (dma_channel_is_busy(_i2c_dma_chan)) {
         if ((uint32_t)(micros() - startUs) > I2C_DMA_TIMEOUT_US) {
             dma_channel_abort(_i2c_dma_chan);
+            _setFault(SensorFaultCode::AuxDmaTransferTimeout);
             return false;
         }
         tight_loop_contents();
@@ -297,6 +375,9 @@ bool SensorManager::_initMag() {
     ok &= _i2c_write_reg(HMC5883L_ADDR, HMC5883L_REG_CONFIG_A, 0x70);
     ok &= _i2c_write_reg(HMC5883L_ADDR, HMC5883L_REG_CONFIG_B, 0xA0);
     ok &= _i2c_write_reg(HMC5883L_ADDR, HMC5883L_REG_MODE, 0x00);
+    if (!ok) {
+        _setFault(SensorFaultCode::MagReadFailed);
+    }
     return ok;
 }
 
@@ -304,6 +385,7 @@ bool SensorManager::_initBaro() {
     // Read BMP085 calibration data
     uint8_t calib[22];
     if (!_i2c_read_regs_dma(BMP085_ADDR, BMP085_REG_CALIB_START, calib, sizeof(calib))) {
+        _setFault(SensorFaultCode::BaroReadFailed);
         return false;
     }
 
@@ -332,7 +414,10 @@ bool SensorManager::_readMagAsync() {
 
 bool SensorManager::_readBaroAsync(SensorBuffer& buf) {
     if (_bmp_state == BMP_IDLE) {
-        if (!_i2c_write_reg(BMP085_ADDR, BMP085_REG_CONTROL, BMP085_CMD_TEMP)) return false;
+        if (!_i2c_write_reg(BMP085_ADDR, BMP085_REG_CONTROL, BMP085_CMD_TEMP)) {
+            _setFault(SensorFaultCode::BaroReadFailed);
+            return false;
+        }
         _bmp_wait_until = micros() + 5000;
         _bmp_state = BMP_TEMP_PENDING;
         return false;
@@ -340,13 +425,19 @@ bool SensorManager::_readBaroAsync(SensorBuffer& buf) {
 
     if (_bmp_state == BMP_TEMP_PENDING) {
         if ((int32_t)(micros() - _bmp_wait_until) < 0) return false;
-        if (!_i2c_read_regs_dma(BMP085_ADDR, BMP085_REG_RESULT, _bmp_dma_buf, 2)) return false;
+        if (!_i2c_read_regs_dma(BMP085_ADDR, BMP085_REG_RESULT, _bmp_dma_buf, 2)) {
+            _setFault(SensorFaultCode::BaroReadFailed);
+            return false;
+        }
         _bmp_raw_temp = (int32_t)(_bmp_dma_buf[0] << 8) | _bmp_dma_buf[1];
         _bmp_state = BMP_TEMP_READ;
     }
 
     if (_bmp_state == BMP_TEMP_READ) {
-        if (!_i2c_write_reg(BMP085_ADDR, BMP085_REG_CONTROL, BMP085_CMD_PRESSURE + (3 << 6))) return false;
+        if (!_i2c_write_reg(BMP085_ADDR, BMP085_REG_CONTROL, BMP085_CMD_PRESSURE + (3 << 6))) {
+            _setFault(SensorFaultCode::BaroReadFailed);
+            return false;
+        }
         _bmp_wait_until = micros() + 26000;
         _bmp_state = BMP_PRESSURE_PENDING;
         return false;
@@ -354,7 +445,10 @@ bool SensorManager::_readBaroAsync(SensorBuffer& buf) {
 
     if (_bmp_state == BMP_PRESSURE_PENDING) {
         if ((int32_t)(micros() - _bmp_wait_until) < 0) return false;
-        if (!_i2c_read_regs_dma(BMP085_ADDR, BMP085_REG_RESULT, _bmp_dma_buf, 3)) return false;
+        if (!_i2c_read_regs_dma(BMP085_ADDR, BMP085_REG_RESULT, _bmp_dma_buf, 3)) {
+            _setFault(SensorFaultCode::BaroReadFailed);
+            return false;
+        }
         int32_t up = ((int32_t)_bmp_dma_buf[0] << 16 | (int32_t)_bmp_dma_buf[1] << 8 | _bmp_dma_buf[2]) >> (8 - 3);
         int32_t x1 = ((int32_t)_bmp_raw_temp - AC6) * AC5 >> 15;
         int32_t x2 = ((int32_t)MC << 11) / (x1 + MD);
@@ -458,8 +552,29 @@ void __not_in_flash_func(SensorManager::_mpu_parse)(SensorBuffer& buf) {
 }
 
 void SensorManager::update() {
+    if (!_imuAvailable) {
+        return;
+    }
+
     // DMA tamamlandıysa parse et, yeni okuma başlat
-    if (!_mpu_dma_ready()) return;  // henüz hazır değil, bekle
+    if (!_mpu_dma_ready()) {
+        if ((uint32_t)(micros() - _mpuDmaStartUs) > I2C_DMA_TIMEOUT_US) {
+            dma_channel_abort(_dma_chan);
+            dma_channel_abort(_mpu_tx_dma_chan);
+            _setFault(SensorFaultCode::DmaTransferTimeout);
+
+            uint8_t writeIdx = 1 - _writeIdx;
+            _buf[writeIdx].valid = false;
+            _buf[writeIdx].health = SensorHealth::Timeout;
+            _buf[writeIdx].timestamp = micros();
+            mutex_enter_blocking(&_mutex);
+            _writeIdx = writeIdx;
+            mutex_exit(&_mutex);
+
+            _mpu_start_dma_read();
+        }
+        return;
+    }
 
     uint8_t writeIdx = 1 - _writeIdx;
     SensorBuffer& buf = _buf[writeIdx];

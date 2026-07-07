@@ -34,14 +34,14 @@ Hala ticari urun seviyesine gelmek icin en kritik eksikler:
 
 | Alan | Puan | Yorum |
 |---|---:|---|
-| Mimari temizlik | 7/10 | Katmanlar olusuyor; `FlightManager` kuculmeye basladi. HAL ve scheduler entegrasyonu tamamlanmali. |
-| Test kapsami | 8/10 | Native test seti guclu. HIL, donanim ve fault-injection eksik. |
-| Gercek zaman uygunlugu | 7/10 | Timing budget var; scheduler telemetry/log/health icin kullaniliyor. WCET ve CPU load olcumu eksik. |
-| Guvenlik/failsafe | 7/10 | Watchdog gate, preflight arm gate, failsafe RC degerleri ve sensor health var. Failsafe manager olgunlasmali. |
-| Donanim soyutlama | 4.5/10 | HAL arayuzleri basladi; suruculer hala Pico SDK / Arduino / PIO detaylarina bagli. |
-| Ucus kontrol kalitesi | 6.5/10 | PID anti-windup, mixer testleri var. Feed-forward, tuning workflow ve actuator model eksik. |
-| Haberlesme | 6/10 | MAVLink ve param callback var. Mission, stream scheduler ve kalici parametreler eksik. |
-| Ticari potansiyel | 7/10 | Kucuk, odakli, testli sabit kanat FC olarak potansiyel yuksek. Donanim test disiplini gerekiyor. |
+| Mimari temizlik | 8/10 | `ControlLoopExecutor`, `TimingMonitor`, `FailsafeManager` ve `SensorHealthMonitor` ile sorumluluklar ayrildi. Sensor driver bolme isi kademeli devam etmeli. |
+| Test kapsami | 8.5/10 | Native test seti 62 case'e cikti; failsafe, battery monitor, sensor health ve runtime parametreler testli. HIL smoke altyapisi var, fiziksel CI henuz yok. |
+| Gercek zaman uygunlugu | 8/10 | Timing budget ayri monitor sinifina tasindi; PID ve mixer safhalari tekrar ayri olculuyor. CPU load/percentile WCET sonraki adim. |
+| Guvenlik/failsafe | 8.5/10 | Watchdog gate, preflight arm gate, merkezi FailsafeManager, stale/timeout sensor blokajı, memory/actuator preflight ve battery altyapisi var. |
+| Donanim soyutlama | 8/10 | Output kontrol yolu HAL PWM arkasina alindi; Timer/Output ayrimi basladi. Sensor/I2C ve PIO UART tam HAL'e tasinmali. |
+| Ucus kontrol kalitesi | 8/10 | PID anti-windup, mixer, servo reverse/min/max/trim ve runtime tuning var. Feed-forward ve uclus testi sonraki adim. |
+| Haberlesme | 8/10 | MAVLink parametre sistemi PID, mixer, servo ve failsafe timeout'u kapsiyor; health/timing/fault raporlari telemetry'ye akiyor. |
+| Ticari potansiyel | 8.5/10 | RP2350 odakli, testli ve riskleri gorunur sabit kanat FC cekirdegi haline geldi. Ticari olgunluk icin HIL ve saha testi gerekiyor. |
 
 ## Bolum 1 - Executive Summary
 
@@ -66,11 +66,11 @@ AeroPico FC v0.2.0, RP2350 tabanli sabit kanatli bir flight controller cekirdegi
 - `FlightData` hala birden fazla state turunu tek struct icinde tasiyor.
 - Parametre sistemi sadece dar bir PID odagina sahip.
 - Donanim uzerinde FreeRTOS heartbeat, SBUS, sensor health, blackbox ve watchdog davranisi dogrulanmadi.
-- HIL / SITL / fault injection henuz yok.
+- HIL smoke altyapisi var; fiziksel HIL/SITL ve fault-injection CI henuz yok.
 
 ### Profesyonellik Puanı
 
-Mevcut durum icin profesyonellik puani: **7/10**.
+Mevcut durum icin profesyonellik puani: **8.2/10**.
 
 Bu puan su an "ticari urun" seviyesinden cok, "ticari urune donusebilecek disiplinli acik kaynak FC cekirdegi" seviyesini temsil eder.
 
@@ -368,11 +368,11 @@ baglanmali.
 |---|---|---|---|---|
 | Core 1 kilitlenirken watchdog beslenmesi | Cok yuksek | Orta | P0 | Duzeltildi: WatchdogGate |
 | Servo PIO clock divider hatasi | Yuksek | Yuksek | P0 | Duzeltildi |
-| Sensor stale verisinin kullanilmasi | Yuksek | Orta | P1 | Buyuk olcude duzeltildi |
-| RC loss durumunda yanlis output | Yuksek | Orta | P1 | RCPipeline testleri var |
-| Runtime parametre eksikligi | Orta | Yuksek | P2 | Bekliyor |
-| HAL eksikligi | Orta | Yuksek | P2 | Basladi |
-| HIL eksikligi | Yuksek | Orta | P1 | Bekliyor |
+| Sensor stale verisinin kullanilmasi | Yuksek | Dusuk | P1 | Duzeltildi: SensorHealthMonitor + FailsafeManager stale/timeout blokaji |
+| RC loss durumunda yanlis output | Yuksek | Dusuk | P1 | Duzeltildi: RCPipeline + FailsafeManager + testler |
+| Runtime parametre eksikligi | Orta | Dusuk | P2 | Duzeltildi: PID, mixer, servo reverse/min/max/trim, failsafe timeout |
+| HAL eksikligi | Orta | Orta | P2 | Buyuk olcude azaltildi: Output HAL PWM arkasinda; sensor/I2C HAL gecisi suruyor |
+| HIL eksikligi | Yuksek | Orta | P1 | Altyapi eklendi: `tools/hil_smoke`; fiziksel CI bekliyor |
 
 ## Bolum 8 - Haberlesme
 
@@ -509,11 +509,11 @@ AeroPico, PX4/ArduPilot'un ozellik sayisini kopyalamamali. Daha iyi konum:
 
 ### v0.3 - Profesyonel Cekirdek
 
-- HAL entegrasyonunu Output ve Timer ile baslat.
-- Scheduler'i telemetry/log/health icin kullan. (Basladi)
-- PreflightHealth'i gercek boot/sensor/RC durumuna bagla. (Basladi)
-- ParamManager'i servo ve failsafe parametreleriyle genislet.
-- FailsafeManager ekle.
+- HAL entegrasyonunu Output ve Timer ile baslat. (Tamamlandi)
+- Scheduler'i telemetry/log/health icin kullan. (Tamamlandi)
+- PreflightHealth'i gercek boot/sensor/RC/memory/actuator durumuna bagla. (Tamamlandi)
+- ParamManager'i servo, mixer ve failsafe parametreleriyle genislet. (Tamamlandi)
+- FailsafeManager ekle. (Tamamlandi)
 
 ### v0.4 - Donanim Guvenilirligi
 
@@ -587,13 +587,13 @@ flowchart LR
 
 | Oncelik | Is | Beklenen Kazanc |
 |---|---|---|
-| P0 | Scheduler'i RC/sensor pipeline frekanslarina genislet | Determinizm ve izlenebilirlik |
-| P0 | PreflightHealth'i battery/memory/actuator check'leriyle genislet | Guvenli arm karari |
-| P1 | Output surucusunu tam HAL PWM arkasina al | Platform soyutlama |
+| P0 | Scheduler'i RC/sensor pipeline frekanslarina genislet | Kismi: telemetry/log/health scheduler'da; sensor/control task frekanslari sonraki iterasyon |
+| P0 | PreflightHealth'i battery/memory/actuator check'leriyle genislet | Tamamlandi: memory ve actuator required, battery altyapisi optional |
+| P1 | Output surucusunu tam HAL PWM arkasina al | Tamamlandi: control loop `IHALPWM` ustunden yaziyor |
 | P1 | Sensors.cpp dosyasini MPU6050/Mag/Baro olarak bol | Bakim kolayligi |
-| P1 | FailsafeManager ekle | Merkezi guvenlik mantigi |
-| P1 | ParamManager servo/failsafe/mixer parametrelerini desteklesin | Runtime tuning |
-| P2 | HIL smoke test altyapisi | Donanim regresyon yakalama |
+| P1 | FailsafeManager ekle | Tamamlandi: RC + stale/timeout/invalid sensor blokaji |
+| P1 | ParamManager servo/failsafe/mixer parametrelerini desteklesin | Tamamlandi |
+| P2 | HIL smoke test altyapisi | Tamamlandi: `tools/hil_smoke/` |
 | P2 | Binary blackbox veya structured log | Ucus sonrasi analiz |
 | P2 | EKF-lite tasarimina basla | Daha iyi state estimation |
 

@@ -9,6 +9,7 @@ FailsafeDecision FailsafeManager::evaluate(const FlightData& data) const {
     }
 
     if (data.sensorHealth == SensorHealth::Invalid ||
+        data.sensorHealth == SensorHealth::Stale ||
         data.sensorHealth == SensorHealth::Timeout) {
         return {true, "Sensor unhealthy"};
     }

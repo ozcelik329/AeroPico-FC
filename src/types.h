@@ -12,6 +12,21 @@ enum class SensorHealth : uint8_t {
     Timeout
 };
 
+enum class SensorFaultCode : uint8_t {
+    None = 0,
+    I2cWhoamiWriteFailed,
+    I2cWhoamiReadFailed,
+    WhoamiMismatch,
+    I2cRawWriteFailed,
+    I2cRawReadFailed,
+    DmaChannelClaimFailed,
+    DmaTransferTimeout,
+    AuxI2cWriteFailed,
+    AuxDmaTransferTimeout,
+    MagReadFailed,
+    BaroReadFailed
+};
+
 struct SensorBuffer {
 	float ax, ay, az;
 	float gx, gy, gz;

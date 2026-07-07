@@ -40,10 +40,21 @@ void test_failsafe_manager_blocks_sensor_timeout() {
     TEST_ASSERT_TRUE(decision.active);
 }
 
+void test_failsafe_manager_blocks_sensor_stale() {
+    FailsafeManager manager;
+    FlightData data = healthyData();
+    data.sensorHealth = SensorHealth::Stale;
+
+    FailsafeDecision decision = manager.evaluate(data);
+
+    TEST_ASSERT_TRUE(decision.active);
+}
+
 int main() {
     UNITY_BEGIN();
     RUN_TEST(test_failsafe_manager_allows_healthy_data);
     RUN_TEST(test_failsafe_manager_blocks_rc_failsafe);
     RUN_TEST(test_failsafe_manager_blocks_sensor_timeout);
+    RUN_TEST(test_failsafe_manager_blocks_sensor_stale);
     return UNITY_END();
 }

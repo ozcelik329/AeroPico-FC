@@ -8,8 +8,10 @@ static float mapFloat(float x, float inMin, float inMax, float outMin, float out
 
 void ControlLoopExecutor::init(IHALPWM* pwmOutput) {
     _pwm = pwmOutput;
+    _pwmReady = false;
     if (_pwm) {
         _pwm->init();
+        _pwmReady = true;
     }
 
     _rollAnglePID = PID(ANGLE_P_GAIN, ANGLE_I_GAIN, ANGLE_D_GAIN,

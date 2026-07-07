@@ -89,6 +89,10 @@ void SystemTimer::logTimingStats() {
                            PHASE_TOTAL_BUDGET_US);
 }
 
+bool SystemTimer::outputsReady() {
+    return controlLoop.outputsReady();
+}
+
 void SystemTimer::applyPidGains(float angleP, float angleI, float angleD,
                                 float rateP, float rateI, float rateD) {
     controlLoop.applyPidGains(angleP, angleI, angleD, rateP, rateI, rateD);

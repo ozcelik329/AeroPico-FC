@@ -24,9 +24,11 @@ class ControlLoopExecutor {
     void writeSafeOutputs();
     ControlCorrections computeCorrections(FlightManager& flightManager, float dt);
     void mixAndWrite(FlightManager& flightManager, const ControlCorrections& corrections);
+    bool outputsReady() const { return _pwm != nullptr && _pwmReady; }
 
   private:
     IHALPWM* _pwm = nullptr;
+    bool _pwmReady = false;
     PID _rollAnglePID = PID(0.0f, 0.0f, 0.0f);
     PID _pitchAnglePID = PID(0.0f, 0.0f, 0.0f);
     PID _rollRatePID = PID(0.0f, 0.0f, 0.0f);

@@ -138,13 +138,13 @@ Hedef: Mevcut calisan cekirdegi, daha profesyonel FC mimarisine yaklastirmak.
 | ID | Durum | Gorev | Dosyalar |
 |---|---|---|---|
 | F8-01 | Basladi | FlightManager'i pipeline tabanli orkestratore indir | `FlightManager.*`, `RCPipeline.*`, `SensorPipeline.*` |
-| F8-02 | Bekliyor | `ControlPipeline` ile controller/mixer hazirliklarini ayir | `core/` |
-| F8-03 | Bekliyor | `FailsafeManager` ile failsafe kararlarini merkezilestir | `core/` |
+| F8-02 | Tamamlandi | `ControlPipeline` ile controller/mixer hazirliklarini ayir | `core/control/ControlLoopExecutor.*`, `core/TimingMonitor.*` |
+| F8-03 | Tamamlandi | `FailsafeManager` ile failsafe kararlarini merkezilestir | `core/FailsafeManager.*`, `test/test_failsafe_manager/` |
 | F8-04 | Bekliyor | `FlightData` yerine `RcInputState`, `VehicleState`, `ActuatorState`, `NavigationState` ayrimini genislet | `types.h` |
 | F8-05 | Basladi | Gercek HAL katmani tasarla: GPIO/PWM/I2C/UART/ADC/TIMER | `hal/`, `hal/rp2350/` |
 | F8-06 | Basladi | Multi-rate scheduler tasarimi: 400/200/100/50/20/10/5/1Hz | `core/Scheduler.*`, `test/test_scheduler/` |
-| F8-07 | Bekliyor | Runtime parametre kapsamlarini genislet: servo reverse, trim, mixer, failsafe, RC | `telemetry/ParamManager.*` |
-| F8-08 | Basladi | Boot sequence, driver registration, dependency graph, health check ve self-test akisini kod seviyesinde ayir | `core/PreflightHealth.*`, `test/test_preflight/` |
+| F8-07 | Tamamlandi | Runtime parametre kapsamlarini genislet: servo reverse, trim, mixer, failsafe, RC | `telemetry/ParamManager.*`, `test/test_param_manager/` |
+| F8-08 | Basladi | Boot sequence, driver registration, dependency graph, health check ve self-test akisini kod seviyesinde ayir | `core/PreflightHealth.*`, `core/BatteryMonitor.*`, `test/test_preflight/`, `test/test_battery_monitor/` |
 | F8-09 | Tamamlandi | Scheduler'i telemetry/log/health akisina bagla | `main.cpp`, `core/Scheduler.*` |
 | F8-10 | Tamamlandi | Preflight sonucunu arm kapisina bagla | `main.cpp`, `FlightModeController.*`, `FlightManager.*` |
 

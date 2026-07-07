@@ -58,6 +58,8 @@ class SensorManager : public IImuDriver, public IMagDriver, public IBaroDriver, 
 
     bool isImuAvailable() const override;
     bool isDmaOk() const override;
+    SensorFaultCode getFaultCode() const;
+    const char* getFaultText() const;
     bool runBootCalibration() override;
     ImuCalibration getImuCalibration() const;
     void setImuCalibration(const ImuCalibration& calibration);
@@ -78,12 +80,14 @@ class SensorManager : public IImuDriver, public IMagDriver, public IBaroDriver, 
 
   private:
     bool _imuAvailable = false;
+    SensorFaultCode _faultCode = SensorFaultCode::None;
 
     int _dma_chan = -1;
     int _mpu_tx_dma_chan = -1;
     uint8_t _dma_buf[MPU6050_RAW_LEN];
     uint16_t _mpu_dma_cmd[1 + MPU6050_RAW_LEN];
     uint8_t _reg_addr = MPU6050_REG_ACCEL;
+    uint32_t _mpuDmaStartUs = 0;
 
     // IIR filter state
     float _ax_f = 0.0f, _ay_f = 0.0f, _az_f = 0.0f;
@@ -113,6 +117,7 @@ class SensorManager : public IImuDriver, public IMagDriver, public IBaroDriver, 
     void _mpu_start_dma_read();
     bool _mpu_dma_ready();
     void _mpu_parse(SensorBuffer& buf);  // __not_in_flash_func kaldırıldı
+    void _setFault(SensorFaultCode code);
 
     #ifdef USE_GY87
         int16_t AC1 = 0;

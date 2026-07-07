@@ -8,6 +8,7 @@
 #include "core/WatchdogGate.h"
 #include "core/Scheduler.h"
 #include "core/PreflightHealth.h"
+#include "core/BatteryMonitor.h"
 #include "utils/Logger.h"
 #include "utils/BootLogger.h"
 #include "telemetry/MavlinkHandler.h"
@@ -27,7 +28,9 @@ static constexpr uint32_t CORE1_STALE_THRESHOLD_US = 20000;
 static constexpr uint32_t WATCHDOG_BLOCK_LOG_PERIOD_MS = 500;
 static Scheduler telemetryScheduler;
 static PreflightHealth preflightHealth;
+static BatteryMonitor batteryMonitor;
 static PreflightResult lastPreflightResult = {false, "not evaluated", 0};
+static constexpr uint32_t PREFLIGHT_MIN_FREE_HEAP_BYTES = 24 * 1024;
 
 static WatchdogDecision evaluateWatchdogGate() {
     return WatchdogGate::evaluate(
@@ -69,10 +72,16 @@ static void applyFailsafeTimeout(uint32_t timeoutMs) {
 }
 
 static PreflightResult evaluatePreflight() {
+    BatteryStatus battery = batteryMonitor.evaluate();
+    uint32_t freeHeap = rp2040.getFreeHeap();
+
     preflightHealth.reset();
     preflightHealth.setCheck(PreflightCheckId::Boot, true, true, "");
     preflightHealth.setCheck(PreflightCheckId::Sensor, true, sensorManager.isImuAvailable(), "IMU not available");
     preflightHealth.setCheck(PreflightCheckId::RC, true, rxManager.isValid() && !rxManager.isFailsafe(), "RC signal invalid");
+    preflightHealth.setCheck(PreflightCheckId::Battery, battery.configured, battery.healthy, battery.reason);
+    preflightHealth.setCheck(PreflightCheckId::Memory, true, freeHeap >= PREFLIGHT_MIN_FREE_HEAP_BYTES, "Free heap too low");
+    preflightHealth.setCheck(PreflightCheckId::Actuator, true, SystemTimer::outputsReady(), "Actuator output not ready");
     preflightHealth.setCheck(PreflightCheckId::Failsafe, true, !rxManager.isFailsafe(), "RC failsafe active");
     preflightHealth.setCheck(PreflightCheckId::Scheduler, true, SystemTimer::checkTimingBudgets(), "Timing budget exceeded");
     preflightHealth.setCheck(PreflightCheckId::GPS, false, false, "GPS not configured");
@@ -115,6 +124,10 @@ static void runHealthReport() {
 
     if (!lastPreflightResult.canArm) {
         mavlink.sendStatusText(lastPreflightResult.firstFailureReason);
+    }
+
+    if (sensorManager.getFaultCode() != SensorFaultCode::None) {
+        mavlink.sendStatusText(sensorManager.getFaultText());
     }
 
     if (!SystemTimer::checkTimingBudgets()) {
@@ -191,6 +204,7 @@ void setup() {
     }
 
     Logger::init();
+    batteryMonitor.init();
     flightManager.init(&sensorManager, &rxManager);
 
     bool imuOk = sensorManager.isImuAvailable();
@@ -203,6 +217,7 @@ void setup() {
         }
     } else {
         BootLogger::fail("MPU6050", "WHOAMI dogrulanamadi veya bagli degil");
+        BootLogger::warn("Sensor Fault", sensorManager.getFaultText());
     }
 
 #ifdef USE_GY87

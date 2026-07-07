@@ -10,6 +10,7 @@ enum class PreflightCheckId : uint8_t {
     GPS,
     Battery,
     Memory,
+    Actuator,
     Failsafe,
     Scheduler,
     Count

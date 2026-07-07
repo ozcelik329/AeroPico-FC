@@ -31,6 +31,7 @@ public:
     static bool checkTimingBudgets();
     static TimingBudgetStatus getTimingBudgetStatus();
     static void logTimingStats();
+    static bool outputsReady();
     static void applyPidGains(float angleP, float angleI, float angleD,
                               float rateP, float rateI, float rateD);
     static void applyMixerSettings(const MixerSettings& settings);
