@@ -36,6 +36,19 @@ Baslangic onerisi:
 - GCS pre-arm checklist entegrasyonu: eksik sensor/RC/failsafe durumlarini GCS'e acik mesajla bildir.
 - Ucus sonrasi otomatik ozet: max roll/pitch, failsafe sayisi, sensor stale sayisi, timing max degerleri.
 
+## En Yuksek Getiri Veren Mini Faz
+
+| Oncelik | Fikir | Ilk Adim |
+|---|---|---|
+| 1 | Sensor guven skoru | `SensorHealth` yanina kalite skoru ve stale yas alanlari ekle. |
+| 2 | Bench auto-test modu | MAVLink komutu veya param ile servo/RC/sensor test modunu tetikle. |
+| 3 | Adaptive filtering | IMU varyansina gore median/IIR parametrelerini secen politika yaz. |
+| 4 | Timing-aware control | `TimingBudgetStatus` ile PID cikisini yumusat veya degraded mode'a gec. |
+| 5 | EKF-lite altitude estimator | ComplementaryEstimator'a acceleration-Z opsiyonel girdisi ekle. |
+| 6 | Pre-arm explainability | `PreArmStatus` veri tipi ve MAVLink STATUSTEXT mesajlari ekle. |
+| 7 | Blackbox flight score | Failsafe/stale/timing/attitude ozet accumulator yaz. |
+| 8 | Parametre profilleri | Maiden/stable/agile profil setleri icin storage tasarla. |
+
 ## PX4/ArduPilot'tan Farklilasma Yonleri
 
 - Daha hafif ve sabit kanat odakli cekirdek.

@@ -162,12 +162,8 @@ Hedef: GPS/otonom moda hemen girmeden, ileride EKF ve urun farklilastirmasi icin
 
 ## Guncel Dogrulama
 
-- 2026-07-07 yerel dogrulama: `pio test -e native` sonucu 33/33 test basarili.
-- 2026-07-07 yerel dogrulama: `pio run -e pico` basarili.
-- 2026-07-07 Faz 8 dogrulama: `pio test -e native` sonucu 46/46 test basarili.
-- 2026-07-07 Faz 8 dogrulama: `pio run -e pico` basarili.
-- 2026-07-07 Scheduler/preflight entegrasyonu: `pio test -e native` sonucu 47/47 test basarili.
-- 2026-07-07 Scheduler/preflight entegrasyonu: `pio run -e pico` basarili.
+- 2026-07-07 mimari ayrim sonrasi dogrulama: `pio test -e native` sonucu 65/65 test basarili.
+- 2026-07-07 mimari ayrim sonrasi dogrulama: `pio run -e pico` basarili.
 - Donanim elde olmadigi icin heartbeat, SBUS UART0/GP1, sensor health ve blackbox alanlari sahada beklemede.
 - GitHub Actions dosyasi mevcut; uzak CI sonucu repo GitHub'a baglandiktan sonra dogrulanmali.
 
