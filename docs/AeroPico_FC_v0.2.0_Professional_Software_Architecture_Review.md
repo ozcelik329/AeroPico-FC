@@ -60,11 +60,11 @@ AeroPico FC v0.2.0, RP2350 tabanli sabit kanatli bir flight controller cekirdegi
 
 ### Kritik Eksikler
 
-- HAL arayuzleri var ama `Sensors`, `RX`, `Output`, `PioUart` tamamen HAL arkasina alinmis degil.
-- Scheduler `taskTelemetry` icinde MAVLink, blackbox ve health raporu icin kullaniliyor; sensor/control task'lari henuz scheduler'a alinmadi.
-- `SystemTimer` hala PID, mixer, output ve timing islerini ayni yerde tutuyor.
-- `FlightData` hala birden fazla state turunu tek struct icinde tasiyor.
-- Parametre sistemi sadece dar bir PID odagina sahip.
+- HAL arayuzleri var; output kontrol yolu HAL PWM arkasinda. `Sensors`, `RX` ve `PioUart` icin tam HAL gecisi devam etmeli.
+- Scheduler `taskTelemetry` icinde MAVLink, blackbox ve health raporu icin kullaniliyor; sensor/control task'lari henuz multi-rate scheduler'a alinmadi.
+- `SystemTimer` artik facade; gercek kontrol task'i `FlightControlTask`, PID/mixer uygulamasi `ControlLoopExecutor`, timing ise `TimingMonitor` icinde.
+- `FlightData` geriye uyumluluk snapshot'i olarak kaliyor; `SensorState`, `ActuatorState`, `NavigationState` ve `StatePublisher` ayrimi eklendi.
+- Parametre sistemi PID disina genisledi: servo reverse/min/max/trim, mixer gain ve failsafe timeout runtime ayarlanabiliyor.
 - Donanim uzerinde FreeRTOS heartbeat, SBUS, sensor health, blackbox ve watchdog davranisi dogrulanmadi.
 - HIL smoke altyapisi var; fiziksel HIL/SITL ve fault-injection CI henuz yok.
 
@@ -121,13 +121,13 @@ flowchart TD
 
 - RC override/failsafe akisi `RCPipeline` icine ayrildi.
 - IMU update + fusion akisi `SensorPipeline` icine ayrildi.
-- FlightManager daha cok `FlightData` snapshot uretimi ve controller orkestrasyonu yapiyor.
+- FlightManager artik sensor ve RC pipeline'larini calistiran, failsafe kararini alan ve state publisher/control pipeline'a delege eden ince orkestratore donustu.
 
-Ancak hala tamamen ideal degil:
+Son ayrimlar:
 
-- `updateControllers()` hala FlightManager icinde.
-- Navigation ve altitude controller cagirilari burada.
-- `FlightData` uretimi hala merkezi.
+- `updateControllers()` kaldirildi.
+- Navigation ve altitude controller cagirilari `ControlPipeline` icinde.
+- `FlightData` uretimi `StatePublisher` icinde.
 
 Oneri:
 
@@ -308,7 +308,7 @@ PID tarafinda iyi gelismeler var:
 
 ### Control Loop
 
-`SystemTimer::core1_entry()` icinde:
+`FlightControlTask::run()` icinde:
 
 - Armed degilse motor/servo safe output.
 - RC input -> target roll/pitch/yaw rate mapping.
@@ -316,13 +316,14 @@ PID tarafinda iyi gelismeler var:
 - Rate PID -> servo correction.
 - FixedWingMixer compute.
 
-Bu sabit kanat icin dogru baslangic. Ancak `SystemTimer` ismi artik fazla genis sorumluluk tasiyor; sadece timer degil, control loop executor.
+Bu sabit kanat icin dogru baslangic. `SystemTimer` artik geriye uyumlu facade; asil kontrol dongusu `FlightControlTask`, PID/mixer hesaplari `ControlLoopExecutor`, zamanlama olcumu `TimingMonitor` icinde.
 
 Oneri:
 
 ```text
 core/control/
   ControlPipeline.*
+  FlightControlTask.*
   AttitudeController.*
   RateController.*
   ControlLoopExecutor.*
@@ -472,17 +473,15 @@ AeroPico, PX4/ArduPilot'un ozellik sayisini kopyalamamali. Daha iyi konum:
    - Risk: Degisikliklerde yan etki.
    - Oneri: MPU6050, mag, baro, health monitor ayrilmali.
 
-2. `SystemTimer` isim ve sorumluluk uyumsuzlugu tasiyor.
-   - Risk: Timer + control + output tek yerde.
-   - Oneri: `ControlLoopExecutor` ve `TimingMonitor`.
+2. `SystemTimer` isim ve sorumluluk uyumsuzlugu tasiyordu.
+   - Durum: Duzeltildi; `SystemTimer` facade, gercek is `FlightControlTask`, `ControlLoopExecutor` ve `TimingMonitor` icinde.
 
 3. HAL iskeleti var ama suruculer HAL kullanmiyor.
    - Risk: STM32 veya baska MCU'ya gecis zor.
    - Oneri: Once Output ve PioUart, sonra Sensors HAL'e tasinsin.
 
-4. Runtime parametreler dar.
-   - Risk: Her tuning icin firmware rebuild.
-   - Oneri: ParamManager kapsam genisletilsin.
+4. Runtime parametreler dardi.
+   - Durum: Duzeltildi; PID, servo, mixer ve failsafe timeout parametreleri runtime degisebiliyor.
 
 5. PreflightHealth ilk seviyede gercek veriye baglandi.
    - Kalan risk: Battery, memory, actuator ve detayli sensor confidence henuz yok.

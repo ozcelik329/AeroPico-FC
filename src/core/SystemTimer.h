@@ -22,8 +22,8 @@ public:
     static constexpr uint32_t PHASE_MIXER_BUDGET_US   = 300;
     static constexpr uint32_t PHASE_TOTAL_BUDGET_US   = 1500;
 
-    static void init();           // Servo çıkışı + timing hazırlığı
-    static void core1_entry();    // FreeRTOS FlightTask içinde PID + Mixer döngüsü
+    static void init();           // FlightControlTask facade
+    static void core1_entry();    // FlightControlTask::run() icin geriye uyumlu giris
 
     static void initTimingMeasurements();
     static void beginTiming(LoopPhase phase);

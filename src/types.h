@@ -66,6 +66,33 @@ struct FlightData {
     uint32_t timestamp;
 };
 
+struct SensorState {
+    float rollDeg;
+    float pitchDeg;
+    float yawDeg;
+    float gyroX;
+    float gyroY;
+    float gyroZ;
+    SensorHealth health;
+    uint32_t timestampUs;
+    bool valid;
+};
+
+struct ActuatorState {
+    uint16_t throttle;
+    uint16_t aileron;
+    uint16_t elevator;
+    uint16_t rudder;
+    bool outputsReady;
+    bool failsafe;
+};
+
+struct NavigationState {
+    float targetAltitudeM;
+    bool navigationActive;
+    bool altitudeHoldActive;
+};
+
 struct RcInputState {
     uint16_t aileron;
     uint16_t elevator;

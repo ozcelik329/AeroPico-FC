@@ -4,12 +4,11 @@
 #include <Arduino.h>
 #include "../drivers/IDrivers.h"
 #include "ThreadSafeRingBuffer.h"
-#include "FlightModeController.h"
-#include "NavigationController.h"
-#include "AltitudeController.h"
 #include "RCPipeline.h"
 #include "SensorPipeline.h"
 #include "FailsafeManager.h"
+#include "StatePublisher.h"
+#include "control/ControlPipeline.h"
 
 #include "ArmDefs.h"
 
@@ -30,7 +29,7 @@ class FlightManager {
     uint16_t getElevator();
     uint16_t getThrottle();
     uint16_t getRudder();
-    bool isArmed() { return _modeController.isArmed(); }
+    bool isArmed() { return _controlPipeline.isArmed(); }
     void setPreflightArmAllowed(bool allowed);
 
     void setRCOverride(uint16_t aileron, uint16_t elevator, uint16_t throttle, uint16_t rudder);
@@ -52,14 +51,10 @@ class FlightManager {
     // Son okunan veri (Core 1 tarafında cache)
     FlightData _latest = {};
 
-    // Controllers — FlightManager only orchestrates
-    FlightModeController _modeController;
-    NavigationController _navController;
-    AltitudeController  _altController;
+    StatePublisher _statePublisher;
+    ControlPipeline _controlPipeline;
     FailsafeManager _failsafeManager;
     bool _preflightArmAllowed = false;
-
-    void updateControllers(const FlightData& data);
 
     // Sequence counter to provide atomic-like snapshot semantics for `_latest`
     volatile uint32_t _latest_seq = 0;

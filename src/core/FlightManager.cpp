@@ -3,18 +3,14 @@
 void FlightManager::init() {
     _sensorPipeline.init(nullptr);
     _rcPipeline.init(nullptr);
-    _modeController.init();
-    _navController.init();
-    _altController.init();
+    _controlPipeline.init();
     _failsafeManager.init();
 }
 
 void FlightManager::init(IImuDriver* imuDrv, IRxDriver* rxDrv) {
     _sensorPipeline.init(imuDrv);
     _rcPipeline.init(rxDrv);
-    _modeController.init();
-    _navController.init();
-    _altController.init();
+    _controlPipeline.init();
     _failsafeManager.init();
 }
 
@@ -22,25 +18,17 @@ void FlightManager::update() {
     VehicleState vehicle = _sensorPipeline.update();
     RcInputState rc = _rcPipeline.update();
 
-    FlightData data;
-    data.gyroX = vehicle.gyroX;
-    data.gyroY = vehicle.gyroY;
-    data.gyroZ = vehicle.gyroZ;
-    data.roll  = vehicle.rollDeg;
-    data.pitch = vehicle.pitchDeg;
-    data.yaw   = vehicle.yawDeg;
-    data.sensorHealth = vehicle.sensorHealth;
-    data.timestamp = vehicle.timestampUs;
-    data.aileron = rc.aileron;
-    data.elevator = rc.elevator;
-    data.throttle = rc.throttle;
-    data.rudder = rc.rudder;
-    data.failsafe = rc.failsafe;
+    FlightData provisional = _statePublisher.buildFlightData(vehicle, rc, {rc.failsafe, "RC pipeline"});
+    FailsafeDecision failsafe = _failsafeManager.evaluate(provisional);
+    FlightData data = _statePublisher.buildFlightData(vehicle, rc, failsafe);
 
-    FailsafeDecision failsafe = _failsafeManager.evaluate(data);
-    data.failsafe = failsafe.active;
+    ControlPipelineInput controlInput;
+    controlInput.rc = rc;
+    controlInput.vehicle = vehicle;
+    controlInput.failsafe = failsafe.active;
+    controlInput.preflightArmAllowed = _preflightArmAllowed;
+    _controlPipeline.update(controlInput);
 
-    updateControllers(data);
     _ringBuf.push(data);  // Lock-free yazma
 }
 
@@ -96,14 +84,4 @@ void FlightManager::clearRCOverride() {
 
 void FlightManager::setPreflightArmAllowed(bool allowed) {
     _preflightArmAllowed = allowed;
-}
-
-void FlightManager::updateControllers(const FlightData& data) {
-    // Orkestrasyon: öncelikle mod/arm güncelle
-    _modeController.update(data.throttle, data.rudder, data.failsafe, _preflightArmAllowed);
-
-    // Navigation ve altitude kontrolörlerine güncel kumanda ve sensör verilerini ilet
-    _navController.update(data.aileron, data.elevator, data.failsafe);
-    // Şu an altimetre yok; altitude controller için yerleşik değer gönderiliyor
-    _altController.update(0.0f, data.throttle, data.failsafe);
 }

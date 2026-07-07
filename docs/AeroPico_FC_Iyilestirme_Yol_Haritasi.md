@@ -137,10 +137,10 @@ Hedef: Mevcut calisan cekirdegi, daha profesyonel FC mimarisine yaklastirmak.
 
 | ID | Durum | Gorev | Dosyalar |
 |---|---|---|---|
-| F8-01 | Basladi | FlightManager'i pipeline tabanli orkestratore indir | `FlightManager.*`, `RCPipeline.*`, `SensorPipeline.*` |
-| F8-02 | Tamamlandi | `ControlPipeline` ile controller/mixer hazirliklarini ayir | `core/control/ControlLoopExecutor.*`, `core/TimingMonitor.*` |
+| F8-01 | Tamamlandi | FlightManager'i pipeline tabanli orkestratore indir | `FlightManager.*`, `RCPipeline.*`, `SensorPipeline.*`, `StatePublisher.*` |
+| F8-02 | Tamamlandi | `ControlPipeline` ile controller/mixer hazirliklarini ayir | `core/control/ControlPipeline.*`, `core/control/FlightControlTask.*`, `core/control/ControlLoopExecutor.*`, `core/TimingMonitor.*` |
 | F8-03 | Tamamlandi | `FailsafeManager` ile failsafe kararlarini merkezilestir | `core/FailsafeManager.*`, `test/test_failsafe_manager/` |
-| F8-04 | Bekliyor | `FlightData` yerine `RcInputState`, `VehicleState`, `ActuatorState`, `NavigationState` ayrimini genislet | `types.h` |
+| F8-04 | Tamamlandi | `FlightData` yerine `RcInputState`, `VehicleState`, `ActuatorState`, `NavigationState` ayrimini genislet | `types.h`, `core/StatePublisher.*`, `test/test_state_publisher/` |
 | F8-05 | Basladi | Gercek HAL katmani tasarla: GPIO/PWM/I2C/UART/ADC/TIMER | `hal/`, `hal/rp2350/` |
 | F8-06 | Basladi | Multi-rate scheduler tasarimi: 400/200/100/50/20/10/5/1Hz | `core/Scheduler.*`, `test/test_scheduler/` |
 | F8-07 | Tamamlandi | Runtime parametre kapsamlarini genislet: servo reverse, trim, mixer, failsafe, RC | `telemetry/ParamManager.*`, `test/test_param_manager/` |
