@@ -11,6 +11,7 @@ src/
   drivers/     Donanim suruculeri ve HAL arayuzleri
   estimators/  Durum tahmini / EKF icin ayrilmis katman
   filters/     Tekrar kullanilabilir filtreleme algoritmalari
+  hal/         Platform bagimsiz donanim soyutlama arayuzleri
   storage/     Kalibrasyon ve ileride parametre kaliciligi icin saklama arayuzleri
   telemetry/   MAVLink, parametre ve blackbox akislari
   utils/       Loglama ve boot yardimcilari
@@ -25,6 +26,7 @@ src/
 - `drivers/`: I2C, UART, PIO, PWM, SBUS gibi fiziksel donanim detaylari. Ucus karari vermez.
 - `estimators/`: EKF/complementary/altitude estimator gibi durum tahmini modulleri. Donanima baglanmaz, sade veri tipleriyle calisir.
 - `filters/`: Median, low-pass, notch gibi genel algoritmalar. Arduino/Pico donanim API'lerine bagimli olmamali.
+- `hal/`: GPIO, PWM, I2C, SPI, UART ve timer icin platform bagimsiz arayuzler. RP2350 adaptörleri `hal/rp2350/` altinda tutulur.
 - `storage/`: Kalibrasyon/parametre gibi kalici veriler icin arayuz ve test edilebilir implementasyonlar. Flash yazma ayrintisi burada soyutlanmali.
 - `core/`: FlightManager, PID, mixer, sensor fusion ve flight mode mantigi. Donanima dogrudan erismek yerine `IDrivers.h` arayuzlerini kullanmali.
 - `telemetry/`: MAVLink ve log aktarimi. Uzun vadede `FlightManager` globaline dogrudan baglanmak yerine callback/interface kullanmali.
@@ -37,9 +39,10 @@ src/
 2. Fiziksel cihaz surucusu mu? `src/drivers/`
 3. Ucus/kontrol karari mi? `src/core/`
 4. Genel algoritma mi? `src/filters/`
-5. Kalici veri/saklama arayuzu mu? `src/storage/`
-6. Yer istasyonu veya log akisi mi? `src/telemetry/`
-7. Sadece yardimci log/boot araci mi? `src/utils/`
+5. Platform donanim soyutlamasi mi? `src/hal/`
+6. Kalici veri/saklama arayuzu mu? `src/storage/`
+7. Yer istasyonu veya log akisi mi? `src/telemetry/`
+8. Sadece yardimci log/boot araci mi? `src/utils/`
 
 ## Mevcut Refactor Kararlari
 
@@ -47,6 +50,8 @@ src/
 - SBUS pin/UART dogrulamasi `board/PinValidation.h` altina alindi; pin esleme hatalari derleme zamaninda yakalanmalidir.
 - Kalibrasyon saklama API'si `storage/` altina alindi; ilk implementasyon native testler icin RAM tabanli, donanim sonrasi flash/LittleFS baglantisi eklenecek.
 - `FlightManager` icindeki RC ve sensor akis sorumluluklari `RCPipeline` ve `SensorPipeline` siniflarina ayrildi. `FlightManager` uzun vadede yalnizca orkestrasyon ve snapshot uretimi yapmali.
+- HAL arayuzleri `src/hal/` altinda baslatildi; `RP2350Timer` ve `RP2350PWM` adaptörleri eklendi. I2C/UART adaptörleri mevcut surucu kodu tasinmadan once iskelet durumunda.
+- `Scheduler` ve `PreflightHealth` cekirdek siniflari test-first eklendi; ucus akisina kademeli baglanacaklar.
 - `config.h` simdilik kokte tutulur. Bir sonraki buyuk refactor'da `src/config/` altina bolunebilir, ancak mevcut include zincirini kiracak toplu tasima acele yapilmamalidir.
 
 ## Hedef Nihai Yapi
@@ -60,6 +65,7 @@ src/
   drivers/     HAL ve donanim suruculeri
   estimators/  EKF/complementary/filter fusion katmani (ileride)
   filters/     Genel filtre algoritmalari
+  hal/         Platform soyutlama ve RP2350 adaptörleri
   storage/     Kalibrasyon ve parametre kaliciligi
   telemetry/   MAVLink, blackbox, parametre
   utils/       Boot/log/panic yardimcilari

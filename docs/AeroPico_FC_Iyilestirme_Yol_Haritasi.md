@@ -140,10 +140,10 @@ Hedef: Mevcut calisan cekirdegi, daha profesyonel FC mimarisine yaklastirmak.
 | F8-02 | Bekliyor | `ControlPipeline` ile controller/mixer hazirliklarini ayir | `core/` |
 | F8-03 | Bekliyor | `FailsafeManager` ile failsafe kararlarini merkezilestir | `core/` |
 | F8-04 | Bekliyor | `FlightData` yerine `RcInputState`, `VehicleState`, `ActuatorState`, `NavigationState` ayrimini genislet | `types.h` |
-| F8-05 | Bekliyor | Gercek HAL katmani tasarla: GPIO/PWM/I2C/UART/ADC/TIMER | `drivers/`, `hal/` |
-| F8-06 | Bekliyor | Multi-rate scheduler tasarimi: 400/200/100/50/20/10/5/1Hz | `core/` |
+| F8-05 | Basladi | Gercek HAL katmani tasarla: GPIO/PWM/I2C/UART/ADC/TIMER | `hal/`, `hal/rp2350/` |
+| F8-06 | Basladi | Multi-rate scheduler tasarimi: 400/200/100/50/20/10/5/1Hz | `core/Scheduler.*`, `test/test_scheduler/` |
 | F8-07 | Bekliyor | Runtime parametre kapsamlarini genislet: servo reverse, trim, mixer, failsafe, RC | `telemetry/ParamManager.*` |
-| F8-08 | Bekliyor | Boot sequence, driver registration, dependency graph, health check ve self-test akisini kod seviyesinde ayir | `main.cpp`, `utils/`, `drivers/` |
+| F8-08 | Basladi | Boot sequence, driver registration, dependency graph, health check ve self-test akisini kod seviyesinde ayir | `core/PreflightHealth.*`, `test/test_preflight/` |
 
 ## Safha 7 - Inovasyon ve Estimator Hazirligi
 
@@ -161,6 +161,8 @@ Hedef: GPS/otonom moda hemen girmeden, ileride EKF ve urun farklilastirmasi icin
 
 - 2026-07-07 yerel dogrulama: `pio test -e native` sonucu 33/33 test basarili.
 - 2026-07-07 yerel dogrulama: `pio run -e pico` basarili.
+- 2026-07-07 Faz 8 dogrulama: `pio test -e native` sonucu 42/42 test basarili.
+- 2026-07-07 Faz 8 dogrulama: `pio run -e pico` basarili.
 - Donanim elde olmadigi icin heartbeat, SBUS UART0/GP1, sensor health ve blackbox alanlari sahada beklemede.
 - GitHub Actions dosyasi mevcut; uzak CI sonucu repo GitHub'a baglandiktan sonra dogrulanmali.
 

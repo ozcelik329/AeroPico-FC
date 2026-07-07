@@ -14,7 +14,7 @@ Bu belge mevcut kod tabanini kapsamli muhendislik yol haritasi maddelerine gore 
 | Sensor health / kalibrasyon | Buyuk olcude tamamlandi | Sensor health log/MAVLink'e tasiniyor; IMU/mag kalibrasyon tipleri ve storage API eklendi. Baro/mag health sahada dogrulanmali. |
 | Zamanlama / CI | Kod tarafinda tamamlandi | Timing budget blackbox/MAVLink'e raporlaniyor; GitHub Actions dosyasi mevcut; yerel `pio test` ve `pio run` basarili. Uzak CI sonucu bekliyor. |
 | Estimator / EKF hazirligi | Tamamlandi | `EstimatedState`, `ComplementaryEstimator`, testler ve EKF tasarim notu mevcut. |
-| Mimari modularite | Basladi | `RCPipeline` ve `SensorPipeline` ile FlightManager kucultuldu; ControlPipeline, FailsafeManager, HAL ve scheduler sonraki mimari fazda. |
+| Mimari modularite | Basladi | `RCPipeline` ve `SensorPipeline` ile FlightManager kucultuldu; HAL arayuzleri, Scheduler ve PreflightHealth testli iskelet olarak eklendi. |
 | GPS / otonom mod | Bilincli olarak ertelendi | Altyapi hazirlandi; waypoint, RTH ve GPS parser simdilik kapsam disi. |
 
 ## Yerel Dogrulama
@@ -42,4 +42,4 @@ Bu belge mevcut kod tabanini kapsamli muhendislik yol haritasi maddelerine gore 
 
 - Sensor health, timing budget, blackbox ve MAVLink gorunurlugu artik inovasyon fikirlerini olculebilir hale getirecek temel veriyi uretebilir.
 - Estimator katmani donanimdan bagimsiz oldugu icin EKF, adaptive filtering ve kalite skoru gibi fikirler test-first ilerletilebilir.
-- Kod yapisi `board/`, `drivers/`, `filters/`, `storage/`, `estimators/`, `core/`, `telemetry/` ayrimina cekildigi icin yeni ozellikler daha az yan etkiyle eklenebilir.
+- Kod yapisi `board/`, `core/`, `drivers/`, `estimators/`, `filters/`, `hal/`, `storage/`, `telemetry/` ayrimina cekildigi icin yeni ozellikler daha az yan etkiyle eklenebilir.
