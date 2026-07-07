@@ -51,6 +51,28 @@ struct FlightData {
     uint32_t timestamp;
 };
 
+struct RcInputState {
+    uint16_t aileron;
+    uint16_t elevator;
+    uint16_t throttle;
+    uint16_t rudder;
+    bool failsafe;
+    bool overrideActive;
+    uint32_t timestampMs;
+};
+
+struct VehicleState {
+    float rollDeg;
+    float pitchDeg;
+    float yawDeg;
+    float gyroX;
+    float gyroY;
+    float gyroZ;
+    SensorHealth sensorHealth;
+    uint32_t timestampUs;
+    bool valid;
+};
+
 struct TimingBudgetStatus {
     uint32_t consumeUs;
     uint32_t pidUs;

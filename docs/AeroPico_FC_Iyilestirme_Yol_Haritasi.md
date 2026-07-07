@@ -71,6 +71,8 @@ Hedef: Saturasyon, ruzgar sapmasi ve sert firlatma gibi durumlarda kontrolcuyu o
 | F2-06 | Tamamlandi | Failsafe durumunu arm/disarm mantigina dogrudan bagla | `FlightModeController.*`, `FlightManager.cpp`, `test/test_controllers/` |
 | F2-07 | Tamamlandi | `ThreadSafeRingBuffer` const cast kullanimini `mutable` ile temizle | `ThreadSafeRingBuffer.h` |
 | F2-08 | Tamamlandi | SensorFusion bilinen aci testleri ekle | `SensorFusion.*`, `test/test_sensor_fusion/` |
+| F2-09 | Tamamlandi | FlightManager'dan RC ve sensor pipeline sorumluluklarini ayir | `FlightManager.*`, `RCPipeline.*`, `SensorPipeline.*` |
+| F2-10 | Tamamlandi | RC override/failsafe pipeline testlerini ekle | `test/test_rc_pipeline/` |
 
 ## Safha 3 - MAVLink, Parametre ve Gevsek Baglilik
 
@@ -127,6 +129,21 @@ Hedef: Temel stabilizasyon oturduktan sonra sabit kanatli IHA icin kullanisli mo
 | F6-05 | Batarya voltaj izleme ve brownout safe mode |
 | F6-06 | Binary blackbox veya daha verimli log formati |
 | F6-07 | GCS UI icin sensor health, arming state, flight mode ekranlari |
+
+## Safha 8 - Urun Seviyesi Mimari Sertlestirme
+
+Hedef: Mevcut calisan cekirdegi, daha profesyonel FC mimarisine yaklastirmak.
+
+| ID | Durum | Gorev | Dosyalar |
+|---|---|---|---|
+| F8-01 | Basladi | FlightManager'i pipeline tabanli orkestratore indir | `FlightManager.*`, `RCPipeline.*`, `SensorPipeline.*` |
+| F8-02 | Bekliyor | `ControlPipeline` ile controller/mixer hazirliklarini ayir | `core/` |
+| F8-03 | Bekliyor | `FailsafeManager` ile failsafe kararlarini merkezilestir | `core/` |
+| F8-04 | Bekliyor | `FlightData` yerine `RcInputState`, `VehicleState`, `ActuatorState`, `NavigationState` ayrimini genislet | `types.h` |
+| F8-05 | Bekliyor | Gercek HAL katmani tasarla: GPIO/PWM/I2C/UART/ADC/TIMER | `drivers/`, `hal/` |
+| F8-06 | Bekliyor | Multi-rate scheduler tasarimi: 400/200/100/50/20/10/5/1Hz | `core/` |
+| F8-07 | Bekliyor | Runtime parametre kapsamlarini genislet: servo reverse, trim, mixer, failsafe, RC | `telemetry/ParamManager.*` |
+| F8-08 | Bekliyor | Boot sequence, driver registration, dependency graph, health check ve self-test akisini kod seviyesinde ayir | `main.cpp`, `utils/`, `drivers/` |
 
 ## Safha 7 - Inovasyon ve Estimator Hazirligi
 

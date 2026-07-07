@@ -46,6 +46,7 @@ src/
 - `RunningMedian` `core/` altindan `filters/` altina tasindi; sensor gurultusu azaltma bir ucus karari degil, genel filtre algoritmasidir.
 - SBUS pin/UART dogrulamasi `board/PinValidation.h` altina alindi; pin esleme hatalari derleme zamaninda yakalanmalidir.
 - Kalibrasyon saklama API'si `storage/` altina alindi; ilk implementasyon native testler icin RAM tabanli, donanim sonrasi flash/LittleFS baglantisi eklenecek.
+- `FlightManager` icindeki RC ve sensor akis sorumluluklari `RCPipeline` ve `SensorPipeline` siniflarina ayrildi. `FlightManager` uzun vadede yalnizca orkestrasyon ve snapshot uretimi yapmali.
 - `config.h` simdilik kokte tutulur. Bir sonraki buyuk refactor'da `src/config/` altina bolunebilir, ancak mevcut include zincirini kiracak toplu tasima acele yapilmamalidir.
 
 ## Hedef Nihai Yapi

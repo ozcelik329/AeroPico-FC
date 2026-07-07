@@ -3,11 +3,12 @@
 
 #include <Arduino.h>
 #include "../drivers/IDrivers.h"
-#include "SensorFusion.h"
 #include "ThreadSafeRingBuffer.h"
 #include "FlightModeController.h"
 #include "NavigationController.h"
 #include "AltitudeController.h"
+#include "RCPipeline.h"
+#include "SensorPipeline.h"
 
 #include "ArmDefs.h"
 
@@ -40,10 +41,8 @@ class FlightManager {
     bool peekLatest(FlightData& out) const;
 
   private:
-    // Injected drivers (do not instantiate concrete types here)
-    IImuDriver* _imu = nullptr;
-    IRxDriver*  _rx  = nullptr;
-    SensorFusion fusion;
+    RCPipeline _rcPipeline;
+    SensorPipeline _sensorPipeline;
 
     // Thread-safe ring buffer for multi-producer / multi-consumer usage
     ThreadSafeRingBuffer<FlightData, 4> _ringBuf;
@@ -56,15 +55,7 @@ class FlightManager {
     NavigationController _navController;
     AltitudeController  _altController;
 
-    void performSensorFusion();
     void updateControllers(const FlightData& data);
-
-    bool _rcOverrideActive = false;
-    uint32_t _rcOverrideLastMs = 0;
-    uint16_t _rcOverrideAileron = PWM_NEUTRAL;
-    uint16_t _rcOverrideElevator = PWM_NEUTRAL;
-    uint16_t _rcOverrideThrottle = PWM_MIN;
-    uint16_t _rcOverrideRudder = PWM_NEUTRAL;
 
     // Sequence counter to provide atomic-like snapshot semantics for `_latest`
     volatile uint32_t _latest_seq = 0;

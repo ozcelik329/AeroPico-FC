@@ -1,0 +1,40 @@
+#ifndef RC_PIPELINE_H
+#define RC_PIPELINE_H
+
+#include <Arduino.h>
+#include "../drivers/IDrivers.h"
+#include "../types.h"
+#include "../config.h"
+
+class RCPipeline {
+  public:
+    void init(IRxDriver* rxDriver);
+    RcInputState update();
+    RcInputState getState() const;
+
+    void setOverride(uint16_t aileron, uint16_t elevator, uint16_t throttle, uint16_t rudder);
+    void clearOverride();
+
+  private:
+    IRxDriver* _rx = nullptr;
+    RcInputState _state = {
+        PWM_NEUTRAL,
+        PWM_NEUTRAL,
+        PWM_MIN,
+        PWM_NEUTRAL,
+        true,
+        false,
+        0
+    };
+
+    bool _overrideActive = false;
+    uint32_t _overrideLastMs = 0;
+    uint16_t _overrideAileron = PWM_NEUTRAL;
+    uint16_t _overrideElevator = PWM_NEUTRAL;
+    uint16_t _overrideThrottle = PWM_MIN;
+    uint16_t _overrideRudder = PWM_NEUTRAL;
+
+    RcInputState failsafeState(uint32_t nowMs) const;
+};
+
+#endif
