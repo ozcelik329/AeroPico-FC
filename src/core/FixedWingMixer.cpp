@@ -1,10 +1,5 @@
 #include "FixedWingMixer.h"
 #include <math.h>
-#ifdef UNIT_TEST
-static void writeMotors(int, int, int, int) {}
-#else
-#include "../drivers/Output.h"
-#endif
 
 FixedWingMixer::FixedWingMixer() {
     settings.rollGain = 1.0f;
@@ -14,6 +9,11 @@ FixedWingMixer::FixedWingMixer() {
     settings.elevatorTrim = 0;
     settings.rudderTrim = 0;
     settings.throttleTrim = 0;
+    settings.servoMin = PWM_MIN;
+    settings.servoMax = PWM_MAX;
+    settings.reverseAileron = false;
+    settings.reverseElevator = false;
+    settings.reverseRudder = false;
 }
 
 void FixedWingMixer::init() {
@@ -23,11 +23,18 @@ void FixedWingMixer::init() {
 
 void FixedWingMixer::setSettings(const MixerSettings& settings) {
     this->settings = settings;
+    if (this->settings.servoMin < PWM_MIN) this->settings.servoMin = PWM_MIN;
+    if (this->settings.servoMax > PWM_MAX) this->settings.servoMax = PWM_MAX;
+    if (this->settings.servoMin > this->settings.servoMax) {
+        int tmp = this->settings.servoMin;
+        this->settings.servoMin = this->settings.servoMax;
+        this->settings.servoMax = tmp;
+    }
 }
 
 int FixedWingMixer::applyServoMix(int baseSignal, float correction, int trim) {
     float scaled = baseSignal + correction;
-    int mixed = constrain((int)round(scaled + trim), PWM_MIN, PWM_MAX);
+    int mixed = constrain((int)round(scaled + trim), settings.servoMin, settings.servoMax);
     return mixed;
 }
 
@@ -61,26 +68,15 @@ MixerOutput FixedWingMixer::computeOutputs(uint16_t rawThrottle,
     out.rudder = applyServoMix(baseRudder,
                                yawCorrection * settings.yawGain,
                                settings.rudderTrim);
+    if (settings.reverseAileron) {
+        out.aileron = constrain(PWM_NEUTRAL - (out.aileron - PWM_NEUTRAL), settings.servoMin, settings.servoMax);
+    }
+    if (settings.reverseElevator) {
+        out.elevator = constrain(PWM_NEUTRAL - (out.elevator - PWM_NEUTRAL), settings.servoMin, settings.servoMax);
+    }
+    if (settings.reverseRudder) {
+        out.rudder = constrain(PWM_NEUTRAL - (out.rudder - PWM_NEUTRAL), settings.servoMin, settings.servoMax);
+    }
     out.throttle = mapThrottle(rawThrottle);
     return out;
-}
-
-void FixedWingMixer::compute(uint16_t rawThrottle,
-                             float rollCorrection,
-                             float pitchCorrection,
-                             float yawCorrection,
-                             uint16_t inputAileron,
-                             uint16_t inputElevator,
-                             uint16_t inputRudder) {
-    MixerOutput out = computeOutputs(
-        rawThrottle,
-        rollCorrection,
-        pitchCorrection,
-        yawCorrection,
-        inputAileron,
-        inputElevator,
-        inputRudder
-    );
-
-    writeMotors(out.throttle, out.aileron, out.elevator, out.rudder);
 }

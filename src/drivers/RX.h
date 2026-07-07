@@ -14,12 +14,14 @@ class RXManager : public IRxDriver {
     bool isFailsafe() const;       // Failsafe aktif mi?
     uint32_t lastValidMs() const;  // Son geçerli sinyal zamanı
     uint16_t getChannel(int ch) const;
+    void setFailsafeTimeoutMs(uint32_t timeoutMs);
 
   private:
     uint16_t channels[16];
     bool valid         = false;
     bool _failsafe     = false;
     uint32_t _lastValidTime = 0;
+    uint32_t _failsafeTimeoutMs = FAILSAFE_TIMEOUT_MS;
 };
 
 #endif

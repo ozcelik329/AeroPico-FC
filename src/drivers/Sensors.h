@@ -8,6 +8,7 @@
 #include "hardware/dma.h"
 #include "pico/platform.h"
 #include "IDrivers.h"
+#include "sensors/SensorHealthMonitor.h"
 
 #ifdef USE_GY87
   #define HMC5883L_ADDR          0x1E
@@ -93,6 +94,7 @@ class SensorManager : public IImuDriver, public IMagDriver, public IBaroDriver, 
     RunningMedian<float, SENSOR_MEDIAN_WINDOW> _gyMedian;
     RunningMedian<float, SENSOR_MEDIAN_WINDOW> _gzMedian;
     uint32_t _lastSensorDebugLogMs = 0;
+    SensorHealthMonitor _healthMonitor;
 
     // Boot kalibrasyon ofsetleri
     float _gyroBiasX = 0.0f, _gyroBiasY = 0.0f, _gyroBiasZ = 0.0f;

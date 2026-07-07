@@ -14,6 +14,22 @@ void ParamManager::setPidGainsApplyHandler(PidGainsApplyHandler handler) {
     _pidGainsApplyHandler = handler;
 }
 
+void ParamManager::setMixerSettingsApplyHandler(MixerSettingsApplyHandler handler) {
+    _mixerSettingsApplyHandler = handler;
+}
+
+void ParamManager::setFailsafeTimeoutApplyHandler(FailsafeTimeoutApplyHandler handler) {
+    _failsafeTimeoutApplyHandler = handler;
+}
+
+bool ParamManager::_isPidParam(uint8_t index) const {
+    return index <= 5;
+}
+
+bool ParamManager::_isMixerParam(uint8_t index) const {
+    return index >= 6 && index <= 17;
+}
+
 int ParamManager::_findParamIndex(const char* name) const {
     for (uint8_t i = 0; i < PARAM_COUNT; i++) {
         if (strncmp(_params[i].name, name, 16) == 0) {
@@ -28,13 +44,36 @@ bool ParamManager::setParamByName(const char* name, float value) {
     if (index < 0) return false;
 
     _params[index].value = constrain(value, _params[index].minVal, _params[index].maxVal);
-    if (_pidGainsApplyHandler) {
+    if (_isPidParam((uint8_t)index) && _pidGainsApplyHandler) {
         _pidGainsApplyHandler(
             getAngleP(), getAngleI(), getAngleD(),
             getRateP(), getRateI(), getRateD()
         );
     }
+    if (_isMixerParam((uint8_t)index) && _mixerSettingsApplyHandler) {
+        _mixerSettingsApplyHandler(getMixerSettings());
+    }
+    if (index == 18 && _failsafeTimeoutApplyHandler) {
+        _failsafeTimeoutApplyHandler(getFailsafeTimeoutMs());
+    }
     return true;
+}
+
+MixerSettings ParamManager::getMixerSettings() const {
+    MixerSettings settings;
+    settings.rollGain = _params[6].value;
+    settings.pitchGain = _params[7].value;
+    settings.yawGain = _params[8].value;
+    settings.aileronTrim = (int)_params[9].value;
+    settings.elevatorTrim = (int)_params[10].value;
+    settings.rudderTrim = (int)_params[11].value;
+    settings.throttleTrim = (int)_params[12].value;
+    settings.reverseAileron = _params[13].value >= 0.5f;
+    settings.reverseElevator = _params[14].value >= 0.5f;
+    settings.reverseRudder = _params[15].value >= 0.5f;
+    settings.servoMin = (int)_params[16].value;
+    settings.servoMax = (int)_params[17].value;
+    return settings;
 }
 
 void ParamManager::handleMessage(const mavlink_message_t& msg) {

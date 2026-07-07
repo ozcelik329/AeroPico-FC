@@ -12,6 +12,11 @@ struct MixerSettings {
     int elevatorTrim;
     int rudderTrim;
     int throttleTrim;
+    int servoMin;
+    int servoMax;
+    bool reverseAileron;
+    bool reverseElevator;
+    bool reverseRudder;
 };
 
 struct MixerOutput {
@@ -26,13 +31,6 @@ class FixedWingMixer {
     FixedWingMixer();
     void init();
     void setSettings(const MixerSettings& settings);
-    void compute(uint16_t rawThrottle,
-                 float rollCorrection,
-                 float pitchCorrection,
-                 float yawCorrection,
-                 uint16_t inputAileron,
-                 uint16_t inputElevator,
-                 uint16_t inputRudder);
     MixerOutput computeOutputs(uint16_t rawThrottle,
                                float rollCorrection,
                                float pitchCorrection,

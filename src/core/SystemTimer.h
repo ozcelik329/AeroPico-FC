@@ -3,6 +3,7 @@
 #include <Arduino.h>
 #include "def.h"
 #include "../types.h"
+#include "FixedWingMixer.h"
 
 class SystemTimer {
 public:
@@ -32,6 +33,7 @@ public:
     static void logTimingStats();
     static void applyPidGains(float angleP, float angleI, float angleD,
                               float rateP, float rateI, float rateD);
+    static void applyMixerSettings(const MixerSettings& settings);
 
     static volatile bool is_running;
 

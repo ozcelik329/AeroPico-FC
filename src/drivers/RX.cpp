@@ -53,7 +53,7 @@ void RXManager::update() {
         }
     } else {
         // Belirli süre sinyal gelmezse failsafe
-        if (millis() - _lastValidTime > FAILSAFE_TIMEOUT_MS) {
+        if (millis() - _lastValidTime > _failsafeTimeoutMs) {
             _failsafe = true;
             valid     = false;
         }
@@ -83,4 +83,8 @@ uint16_t RXManager::getChannel(int ch) const {
     }
     if (ch >= 0 && ch < 16) return channels[ch];
     return PWM_NEUTRAL;
+}
+
+void RXManager::setFailsafeTimeoutMs(uint32_t timeoutMs) {
+    _failsafeTimeoutMs = constrain(timeoutMs, 50u, 5000u);
 }

@@ -9,6 +9,7 @@
 #include "AltitudeController.h"
 #include "RCPipeline.h"
 #include "SensorPipeline.h"
+#include "FailsafeManager.h"
 
 #include "ArmDefs.h"
 
@@ -55,6 +56,7 @@ class FlightManager {
     FlightModeController _modeController;
     NavigationController _navController;
     AltitudeController  _altController;
+    FailsafeManager _failsafeManager;
     bool _preflightArmAllowed = false;
 
     void updateControllers(const FlightData& data);

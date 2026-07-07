@@ -6,6 +6,7 @@ void FlightManager::init() {
     _modeController.init();
     _navController.init();
     _altController.init();
+    _failsafeManager.init();
 }
 
 void FlightManager::init(IImuDriver* imuDrv, IRxDriver* rxDrv) {
@@ -14,6 +15,7 @@ void FlightManager::init(IImuDriver* imuDrv, IRxDriver* rxDrv) {
     _modeController.init();
     _navController.init();
     _altController.init();
+    _failsafeManager.init();
 }
 
 void FlightManager::update() {
@@ -34,6 +36,9 @@ void FlightManager::update() {
     data.throttle = rc.throttle;
     data.rudder = rc.rudder;
     data.failsafe = rc.failsafe;
+
+    FailsafeDecision failsafe = _failsafeManager.evaluate(data);
+    data.failsafe = failsafe.active;
 
     updateControllers(data);
     _ringBuf.push(data);  // Lock-free yazma

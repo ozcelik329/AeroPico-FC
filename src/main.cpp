@@ -60,6 +60,14 @@ static void applyPidGains(float angleP, float angleI, float angleD,
     SystemTimer::applyPidGains(angleP, angleI, angleD, rateP, rateI, rateD);
 }
 
+static void applyMixerSettings(const MixerSettings& settings) {
+    SystemTimer::applyMixerSettings(settings);
+}
+
+static void applyFailsafeTimeout(uint32_t timeoutMs) {
+    rxManager.setFailsafeTimeoutMs(timeoutMs);
+}
+
 static PreflightResult evaluatePreflight() {
     preflightHealth.reset();
     preflightHealth.setCheck(PreflightCheckId::Boot, true, true, "");
@@ -216,11 +224,15 @@ void setup() {
 
 #ifdef MAVLINK_PARAMS_ENABLED
     paramManager.setPidGainsApplyHandler(applyPidGains);
+    paramManager.setMixerSettingsApplyHandler(applyMixerSettings);
+    paramManager.setFailsafeTimeoutApplyHandler(applyFailsafeTimeout);
     paramManager.init();
     applyPidGains(
         paramManager.getAngleP(), paramManager.getAngleI(), paramManager.getAngleD(),
         paramManager.getRateP(), paramManager.getRateI(), paramManager.getRateD()
     );
+    applyMixerSettings(paramManager.getMixerSettings());
+    applyFailsafeTimeout(paramManager.getFailsafeTimeoutMs());
 #endif
 
     bool baroOk = sensorManager.hasBaro();

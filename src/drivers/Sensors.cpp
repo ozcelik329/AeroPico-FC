@@ -508,10 +508,14 @@ SensorBuffer SensorManager::getLatest() {
     SensorBuffer copy = _buf[_writeIdx];
     mutex_exit(&_mutex);
 
-    if (!copy.valid) {
-        copy.health = _imuAvailable ? SensorHealth::WarmingUp : SensorHealth::Invalid;
-    } else if ((uint32_t)(micros() - copy.timestamp) > SENSOR_STALE_TIMEOUT_US) {
-        copy.health = SensorHealth::Stale;
+    copy.health = _healthMonitor.evaluate(
+        _imuAvailable,
+        copy.valid,
+        copy.timestamp,
+        micros(),
+        SENSOR_STALE_TIMEOUT_US
+    );
+    if (copy.health != SensorHealth::Ok) {
         copy.valid = false;
     }
 
