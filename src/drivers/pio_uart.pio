@@ -2,7 +2,8 @@
 .side_set 1 opt
 
 ; Baud rate: sistem saati / baud_rate
-; 125MHz / 57600 = ~2170 cycle per bit
+; The C++ driver computes the PIO divider from clk_sys, so this program does
+; not assume a fixed 125MHz or 150MHz system clock.
 
     pull        side 1 [7]  ; TX idle (HIGH), FIFO'dan al
     set x, 7    side 0 [7]  ; Start bit (LOW)

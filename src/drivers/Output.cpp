@@ -1,5 +1,6 @@
 #include "Output.h"
 #include "pwm.pio.h"
+#include <hardware/clocks.h>
 
 static PIO pio = pio0;
 static uint sm_aileron, sm_elevator, sm_rudder, sm_throttle;
@@ -10,6 +11,7 @@ ServoOutput servoOutput;
 // forward declarations for helper functions
 static void initServoSM(uint sm, uint pin);
 static void writePulse(uint sm, int pulse_us);
+static float getOneMicrosecondPioClockDivider();
 
 void ServoOutput::init() {
     sm_aileron  = pio_claim_unused_sm(pio, true);
@@ -47,10 +49,15 @@ static void initServoSM(uint sm, uint pin) {
     sm_config_set_sideset_pins(&c, pin);
     pio_gpio_init(pio, pin);
     pio_sm_set_consecutive_pindirs(pio, sm, pin, 1, true);
-    // 125MHz / 125 = 1MHz → 1 tick = 1µs
-    sm_config_set_clkdiv(&c, 125.0f);
+    // PIO state machines run from clk_sys. Keep one PIO tick at 1us on both
+    // RP2040-class 125MHz and RP2350-class 150MHz default clocks.
+    sm_config_set_clkdiv(&c, getOneMicrosecondPioClockDivider());
     pio_sm_init(pio, sm, offset, &c);
     pio_sm_set_enabled(pio, sm, true);
+}
+
+static float getOneMicrosecondPioClockDivider() {
+    return (float)clock_get_hz(clk_sys) / 1000000.0f;
 }
 
 static void writePulse(uint sm, int pulse_us) {
