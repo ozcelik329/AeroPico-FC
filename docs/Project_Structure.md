@@ -50,6 +50,7 @@ src/
 - SBUS pin/UART dogrulamasi `board/PinValidation.h` altina alindi; pin esleme hatalari derleme zamaninda yakalanmalidir.
 - Kalibrasyon saklama API'si `storage/` altina alindi; ilk implementasyon native testler icin RAM tabanli, donanim sonrasi flash/LittleFS baglantisi eklenecek.
 - `FlightManager` icindeki RC, sensor, controller ve state snapshot sorumluluklari ayrildi. RC akisi `RCPipeline`, sensor/fusion akisi `SensorPipeline`, controller orkestrasyonu `ControlPipeline`, flight loop `FlightControlTask`, snapshot uretimi `StatePublisher` icindedir.
+- Sensor suruculeri modül adina gore degil role gore adlandirilir. `drivers/sensors/gyro`, `drivers/sensors/mag` ve `drivers/sensors/baro` altindaki siniflar ileride MPU/HMC/BMP yerine farkli moduller gelse bile ayni mimari siniri korur.
 - HAL arayuzleri `src/hal/` altinda baslatildi; `RP2350Timer` ve `RP2350PWM` adaptörleri eklendi. I2C/UART adaptörleri mevcut surucu kodu tasinmadan once iskelet durumunda.
 - `Scheduler` ve `PreflightHealth` cekirdek siniflari test-first eklendi; ucus akisina kademeli baglanacaklar.
 - `config.h` simdilik kokte tutulur. Bir sonraki buyuk refactor'da `src/config/` altina bolunebilir, ancak mevcut include zincirini kiracak toplu tasima acele yapilmamalidir.

@@ -147,6 +147,7 @@ Hedef: Mevcut calisan cekirdegi, daha profesyonel FC mimarisine yaklastirmak.
 | F8-08 | Basladi | Boot sequence, driver registration, dependency graph, health check ve self-test akisini kod seviyesinde ayir | `core/PreflightHealth.*`, `core/BatteryMonitor.*`, `test/test_preflight/`, `test/test_battery_monitor/` |
 | F8-09 | Tamamlandi | Scheduler'i telemetry/log/health akisina bagla | `main.cpp`, `core/Scheduler.*` |
 | F8-10 | Tamamlandi | Preflight sonucunu arm kapisina bagla | `main.cpp`, `FlightModeController.*`, `FlightManager.*` |
+| F8-11 | Kismen tamamlandi | Sensor davranislarini role gore ayir: gyro, mag, baro | `drivers/sensors/gyro/`, `drivers/sensors/mag/`, `drivers/sensors/baro/`, `test/test_sensor_drivers/` |
 
 ## Safha 7 - Inovasyon ve Estimator Hazirligi
 
@@ -177,3 +178,4 @@ Hedef: GPS/otonom moda hemen girmeden, ileride EKF ve urun farklilastirmasi icin
 6. ParamManager kalici saklama entegrasyonunu storage katmani uzerinden tasarla.
 7. Donanim bench sonuclarini checklist'e isle.
 8. Inovasyon backlog'unu estimator ve timing sonuclarina gore onceliklendir.
+9. Sensor I2C/DMA yolunu `IHALI2C` arkasina kademeli tasi.

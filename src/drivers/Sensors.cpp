@@ -95,12 +95,12 @@ bool SensorManager::runBootCalibration() {
             delay(2);
             continue;
         }
-        sumGx += rgx * GYRO_SCALE;
-        sumGy += rgy * GYRO_SCALE;
-        sumGz += rgz * GYRO_SCALE;
-        sumAx += rax * ACCEL_SCALE;
-        sumAy += ray * ACCEL_SCALE;
-        sumAz += raz * ACCEL_SCALE;
+        sumGx += rgx * GyroAccelDriver::GYRO_SCALE;
+        sumGy += rgy * GyroAccelDriver::GYRO_SCALE;
+        sumGz += rgz * GyroAccelDriver::GYRO_SCALE;
+        sumAx += rax * GyroAccelDriver::ACCEL_SCALE;
+        sumAy += ray * GyroAccelDriver::ACCEL_SCALE;
+        sumAz += raz * GyroAccelDriver::ACCEL_SCALE;
         validSamples++;
         delay(2);
     }
@@ -143,41 +143,27 @@ void SensorManager::setImuCalibration(const ImuCalibration& calibration) {
     _accelBiasX = calibration.accelBiasX;
     _accelBiasY = calibration.accelBiasY;
     _accelBiasZ = calibration.accelBiasZ;
+    _gyroAccelDriver.resetFilters();
 }
 
 void SensorManager::beginMagCalibration() {
-    _magCalCollecting = true;
-    _magMinX = _magMinY = _magMinZ = 1000000.0f;
-    _magMaxX = _magMaxY = _magMaxZ = -1000000.0f;
+    _magDriver.beginCalibration();
 }
 
 bool SensorManager::observeMagCalibrationSample(float mx, float my, float mz) {
-    if (!_magCalCollecting) return false;
-    _magMinX = min(_magMinX, mx);
-    _magMinY = min(_magMinY, my);
-    _magMinZ = min(_magMinZ, mz);
-    _magMaxX = max(_magMaxX, mx);
-    _magMaxY = max(_magMaxY, my);
-    _magMaxZ = max(_magMaxZ, mz);
-    return true;
+    return _magDriver.observeCalibrationSample(mx, my, mz);
 }
 
 MagCalibration SensorManager::finishMagCalibration() {
-    _magCalCollecting = false;
-    _magCalibration.hardIronX = (_magMinX + _magMaxX) * 0.5f;
-    _magCalibration.hardIronY = (_magMinY + _magMaxY) * 0.5f;
-    _magCalibration.hardIronZ = (_magMinZ + _magMaxZ) * 0.5f;
-    _magCalibration.valid = true;
-    return _magCalibration;
+    return _magDriver.finishCalibration();
 }
 
 MagCalibration SensorManager::getMagCalibration() const {
-    return _magCalibration;
+    return _magDriver.getCalibration();
 }
 
 void SensorManager::setMagCalibration(const MagCalibration& calibration) {
-    if (!calibration.valid) return;
-    _magCalibration = calibration;
+    _magDriver.setCalibration(calibration);
 }
 
 void SensorManager::init() {
@@ -186,6 +172,7 @@ void SensorManager::init() {
     _buf[1] = {};
     _buf[0].health = SensorHealth::WarmingUp;
     _buf[1].health = SensorHealth::WarmingUp;
+    _gyroAccelDriver.resetFilters();
 
     // I2C başlat — Wire yerine doğrudan SDK
     i2c_init(_i2c, 400000);
@@ -389,21 +376,7 @@ bool SensorManager::_initBaro() {
         return false;
     }
 
-    auto to_int16 = [](uint8_t hi, uint8_t lo) { return (int16_t)((hi << 8) | lo); };
-    auto to_uint16 = [](uint8_t hi, uint8_t lo) { return (uint16_t)((hi << 8) | lo); };
-
-    AC1 = to_int16(calib[0], calib[1]);
-    AC2 = to_int16(calib[2], calib[3]);
-    AC3 = to_int16(calib[4], calib[5]);
-    AC4 = to_uint16(calib[6], calib[7]);
-    AC5 = to_uint16(calib[8], calib[9]);
-    AC6 = to_uint16(calib[10], calib[11]);
-    B1  = to_int16(calib[12], calib[13]);
-    B2  = to_int16(calib[14], calib[15]);
-    MB  = to_int16(calib[16], calib[17]);
-    MC  = to_int16(calib[18], calib[19]);
-    MD  = to_int16(calib[20], calib[21]);
-
+    _baroDriver.loadCalibration(calib);
     _bmp_state = BMP_IDLE;
     return true;
 }
@@ -429,7 +402,7 @@ bool SensorManager::_readBaroAsync(SensorBuffer& buf) {
             _setFault(SensorFaultCode::BaroReadFailed);
             return false;
         }
-        _bmp_raw_temp = (int32_t)(_bmp_dma_buf[0] << 8) | _bmp_dma_buf[1];
+        _baroDriver.setRawTemperature((int32_t)(_bmp_dma_buf[0] << 8) | _bmp_dma_buf[1]);
         _bmp_state = BMP_TEMP_READ;
     }
 
@@ -450,27 +423,10 @@ bool SensorManager::_readBaroAsync(SensorBuffer& buf) {
             return false;
         }
         int32_t up = ((int32_t)_bmp_dma_buf[0] << 16 | (int32_t)_bmp_dma_buf[1] << 8 | _bmp_dma_buf[2]) >> (8 - 3);
-        int32_t x1 = ((int32_t)_bmp_raw_temp - AC6) * AC5 >> 15;
-        int32_t x2 = ((int32_t)MC << 11) / (x1 + MD);
-        int32_t b5 = x1 + x2;
-        int32_t t = (b5 + 8) >> 4;
-        int32_t b6 = b5 - 4000;
-        int32_t x1p = (B2 * (b6 * b6 >> 12)) >> 11;
-        int32_t x2p = (AC2 * b6) >> 11;
-        int32_t x3 = x1p + x2p;
-        int32_t b3 = (((int32_t)AC1 * 4 + x3) + 2) >> 2;
-        int32_t x1pp = (AC3 * b6) >> 13;
-        int32_t x2pp = (B1 * ((b6 * b6) >> 12)) >> 16;
-        int32_t x3p = ((x1pp + x2pp) + 2) >> 2;
-        int32_t b4 = (AC4 * (uint32_t)(x1pp + x3p + 32768)) >> 15;
-        int32_t b7 = ((uint32_t)up - b3) * (50000 >> 3);
-        int32_t p = (b7 < 0) ? (b7 * 2) / b4 : (b7 / b4) * 2;
-        int32_t x1ppp = (p >> 8) * (p >> 8);
-        int32_t x1pppp = (x1ppp * 3038) >> 16;
-        int32_t x2pppp = (-7357 * p) >> 16;
-        int32_t pressure = p + ((x1pppp + x2pppp + 3791) >> 4);
-        buf.pressure = pressure / 100.0f;
-        buf.tempC = t / 10.0f;
+        if (!_baroDriver.applyRawPressure(up, buf)) {
+            _setFault(SensorFaultCode::BaroReadFailed);
+            return false;
+        }
         _bmp_state = BMP_IDLE;
         return true;
     }
@@ -481,74 +437,6 @@ bool SensorManager::_readBaroAsync(SensorBuffer& buf) {
 
 bool SensorManager::_mpu_dma_ready() {
     return !dma_channel_is_busy(_dma_chan);
-}
-
-void __not_in_flash_func(SensorManager::_mpu_parse)(SensorBuffer& buf) {
-    auto to_int16 = [](uint8_t hi, uint8_t lo) -> int16_t {
-        return (int16_t)((hi << 8) | lo);
-    };
-
-    int16_t raw_ax = to_int16(_dma_buf[0],  _dma_buf[1]);
-    int16_t raw_ay = to_int16(_dma_buf[2],  _dma_buf[3]);
-    int16_t raw_az = to_int16(_dma_buf[4],  _dma_buf[5]);
-    int16_t raw_t  = to_int16(_dma_buf[6],  _dma_buf[7]);  // sıcaklık
-    int16_t raw_gx = to_int16(_dma_buf[8],  _dma_buf[9]);
-    int16_t raw_gy = to_int16(_dma_buf[10], _dma_buf[11]);
-    int16_t raw_gz = to_int16(_dma_buf[12], _dma_buf[13]);
-
-    float gx_raw = raw_gx * GYRO_SCALE - _gyroBiasX;
-    float gy_raw = raw_gy * GYRO_SCALE - _gyroBiasY;
-    float gz_raw = raw_gz * GYRO_SCALE - _gyroBiasZ;
-
-    // Küçük median penceresi tek örnek sıçramalarını bastırır.
-    buf.gx = _gxMedian.update(gx_raw);
-    buf.gy = _gyMedian.update(gy_raw);
-    buf.gz = _gzMedian.update(gz_raw);
-
-    // IIR Low-Pass Filter: y[n] = alpha * x[n] + (1 - alpha) * y[n-1]
-    float ax_raw = raw_ax * ACCEL_SCALE - _accelBiasX;
-    float ay_raw = raw_ay * ACCEL_SCALE - _accelBiasY;
-    float az_raw = raw_az * ACCEL_SCALE - _accelBiasZ;
-    ax_raw = _axMedian.update(ax_raw);
-    ay_raw = _ayMedian.update(ay_raw);
-    az_raw = _azMedian.update(az_raw);
-
-    _ax_f = IIR_ALPHA * ax_raw + (1.0f - IIR_ALPHA) * _ax_f;
-    _ay_f = IIR_ALPHA * ay_raw + (1.0f - IIR_ALPHA) * _ay_f;
-    _az_f = IIR_ALPHA * az_raw + (1.0f - IIR_ALPHA) * _az_f;
-
-    buf.ax = _ax_f;
-    buf.ay = _ay_f;
-    buf.az = _az_f;
-
-    // Sıcaklık: MPU6050 datasheet formülü
-    buf.tempC = (float)raw_t / 340.0f + 36.53f;
-
-    buf.timestamp = micros();
-    buf.valid = true;
-    buf.health = SensorHealth::Ok;
-
-#if SENSOR_DEBUG_LOG_ENABLED
-    uint32_t nowMs = millis();
-    if (nowMs - _lastSensorDebugLogMs >= SENSOR_DEBUG_LOG_INTERVAL_MS) {
-        _lastSensorDebugLogMs = nowMs;
-        Serial.printf(
-            "[SENSOR_FILTER] acc_raw=%.4f,%.4f,%.4f acc_f=%.4f,%.4f,%.4f gyro_raw=%.3f,%.3f,%.3f gyro_f=%.3f,%.3f,%.3f\n",
-            raw_ax * ACCEL_SCALE - _accelBiasX,
-            raw_ay * ACCEL_SCALE - _accelBiasY,
-            raw_az * ACCEL_SCALE - _accelBiasZ,
-            buf.ax,
-            buf.ay,
-            buf.az,
-            gx_raw,
-            gy_raw,
-            gz_raw,
-            buf.gx,
-            buf.gy,
-            buf.gz
-        );
-    }
-#endif
 }
 
 void SensorManager::update() {
@@ -579,7 +467,7 @@ void SensorManager::update() {
     uint8_t writeIdx = 1 - _writeIdx;
     SensorBuffer& buf = _buf[writeIdx];
 
-    _mpu_parse(buf);
+    _gyroAccelDriver.parseRawSample(_dma_buf, _imuCalibration, buf, micros());
 
     #ifdef USE_GY87
         if (_hasMag) {
@@ -589,13 +477,7 @@ void SensorManager::update() {
                 int16_t mx = (int16_t)(_hmc_dma_buf[0] << 8 | _hmc_dma_buf[1]);
                 int16_t my = (int16_t)(_hmc_dma_buf[4] << 8 | _hmc_dma_buf[5]);
                 int16_t mz = (int16_t)(_hmc_dma_buf[2] << 8 | _hmc_dma_buf[3]);
-                float mxScaled = mx * 0.92f;
-                float myScaled = my * 0.92f;
-                float mzScaled = mz * 0.92f;
-                observeMagCalibrationSample(mxScaled, myScaled, mzScaled);
-                buf.mx = mxScaled - (_magCalibration.valid ? _magCalibration.hardIronX : 0.0f);
-                buf.my = myScaled - (_magCalibration.valid ? _magCalibration.hardIronY : 0.0f);
-                buf.mz = mzScaled - (_magCalibration.valid ? _magCalibration.hardIronZ : 0.0f);
+                _magDriver.applySample(mx, my, mz, buf);
             }
         } else {
             buf.mx = buf.my = buf.mz = 0.0f;

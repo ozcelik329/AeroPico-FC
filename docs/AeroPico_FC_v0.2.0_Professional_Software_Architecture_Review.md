@@ -222,7 +222,13 @@ Bu, kritik bir guvenlik iyilestirmesidir. Core 0 yasiyor diye watchdog beslemek 
 
 ### Mevcut Durum
 
-Ana sensor kodu `Sensors.cpp` icinde. MPU6050 icin:
+Ana sensor orkestrasyonu `Sensors.cpp` icinde. Rol bazli sensor davranislari `drivers/sensors/` altina ayrilmaya basladi:
+
+- `gyro/GyroAccelDriver.*`: ham gyro/accel parse, median filtre, IIR filtre ve IMU sample uretimi.
+- `mag/MagDriver.*`: manyetometre hard-iron kalibrasyon ve raw-to-buffer donusumu.
+- `baro/BaroDriver.*`: barometre kalibrasyon katsayilari ve basinc/sicaklik kompanzasyonu.
+
+Mevcut gyro/accel yolunda:
 
 - WHO_AM_I kontrolu.
 - I2C init.
@@ -242,7 +248,7 @@ GY87 tarafinda mag/baro iskeleti var. Manyetometre hard-iron kalibrasyon iskelet
 
 ### Riskler
 
-- `Sensors.cpp` 500+ satir ve fazla sorumluluk tasiyor.
+- `Sensors.cpp` hala DMA/I2C orkestrasyonu nedeniyle buyuk, ancak gyro/mag/baro davranislari ayrilmaya basladi.
 - I2C/Pico SDK bagimliligi dogrudan.
 - DMA hata durumlari daha ayrintili fault code'a ayrilmali.
 - Barometre ve manyetometre health durumlari kismen tamam.
@@ -252,9 +258,9 @@ GY87 tarafinda mag/baro iskeleti var. Manyetometre hard-iron kalibrasyon iskelet
 
 ```text
 drivers/sensors/
-  MPU6050Driver.*
-  HMC5883Driver.*
-  BMP085Driver.*
+  gyro/GyroAccelDriver.*
+  mag/MagDriver.*
+  baro/BaroDriver.*
   SensorManager.*
   SensorHealthMonitor.*
 ```
@@ -589,7 +595,7 @@ flowchart LR
 | P0 | Scheduler'i RC/sensor pipeline frekanslarina genislet | Kismi: telemetry/log/health scheduler'da; sensor/control task frekanslari sonraki iterasyon |
 | P0 | PreflightHealth'i battery/memory/actuator check'leriyle genislet | Tamamlandi: memory ve actuator required, battery altyapisi optional |
 | P1 | Output surucusunu tam HAL PWM arkasina al | Tamamlandi: control loop `IHALPWM` ustunden yaziyor |
-| P1 | Sensors.cpp dosyasini MPU6050/Mag/Baro olarak bol | Bakim kolayligi |
+| P1 | Sensors.cpp dosyasini gyro/mag/baro rolleriyle bol | Kismen tamamlandi: `GyroAccelDriver`, `MagDriver`, `BaroDriver` eklendi |
 | P1 | FailsafeManager ekle | Tamamlandi: RC + stale/timeout/invalid sensor blokaji |
 | P1 | ParamManager servo/failsafe/mixer parametrelerini desteklesin | Tamamlandi |
 | P2 | HIL smoke test altyapisi | Tamamlandi: `tools/hil_smoke/` |
