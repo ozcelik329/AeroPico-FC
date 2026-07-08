@@ -14,6 +14,11 @@ static bool provideLowVoltage(float& voltage) {
     return true;
 }
 
+static bool provideBrownoutVoltage(float& voltage) {
+    voltage = 8.8f;
+    return true;
+}
+
 static bool provideNoVoltage(float& voltage) {
     voltage = 0.0f;
     return false;
@@ -37,6 +42,7 @@ void test_battery_monitor_accepts_voltage_in_range() {
 
     TEST_ASSERT_TRUE(status.configured);
     TEST_ASSERT_TRUE(status.healthy);
+    TEST_ASSERT_FALSE(status.brownout);
     TEST_ASSERT_FLOAT_WITHIN(0.001f, 11.8f, status.voltage);
 }
 
@@ -48,6 +54,7 @@ void test_battery_monitor_rejects_low_voltage() {
 
     TEST_ASSERT_TRUE(status.configured);
     TEST_ASSERT_FALSE(status.healthy);
+    TEST_ASSERT_FALSE(status.brownout);
 }
 
 void test_battery_monitor_rejects_unavailable_voltage() {
@@ -58,6 +65,18 @@ void test_battery_monitor_rejects_unavailable_voltage() {
 
     TEST_ASSERT_TRUE(status.configured);
     TEST_ASSERT_FALSE(status.healthy);
+    TEST_ASSERT_FALSE(status.brownout);
+}
+
+void test_battery_monitor_flags_brownout_risk() {
+    BatteryMonitor monitor;
+    monitor.init(provideBrownoutVoltage, 10.5f, 12.8f, 9.0f);
+
+    BatteryStatus status = monitor.evaluate();
+
+    TEST_ASSERT_TRUE(status.configured);
+    TEST_ASSERT_FALSE(status.healthy);
+    TEST_ASSERT_TRUE(status.brownout);
 }
 
 int main() {
@@ -66,5 +85,6 @@ int main() {
     RUN_TEST(test_battery_monitor_accepts_voltage_in_range);
     RUN_TEST(test_battery_monitor_rejects_low_voltage);
     RUN_TEST(test_battery_monitor_rejects_unavailable_voltage);
+    RUN_TEST(test_battery_monitor_flags_brownout_risk);
     return UNITY_END();
 }

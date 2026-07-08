@@ -6,6 +6,9 @@ This is not a full flight test. It checks that the firmware boots, emits health
 telemetry, and keeps the flight loop alive long enough for the watchdog gate to
 stay healthy.
 
+Fault semantics that do not require hardware are covered by
+`tools/fault_injection/fault_injection.py` in CI.
+
 ## Required Hardware
 
 - Pico 2 / RP2350 board flashed with the current firmware
@@ -25,4 +28,3 @@ Expected pass signals:
 - Health report appears.
 - No stack overflow or malloc failure appears.
 - No watchdog reset warning appears during the observation window.
-

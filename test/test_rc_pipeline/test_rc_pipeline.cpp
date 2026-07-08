@@ -82,10 +82,44 @@ void test_rc_pipeline_override_times_out() {
     TEST_ASSERT_EQUAL_UINT16(rx.channels[RC_ROLL_CHANNEL], expired.aileron);
 }
 
+void test_rc_pipeline_applies_runtime_channel_mapping() {
+    FakeRxDriver rx;
+    rx.channels[0] = 1100;
+    rx.channels[1] = 1200;
+    rx.channels[2] = 1300;
+    rx.channels[3] = 1400;
+
+    RCPipeline pipeline;
+    pipeline.init(&rx);
+    pipeline.applyMapping({3, 2, 1, 0});
+
+    setMockMillis(120);
+    RcInputState state = pipeline.update();
+
+    TEST_ASSERT_EQUAL_UINT16(1400, state.aileron);
+    TEST_ASSERT_EQUAL_UINT16(1300, state.elevator);
+    TEST_ASSERT_EQUAL_UINT16(1200, state.throttle);
+    TEST_ASSERT_EQUAL_UINT16(1100, state.rudder);
+}
+
+void test_rc_pipeline_clamps_runtime_channel_mapping() {
+    RCPipeline pipeline;
+    pipeline.applyMapping({9, 8, 7, 6});
+
+    RcMapping mapping = pipeline.getMapping();
+
+    TEST_ASSERT_EQUAL_UINT8(7, mapping.rollChannel);
+    TEST_ASSERT_EQUAL_UINT8(7, mapping.pitchChannel);
+    TEST_ASSERT_EQUAL_UINT8(7, mapping.throttleChannel);
+    TEST_ASSERT_EQUAL_UINT8(6, mapping.yawChannel);
+}
+
 int main() {
     UNITY_BEGIN();
     RUN_TEST(test_rc_pipeline_reads_receiver_channels);
     RUN_TEST(test_rc_pipeline_uses_failsafe_values_when_rx_invalid);
     RUN_TEST(test_rc_pipeline_override_times_out);
+    RUN_TEST(test_rc_pipeline_applies_runtime_channel_mapping);
+    RUN_TEST(test_rc_pipeline_clamps_runtime_channel_mapping);
     return UNITY_END();
 }

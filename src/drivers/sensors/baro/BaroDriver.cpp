@@ -53,7 +53,8 @@ bool BaroDriver::applyRawPressure(int32_t rawPressure, SensorBuffer& buffer) con
     int32_t x2pppp = (-7357 * p) >> 16;
     int32_t pressure = p + ((x1pppp + x2pppp + 3791) >> 4);
 
-    buffer.pressure = pressure / 100.0f;
+    buffer.pressureHpa = pressure * 0.01f;
     buffer.tempC = t / 10.0f;
+    buffer.baroValid = true;
     return true;
 }

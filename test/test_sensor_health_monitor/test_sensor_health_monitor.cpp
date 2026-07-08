@@ -36,11 +36,23 @@ void test_sensor_health_monitor_reports_ok_sample() {
     TEST_ASSERT_EQUAL((int)SensorHealth::Ok, (int)health);
 }
 
+void test_sensor_health_monitor_reports_quality_score_and_age() {
+    SensorHealthMonitor monitor;
+
+    SensorQuality quality = monitor.evaluateQuality(true, true, 1000, 2000, 5000);
+
+    TEST_ASSERT_EQUAL((int)SensorHealth::Ok, (int)quality.health);
+    TEST_ASSERT_EQUAL_UINT32(1000, quality.ageUs);
+    TEST_ASSERT_TRUE(quality.score >= 50);
+    TEST_ASSERT_TRUE(quality.score <= 100);
+}
+
 int main() {
     UNITY_BEGIN();
     RUN_TEST(test_sensor_health_monitor_reports_invalid_without_imu);
     RUN_TEST(test_sensor_health_monitor_reports_warming_up_without_sample);
     RUN_TEST(test_sensor_health_monitor_reports_stale_sample);
     RUN_TEST(test_sensor_health_monitor_reports_ok_sample);
+    RUN_TEST(test_sensor_health_monitor_reports_quality_score_and_age);
     return UNITY_END();
 }

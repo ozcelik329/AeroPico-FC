@@ -5,6 +5,8 @@ void FlightManager::init() {
     _rcPipeline.init(nullptr);
     _controlPipeline.init();
     _failsafeManager.init();
+    _vehicleState = _sensorPipeline.getState();
+    _rcState = _rcPipeline.getState();
 }
 
 void FlightManager::init(IImuDriver* imuDrv, IRxDriver* rxDrv) {
@@ -12,24 +14,37 @@ void FlightManager::init(IImuDriver* imuDrv, IRxDriver* rxDrv) {
     _rcPipeline.init(rxDrv);
     _controlPipeline.init();
     _failsafeManager.init();
+    _vehicleState = _sensorPipeline.getState();
+    _rcState = _rcPipeline.getState();
 }
 
 void FlightManager::update() {
-    VehicleState vehicle = _sensorPipeline.update();
-    RcInputState rc = _rcPipeline.update();
+    updateSensors();
+    updateRc();
+    publishState();
+}
 
-    FlightData provisional = _statePublisher.buildFlightData(vehicle, rc, {rc.failsafe, "RC pipeline"});
+void FlightManager::updateSensors() {
+    _vehicleState = _sensorPipeline.update();
+}
+
+void FlightManager::updateRc() {
+    _rcState = _rcPipeline.update();
+}
+
+void FlightManager::publishState() {
+    FlightData provisional = _statePublisher.buildFlightData(_vehicleState, _rcState, {_rcState.failsafe, "RC pipeline"});
     FailsafeDecision failsafe = _failsafeManager.evaluate(provisional);
-    FlightData data = _statePublisher.buildFlightData(vehicle, rc, failsafe);
+    FlightData data = _statePublisher.buildFlightData(_vehicleState, _rcState, failsafe);
 
     ControlPipelineInput controlInput;
-    controlInput.rc = rc;
-    controlInput.vehicle = vehicle;
+    controlInput.rc = _rcState;
+    controlInput.vehicle = _vehicleState;
     controlInput.failsafe = failsafe.active;
     controlInput.preflightArmAllowed = _preflightArmAllowed;
     _controlPipeline.update(controlInput);
 
-    _ringBuf.push(data);  // Lock-free yazma
+    _ringBuf.push(data);
 }
 
 // Consumer: pop all pending items and update the cached `_latest` (called by single consumer Core 1)
@@ -80,6 +95,10 @@ void FlightManager::setRCOverride(uint16_t aileron, uint16_t elevator, uint16_t 
 
 void FlightManager::clearRCOverride() {
     _rcPipeline.clearOverride();
+}
+
+void FlightManager::applyRcMapping(const RcMapping& mapping) {
+    _rcPipeline.applyMapping(mapping);
 }
 
 void FlightManager::setPreflightArmAllowed(bool allowed) {

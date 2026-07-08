@@ -3,29 +3,14 @@
 
 #include <Arduino.h>
 #include "../config.h"
-#include "hardware/i2c.h"
-#include "hardware/dma.h"
 #include "pico/platform.h"
 #include "IDrivers.h"
 #include "sensors/SensorHealthMonitor.h"
+#include "sensors/SensorDmaBus.h"
+#include "sensors/SensorAuxBus.h"
 #include "sensors/baro/BaroDriver.h"
 #include "sensors/gyro/GyroAccelDriver.h"
 #include "sensors/mag/MagDriver.h"
-
-#ifdef USE_GY87
-  #define HMC5883L_ADDR          0x1E
-  #define HMC5883L_REG_CONFIG_A  0x00
-  #define HMC5883L_REG_CONFIG_B  0x01
-  #define HMC5883L_REG_MODE      0x02
-  #define HMC5883L_REG_DATA_X_MSB 0x03
-
-  #define BMP085_ADDR            0x77
-  #define BMP085_REG_CALIB_START 0xAA
-  #define BMP085_REG_CONTROL     0xF4
-  #define BMP085_REG_RESULT      0xF6
-  #define BMP085_CMD_TEMP        0x2E
-  #define BMP085_CMD_PRESSURE    0x34
-#endif
 
 #define MPU6050_ADDR        0x68
 #define MPU6050_REG_PWR     0x6B
@@ -37,7 +22,7 @@
 #define MPU6050_REG_WHOAMI  0x75
 #define MPU6050_WHOAMI_VAL  0x68
 
-#define MPU6050_RAW_LEN     14
+#define MPU6050_RAW_LEN     SensorDmaBus::MPU_RAW_LEN
 
 // IIR Low-Pass Filter alpha değeri (0.0-1.0)
 // Düşük alpha = daha fazla filtreleme, daha fazla gecikme
@@ -81,13 +66,12 @@ class SensorManager : public IImuDriver, public IMagDriver, public IBaroDriver, 
     bool _imuAvailable = false;
     SensorFaultCode _faultCode = SensorFaultCode::None;
 
-    int _dma_chan = -1;
-    int _mpu_tx_dma_chan = -1;
-    uint8_t _dma_buf[MPU6050_RAW_LEN];
-    uint16_t _mpu_dma_cmd[1 + MPU6050_RAW_LEN];
     uint8_t _reg_addr = MPU6050_REG_ACCEL;
-    uint32_t _mpuDmaStartUs = 0;
 
+    SensorDmaBus _dmaBus;
+#ifdef USE_GY87
+    SensorAuxBus _auxBus;
+#endif
     GyroAccelDriver _gyroAccelDriver;
     MagDriver _magDriver;
     BaroDriver _baroDriver;
@@ -106,22 +90,6 @@ class SensorManager : public IImuDriver, public IMagDriver, public IBaroDriver, 
     void _mpu_start_dma_read();
     bool _mpu_dma_ready();
     void _setFault(SensorFaultCode code);
-
-    #ifdef USE_GY87
-        int _i2c_dma_chan = -1;
-        uint8_t _hmc_dma_buf[6];
-        uint8_t _bmp_dma_buf[3];
-        enum BmpState { BMP_IDLE, BMP_TEMP_PENDING, BMP_TEMP_READ, BMP_PRESSURE_PENDING, BMP_PRESSURE_READ } _bmp_state = BMP_IDLE;
-        uint32_t _bmp_wait_until = 0;
-
-        bool _initMag();
-        bool _initBaro();
-        bool _readMagAsync();
-        bool _readBaroAsync(SensorBuffer& buf);
-        bool _i2c_write_reg(uint8_t slave_addr, uint8_t reg, uint8_t val);
-        bool _i2c_read_regs_dma(uint8_t slave_addr, uint8_t reg, uint8_t* dest, size_t len);
-        bool _i2c_dma_busy() const;
-    #endif
 
     SensorBuffer _buf[2];
     volatile uint8_t _writeIdx = 0;

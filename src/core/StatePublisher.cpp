@@ -7,16 +7,22 @@ FlightData StatePublisher::buildFlightData(const VehicleState& vehicle,
     data.gyroX = vehicle.gyroX;
     data.gyroY = vehicle.gyroY;
     data.gyroZ = vehicle.gyroZ;
+    data.altitudeM = vehicle.altitudeM;
+    data.verticalSpeedMps = vehicle.verticalSpeedMps;
     data.roll = vehicle.rollDeg;
     data.pitch = vehicle.pitchDeg;
     data.yaw = vehicle.yawDeg;
     data.sensorHealth = vehicle.sensorHealth;
+    data.estimatorHealth = vehicle.estimatorHealth;
+    data.sensorQualityScore = vehicle.sensorQualityScore;
+    data.sensorAgeUs = vehicle.sensorAgeUs;
     data.timestamp = vehicle.timestampUs;
     data.aileron = rc.aileron;
     data.elevator = rc.elevator;
     data.throttle = rc.throttle;
     data.rudder = rc.rudder;
     data.failsafe = failsafe.active;
+    data.estimatorValid = vehicle.estimatorValid;
     return data;
 }
 
@@ -28,9 +34,15 @@ SensorState StatePublisher::buildSensorState(const VehicleState& vehicle) const 
     state.gyroX = vehicle.gyroX;
     state.gyroY = vehicle.gyroY;
     state.gyroZ = vehicle.gyroZ;
+    state.altitudeM = vehicle.altitudeM;
+    state.verticalSpeedMps = vehicle.verticalSpeedMps;
     state.health = vehicle.sensorHealth;
+    state.estimatorHealth = vehicle.estimatorHealth;
+    state.sensorQualityScore = vehicle.sensorQualityScore;
+    state.sensorAgeUs = vehicle.sensorAgeUs;
     state.timestampUs = vehicle.timestampUs;
     state.valid = vehicle.valid;
+    state.estimatorValid = vehicle.estimatorValid;
     return state;
 }
 

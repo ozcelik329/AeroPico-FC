@@ -6,7 +6,7 @@
 class ComplementaryEstimator {
   public:
     void init(float altitudeAlpha = 0.15f);
-    EstimatedState update(const FlightData& flightData, float baroAltitudeM, bool baroValid);
+    EstimatedState update(const EstimatorInput& input, float baroAltitudeM, bool baroValid);
     EstimatedState getState() const;
     void reset();
 

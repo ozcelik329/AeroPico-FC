@@ -11,10 +11,10 @@
 #define MAV_SERIAL       espUart
 
 // Stream frekansları (ms)
-#define STREAM_HEARTBEAT_MS   1000  // 1 Hz
-#define STREAM_ATTITUDE_MS     100  // 10 Hz
-#define STREAM_RC_MS           200  // 5 Hz
-#define STREAM_SYS_STATUS_MS   500  // 2 Hz
+#define STREAM_HEARTBEAT_MS        1000  // 1 Hz
+#define STREAM_ATTITUDE_DEFAULT_MS  100  // 10 Hz
+#define STREAM_RC_DEFAULT_MS        200  // 5 Hz
+#define STREAM_SYS_DEFAULT_MS       500  // 2 Hz
 
 class MavlinkHandler {
   public:
@@ -29,6 +29,7 @@ class MavlinkHandler {
     void setArmStateProvider(ArmStateProvider provider);
     void setRCOverrideHandler(RCOverrideHandler handler);
     void setClearRCOverrideHandler(ClearRCOverrideHandler handler);
+    void setStreamRates(uint8_t attitudeHz, uint8_t rcHz, uint8_t sysStatusHz);
 
     void sendHeartbeat();
     void sendAttitude(float roll, float pitch, float yaw,
@@ -64,6 +65,9 @@ class MavlinkHandler {
     uint32_t _lastAttitudeSent    = 0;
     uint32_t _lastRCSent          = 0;
     uint32_t _lastSysStatusSent   = 0;
+    uint16_t _attitudePeriodMs    = STREAM_ATTITUDE_DEFAULT_MS;
+    uint16_t _rcPeriodMs          = STREAM_RC_DEFAULT_MS;
+    uint16_t _sysStatusPeriodMs   = STREAM_SYS_DEFAULT_MS;
 };
 
 extern MavlinkHandler mavlink;

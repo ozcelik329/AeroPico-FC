@@ -41,4 +41,10 @@ class MemoryCalibrationStorage : public ICalibrationStorage {
     bool _hasBlob = false;
 };
 
+class RPFlashCalibrationStorage : public ICalibrationStorage {
+  public:
+    bool load(CalibrationBlob& blob) override;
+    bool save(const CalibrationBlob& blob) override;
+};
+
 #endif

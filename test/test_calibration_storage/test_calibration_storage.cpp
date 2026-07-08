@@ -39,6 +39,22 @@ void test_calibration_storage_rejects_corrupt_blob() {
     TEST_ASSERT_FALSE(CalibrationStorage::isValid(blob));
 }
 
+void test_calibration_storage_rejects_version_mismatch() {
+    CalibrationBlob blob = CalibrationStorage::makeBlob(makeImuCalibration(), makeMagCalibration());
+    blob.version++;
+    blob.checksum = CalibrationStorage::checksum(blob);
+
+    TEST_ASSERT_FALSE(CalibrationStorage::isValid(blob));
+}
+
+void test_calibration_storage_rejects_empty_blob() {
+    ImuCalibration imu = {};
+    MagCalibration mag = {};
+    CalibrationBlob blob = CalibrationStorage::makeBlob(imu, mag);
+
+    TEST_ASSERT_FALSE(CalibrationStorage::isValid(blob));
+}
+
 void test_memory_calibration_storage_round_trip() {
     MemoryCalibrationStorage storage;
     CalibrationBlob saved = CalibrationStorage::makeBlob(makeImuCalibration(), makeMagCalibration());
@@ -54,6 +70,8 @@ int main() {
     UNITY_BEGIN();
     RUN_TEST(test_calibration_storage_creates_valid_blob);
     RUN_TEST(test_calibration_storage_rejects_corrupt_blob);
+    RUN_TEST(test_calibration_storage_rejects_version_mismatch);
+    RUN_TEST(test_calibration_storage_rejects_empty_blob);
     RUN_TEST(test_memory_calibration_storage_round_trip);
     return UNITY_END();
 }

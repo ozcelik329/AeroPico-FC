@@ -11,6 +11,7 @@
 class Blackbox {
   public:
     void init();
+    void setLogRateHz(uint8_t hz);
     void log(float roll, float pitch, float yaw,
              float gx, float gy, float gz,
              uint16_t throttle, uint16_t aileron,
@@ -21,6 +22,8 @@ class Blackbox {
 
   private:
     bool _enabled = false;
+    uint16_t _logPeriodMs = 200;
+    uint32_t _lastLogMs = 0;
 };
 
 extern Blackbox blackbox;

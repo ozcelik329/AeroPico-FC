@@ -6,6 +6,10 @@ static uint16_t clampPwm(uint16_t value) {
     return value;
 }
 
+static uint8_t clampChannel(uint8_t value) {
+    return value > 7 ? 7 : value;
+}
+
 void RCPipeline::init(IRxDriver* rxDriver) {
     _rx = rxDriver;
     if (_rx) {
@@ -54,10 +58,10 @@ RcInputState RCPipeline::update() {
         return _state;
     }
 
-    _state.aileron = _rx->getChannel(RC_ROLL_CHANNEL);
-    _state.elevator = _rx->getChannel(RC_PITCH_CHANNEL);
-    _state.throttle = _rx->getChannel(RC_THROTTLE_CHANNEL);
-    _state.rudder = _rx->getChannel(RC_YAW_CHANNEL);
+    _state.aileron = _rx->getChannel(_mapping.rollChannel);
+    _state.elevator = _rx->getChannel(_mapping.pitchChannel);
+    _state.throttle = _rx->getChannel(_mapping.throttleChannel);
+    _state.rudder = _rx->getChannel(_mapping.yawChannel);
     _state.failsafe = false;
     _state.overrideActive = false;
     _state.timestampMs = nowMs;
@@ -66,6 +70,13 @@ RcInputState RCPipeline::update() {
 
 RcInputState RCPipeline::getState() const {
     return _state;
+}
+
+void RCPipeline::applyMapping(const RcMapping& mapping) {
+    _mapping.rollChannel = clampChannel(mapping.rollChannel);
+    _mapping.pitchChannel = clampChannel(mapping.pitchChannel);
+    _mapping.throttleChannel = clampChannel(mapping.throttleChannel);
+    _mapping.yawChannel = clampChannel(mapping.yawChannel);
 }
 
 void RCPipeline::setOverride(uint16_t aileron, uint16_t elevator, uint16_t throttle, uint16_t rudder) {

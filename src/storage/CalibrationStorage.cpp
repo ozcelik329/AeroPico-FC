@@ -1,5 +1,13 @@
 #include "CalibrationStorage.h"
 
+#if !defined(UNIT_TEST)
+#include "hardware/flash.h"
+#include "hardware/sync.h"
+#include "pico/platform.h"
+#endif
+
+static_assert(sizeof(CalibrationBlob) <= 256, "CalibrationBlob must fit in one flash page");
+
 CalibrationBlob CalibrationStorage::makeBlob(const ImuCalibration& imu, const MagCalibration& mag) {
     CalibrationBlob blob = {};
     blob.magic = CALIBRATION_STORAGE_MAGIC;
@@ -49,4 +57,45 @@ bool MemoryCalibrationStorage::save(const CalibrationBlob& blob) {
 void MemoryCalibrationStorage::clear() {
     _blob = {};
     _hasBlob = false;
+}
+
+bool RPFlashCalibrationStorage::load(CalibrationBlob& blob) {
+#if defined(UNIT_TEST)
+    (void)blob;
+    return false;
+#else
+    constexpr uint32_t FLASH_TARGET_OFFSET = PICO_FLASH_SIZE_BYTES - FLASH_SECTOR_SIZE;
+    const auto* stored = reinterpret_cast<const CalibrationBlob*>(XIP_BASE + FLASH_TARGET_OFFSET);
+    blob = *stored;
+    return CalibrationStorage::isValid(blob);
+#endif
+}
+
+bool RPFlashCalibrationStorage::save(const CalibrationBlob& blob) {
+    if (!CalibrationStorage::isValid(blob)) {
+        return false;
+    }
+
+#if defined(UNIT_TEST)
+    (void)blob;
+    return false;
+#else
+    constexpr uint32_t FLASH_TARGET_OFFSET = PICO_FLASH_SIZE_BYTES - FLASH_SECTOR_SIZE;
+    constexpr size_t PAGE_SIZE = FLASH_PAGE_SIZE;
+    alignas(4) uint8_t page[PAGE_SIZE];
+
+    CalibrationBlob existing = {};
+    if (load(existing) && memcmp(&existing, &blob, sizeof(CalibrationBlob)) == 0) {
+        return true;
+    }
+
+    memset(page, 0xFF, sizeof(page));
+    memcpy(page, &blob, sizeof(CalibrationBlob));
+
+    uint32_t irqState = save_and_disable_interrupts();
+    flash_range_erase(FLASH_TARGET_OFFSET, FLASH_SECTOR_SIZE);
+    flash_range_program(FLASH_TARGET_OFFSET, page, PAGE_SIZE);
+    restore_interrupts(irqState);
+    return true;
+#endif
 }

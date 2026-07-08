@@ -4,11 +4,10 @@ import sys
 import time
 
 
-PASS_TOKENS = (
+REQUIRED_TOKENS = (
     "AeroPico",
     "HEALTH",
     "READY",
-    "Baslatildi",
 )
 
 FAIL_TOKENS = (
@@ -25,6 +24,7 @@ def main() -> int:
     parser.add_argument("--port", required=True, help="Serial port, e.g. /dev/tty.usbmodemXXXX")
     parser.add_argument("--baud", type=int, default=115200)
     parser.add_argument("--seconds", type=float, default=12.0)
+    parser.add_argument("--require", action="append", default=[], help="Additional required serial token")
     args = parser.parse_args()
 
     try:
@@ -33,6 +33,7 @@ def main() -> int:
         print("pyserial is required: python3 -m pip install pyserial", file=sys.stderr)
         return 2
 
+    required_tokens = REQUIRED_TOKENS + tuple(args.require)
     seen_pass = set()
     captured = []
     deadline = time.time() + args.seconds
@@ -52,12 +53,13 @@ def main() -> int:
                     print(f"HIL smoke failed: saw '{token}'", file=sys.stderr)
                     return 1
 
-            for token in PASS_TOKENS:
+            for token in required_tokens:
                 if token in line:
                     seen_pass.add(token)
 
-    if len(seen_pass) < 2:
-        print("HIL smoke failed: boot/health output was not observed", file=sys.stderr)
+    missing = [token for token in required_tokens if token not in seen_pass]
+    if missing:
+        print("HIL smoke failed: missing tokens: " + ", ".join(missing), file=sys.stderr)
         return 1
 
     print("HIL smoke passed")

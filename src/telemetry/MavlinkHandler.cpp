@@ -26,6 +26,18 @@ void MavlinkHandler::setClearRCOverrideHandler(ClearRCOverrideHandler handler) {
     _clearRCOverrideHandler = handler;
 }
 
+static uint16_t hzToPeriodMs(uint8_t hz, uint8_t minHz, uint8_t maxHz) {
+    if (hz < minHz) hz = minHz;
+    if (hz > maxHz) hz = maxHz;
+    return (uint16_t)(1000u / hz);
+}
+
+void MavlinkHandler::setStreamRates(uint8_t attitudeHz, uint8_t rcHz, uint8_t sysStatusHz) {
+    _attitudePeriodMs = hzToPeriodMs(attitudeHz, 1, 50);
+    _rcPeriodMs = hzToPeriodMs(rcHz, 1, 25);
+    _sysStatusPeriodMs = hzToPeriodMs(sysStatusHz, 1, 10);
+}
+
 void MavlinkHandler::update() {
     while (MAV_SERIAL.available()) {
         uint8_t byte = MAV_SERIAL.read();
@@ -47,7 +59,7 @@ void MavlinkHandler::update() {
     }
 
     // Attitude — 10 Hz
-    if (now - _lastAttitudeSent >= STREAM_ATTITUDE_MS) {
+    if (now - _lastAttitudeSent >= _attitudePeriodMs) {
         _lastAttitudeSent = now;
         FlightData d;
         if (_flightDataProvider && _flightDataProvider(d)) {
@@ -56,7 +68,7 @@ void MavlinkHandler::update() {
     }
 
     // RC Channels — 5 Hz
-    if (now - _lastRCSent >= STREAM_RC_MS) {
+    if (now - _lastRCSent >= _rcPeriodMs) {
         _lastRCSent = now;
         FlightData d;
         if (_flightDataProvider && _flightDataProvider(d)) {
@@ -65,7 +77,7 @@ void MavlinkHandler::update() {
     }
 
     // SYS_STATUS — 2 Hz
-    if (now - _lastSysStatusSent >= STREAM_SYS_STATUS_MS) {
+    if (now - _lastSysStatusSent >= _sysStatusPeriodMs) {
         _lastSysStatusSent = now;
         FlightData d = {};
         bool hasData = _flightDataProvider && _flightDataProvider(d);

@@ -6,6 +6,7 @@
 ParamManager paramManager;
 
 void ParamManager::init() {
+    loadPersistent();
     Serial.println("[PARAMS] Parametre yoneticisi baslatildi.");
     Serial.printf("[PARAMS] %d parametre yuklu.\n", PARAM_COUNT);
 }
@@ -22,12 +23,40 @@ void ParamManager::setFailsafeTimeoutApplyHandler(FailsafeTimeoutApplyHandler ha
     _failsafeTimeoutApplyHandler = handler;
 }
 
+void ParamManager::setRcMappingApplyHandler(RcMappingApplyHandler handler) {
+    _rcMappingApplyHandler = handler;
+}
+
+void ParamManager::setMavlinkRatesApplyHandler(MavlinkRatesApplyHandler handler) {
+    _mavlinkRatesApplyHandler = handler;
+}
+
+void ParamManager::setBlackboxRateApplyHandler(BlackboxRateApplyHandler handler) {
+    _blackboxRateApplyHandler = handler;
+}
+
+void ParamManager::setPreflightQualityApplyHandler(PreflightQualityApplyHandler handler) {
+    _preflightQualityApplyHandler = handler;
+}
+
+void ParamManager::setStorage(IParamStorage* storage) {
+    _storage = storage;
+}
+
 bool ParamManager::_isPidParam(uint8_t index) const {
-    return index <= 5;
+    return index <= PARAM_IDX_RATE_D;
 }
 
 bool ParamManager::_isMixerParam(uint8_t index) const {
-    return index >= 6 && index <= 17;
+    return index >= PARAM_IDX_MIX_ROLL && index <= PARAM_IDX_SERVO_MAX;
+}
+
+bool ParamManager::_isRcMappingParam(uint8_t index) const {
+    return index >= PARAM_IDX_RC_ROLL_CH && index <= PARAM_IDX_RC_YAW_CH;
+}
+
+bool ParamManager::_isMavlinkRateParam(uint8_t index) const {
+    return index >= PARAM_IDX_MAV_ATT_HZ && index <= PARAM_IDX_MAV_SYS_HZ;
 }
 
 int ParamManager::_findParamIndex(const char* name) const {
@@ -39,40 +68,108 @@ int ParamManager::_findParamIndex(const char* name) const {
     return -1;
 }
 
-bool ParamManager::setParamByName(const char* name, float value) {
-    int index = _findParamIndex(name);
-    if (index < 0) return false;
-
-    _params[index].value = constrain(value, _params[index].minVal, _params[index].maxVal);
-    if (_isPidParam((uint8_t)index) && _pidGainsApplyHandler) {
+void ParamManager::_applyParam(uint8_t index) {
+    if (_isPidParam(index) && _pidGainsApplyHandler) {
         _pidGainsApplyHandler(
             getAngleP(), getAngleI(), getAngleD(),
             getRateP(), getRateI(), getRateD()
         );
     }
-    if (_isMixerParam((uint8_t)index) && _mixerSettingsApplyHandler) {
+    if (_isMixerParam(index) && _mixerSettingsApplyHandler) {
         _mixerSettingsApplyHandler(getMixerSettings());
     }
-    if (index == 18 && _failsafeTimeoutApplyHandler) {
+    if (index == PARAM_IDX_FS_TIMEOUT && _failsafeTimeoutApplyHandler) {
         _failsafeTimeoutApplyHandler(getFailsafeTimeoutMs());
     }
+    if (_isRcMappingParam(index) && _rcMappingApplyHandler) {
+        _rcMappingApplyHandler(
+            getRcRollChannel(),
+            getRcPitchChannel(),
+            getRcThrottleChannel(),
+            getRcYawChannel()
+        );
+    }
+    if (_isMavlinkRateParam(index) && _mavlinkRatesApplyHandler) {
+        _mavlinkRatesApplyHandler(
+            getMavlinkAttitudeHz(),
+            getMavlinkRcHz(),
+            getMavlinkSysStatusHz()
+        );
+    }
+    if (index == PARAM_IDX_BB_LOG_HZ && _blackboxRateApplyHandler) {
+        _blackboxRateApplyHandler(getBlackboxLogHz());
+    }
+    if (index == PARAM_IDX_PREF_Q_MIN && _preflightQualityApplyHandler) {
+        _preflightQualityApplyHandler(getPreflightMinQuality());
+    }
+}
+
+bool ParamManager::loadPersistent() {
+    if (!_storage) return false;
+
+    ParamStorageBlob blob = {};
+    if (!_storage->load(blob) || !ParamStorage::isValid(blob, PARAM_PERSISTED_COUNT)) {
+        return false;
+    }
+
+    for (uint8_t i = 0; i < PARAM_PERSISTED_COUNT; i++) {
+        _params[i].value = constrain(blob.values[i], _params[i].minVal, _params[i].maxVal);
+        _applyParam(i);
+    }
+    _dirty = false;
+    _params[PARAM_IDX_SAVE].value = 0.0f;
+    Serial.println("[PARAMS] Kalici parametreler yuklendi.");
+    return true;
+}
+
+bool ParamManager::savePersistent() {
+    if (!_storage) return false;
+
+    float values[PARAM_PERSISTED_COUNT];
+    for (uint8_t i = 0; i < PARAM_PERSISTED_COUNT; i++) {
+        values[i] = _params[i].value;
+    }
+
+    ParamStorageBlob blob = ParamStorage::makeBlob(values, PARAM_PERSISTED_COUNT);
+    if (!_storage->save(blob)) {
+        return false;
+    }
+
+    _dirty = false;
+    _params[PARAM_IDX_SAVE].value = 0.0f;
+    Serial.println("[PARAMS] Parametreler flash'a kaydedildi.");
+    return true;
+}
+
+bool ParamManager::setParamByName(const char* name, float value) {
+    int index = _findParamIndex(name);
+    if (index < 0) return false;
+
+    if (index == PARAM_IDX_SAVE) {
+        _params[PARAM_IDX_SAVE].value = 0.0f;
+        return value >= 0.5f ? savePersistent() : true;
+    }
+
+    _params[index].value = constrain(value, _params[index].minVal, _params[index].maxVal);
+    _dirty = index < PARAM_PERSISTED_COUNT;
+    _applyParam((uint8_t)index);
     return true;
 }
 
 MixerSettings ParamManager::getMixerSettings() const {
     MixerSettings settings;
-    settings.rollGain = _params[6].value;
-    settings.pitchGain = _params[7].value;
-    settings.yawGain = _params[8].value;
-    settings.aileronTrim = (int)_params[9].value;
-    settings.elevatorTrim = (int)_params[10].value;
-    settings.rudderTrim = (int)_params[11].value;
-    settings.throttleTrim = (int)_params[12].value;
-    settings.reverseAileron = _params[13].value >= 0.5f;
-    settings.reverseElevator = _params[14].value >= 0.5f;
-    settings.reverseRudder = _params[15].value >= 0.5f;
-    settings.servoMin = (int)_params[16].value;
-    settings.servoMax = (int)_params[17].value;
+    settings.rollGain = _params[PARAM_IDX_MIX_ROLL].value;
+    settings.pitchGain = _params[PARAM_IDX_MIX_PITCH].value;
+    settings.yawGain = _params[PARAM_IDX_MIX_YAW].value;
+    settings.aileronTrim = (int)_params[PARAM_IDX_TRIM_AIL].value;
+    settings.elevatorTrim = (int)_params[PARAM_IDX_TRIM_ELE].value;
+    settings.rudderTrim = (int)_params[PARAM_IDX_TRIM_RUD].value;
+    settings.throttleTrim = (int)_params[PARAM_IDX_TRIM_THR].value;
+    settings.reverseAileron = _params[PARAM_IDX_REV_AIL].value >= 0.5f;
+    settings.reverseElevator = _params[PARAM_IDX_REV_ELE].value >= 0.5f;
+    settings.reverseRudder = _params[PARAM_IDX_REV_RUD].value >= 0.5f;
+    settings.servoMin = (int)_params[PARAM_IDX_SERVO_MIN].value;
+    settings.servoMax = (int)_params[PARAM_IDX_SERVO_MAX].value;
     return settings;
 }
 

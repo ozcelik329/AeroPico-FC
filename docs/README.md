@@ -18,5 +18,7 @@ Bu klasor yalnizca aktif ve bakimi suren proje dokumanlarini tutar.
 - `Calibration_Persistence_Research.md`: Kalibrasyon saklama tasarimi.
 - `EKF_Design_Note.md`: Estimator/EKF hazirlik notlari.
 - `Innovation_Backlog.md`: Ileride urun farki yaratabilecek fikirler.
+- `V1_0_Remaining_Work.md`: V1.0 icin kalan mimari, guvenlik, performans ve
+  fiziksel dogrulama isleri.
 
 Eski faz snapshot'lari, tarihli brainstorm dosyalari ve guncel markdown raporunun eski PDF/DOCX export'lari tutulmaz.

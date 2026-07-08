@@ -14,13 +14,13 @@ void ComplementaryEstimator::reset() {
     _lastAltitudeTimestamp = 0;
 }
 
-EstimatedState ComplementaryEstimator::update(const FlightData& flightData, float baroAltitudeM, bool baroValid) {
-    _state.rollDeg = flightData.roll;
-    _state.pitchDeg = flightData.pitch;
-    _state.yawDeg = flightData.yaw;
-    _state.timestamp = flightData.timestamp;
-    _state.health = flightData.sensorHealth;
-    _state.valid = flightData.sensorHealth == SensorHealth::Ok && !flightData.failsafe;
+EstimatedState ComplementaryEstimator::update(const EstimatorInput& input, float baroAltitudeM, bool baroValid) {
+    _state.rollDeg = input.rollDeg;
+    _state.pitchDeg = input.pitchDeg;
+    _state.yawDeg = input.yawDeg;
+    _state.timestamp = input.timestampUs;
+    _state.health = input.sensorHealth;
+    _state.valid = input.sensorHealth == SensorHealth::Ok && !input.failsafe;
 
     if (!baroValid) {
         if (!_hasAltitude) {
@@ -36,7 +36,7 @@ EstimatedState ComplementaryEstimator::update(const FlightData& flightData, floa
         _hasAltitude = true;
     } else {
         float filteredAltitude = _altitudeAlpha * baroAltitudeM + (1.0f - _altitudeAlpha) * _state.altitudeM;
-        float dt = (float)(flightData.timestamp - _lastAltitudeTimestamp) / 1000000.0f;
+        float dt = (float)(input.timestampUs - _lastAltitudeTimestamp) / 1000000.0f;
         if (dt <= 0.0f || dt > 2.0f) {
             _state.verticalSpeedMps = 0.0f;
         } else {
@@ -46,7 +46,7 @@ EstimatedState ComplementaryEstimator::update(const FlightData& flightData, floa
     }
 
     _lastAltitudeM = _state.altitudeM;
-    _lastAltitudeTimestamp = flightData.timestamp;
+    _lastAltitudeTimestamp = input.timestampUs;
     return _state;
 }
 

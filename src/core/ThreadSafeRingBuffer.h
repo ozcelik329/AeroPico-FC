@@ -43,7 +43,7 @@ class ThreadSafeRingBuffer {
     mutable std::mutex _mtx;
     volatile uint8_t _head = 0;
     volatile uint8_t _tail = 0;
-    T _buf[SIZE];
+    T _buf[SIZE] = {};
 };
 #else
 #include <pico/mutex.h>
@@ -87,7 +87,7 @@ class ThreadSafeRingBuffer {
   private:
     volatile uint8_t _head;
     volatile uint8_t _tail;
-    T _buf[SIZE];
+    T _buf[SIZE] = {};
     mutable mutex_t _mutex;
 };
 #endif

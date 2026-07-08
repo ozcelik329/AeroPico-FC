@@ -61,7 +61,7 @@ AeroPico FC v0.2.0, RP2350 tabanli sabit kanatli bir flight controller cekirdegi
 ### Kritik Eksikler
 
 - HAL arayuzleri var; output kontrol yolu HAL PWM arkasinda. `Sensors`, `RX` ve `PioUart` icin tam HAL gecisi devam etmeli.
-- Scheduler `taskTelemetry` icinde MAVLink, blackbox ve health raporu icin kullaniliyor; sensor/control task'lari henuz multi-rate scheduler'a alinmadi.
+- Scheduler `taskTelemetry` icinde MAVLink, blackbox ve health raporu icin; `taskSensor` icinde sensor/RC/state/preflight/watchdog frekanslari icin kullaniliyor. Core1 kontrol dongusu deterministik 400Hz FreeRTOS ritminde kalir.
 - `SystemTimer` artik facade; gercek kontrol task'i `FlightControlTask`, PID/mixer uygulamasi `ControlLoopExecutor`, timing ise `TimingMonitor` icinde.
 - `FlightData` geriye uyumluluk snapshot'i olarak kaliyor; `SensorState`, `ActuatorState`, `NavigationState` ve `StatePublisher` ayrimi eklendi.
 - Parametre sistemi PID disina genisledi: servo reverse/min/max/trim, mixer gain ve failsafe timeout runtime ayarlanabiliyor.
@@ -169,7 +169,12 @@ Bu mimari RP2350 icin mantikli. Ucus kontrol dongusu Core 1 uzerinde izole edilm
 
 ### Scheduler
 
-`Scheduler` sinifi eklendi, native test edildi ve `taskTelemetry` icinde dusuk riskli islere baglandi.
+`Scheduler` sinifi eklendi, native test edildi ve iki seviyede kullaniliyor:
+
+- Core0 sensor/task akisi: sensor 200Hz, state publish 200Hz, RC 50Hz, preflight 20Hz, watchdog gate 100Hz.
+- Telemetry akisi: MAVLink 20Hz, blackbox 5Hz, health report 1Hz.
+
+Core1 kontrol dongusu 400Hz deterministik `vTaskDelayUntil` ritminde kalir; bu yol scheduler callback jitter'ina sokulmaz.
 
 Hedef scheduler haritasi:
 
@@ -231,7 +236,7 @@ Ana sensor orkestrasyonu `Sensors.cpp` icinde. Rol bazli sensor davranislari `dr
 Mevcut gyro/accel yolunda:
 
 - WHO_AM_I kontrolu.
-- I2C init.
+- `RP2350I2C` HAL adapter uzerinden native I2C init.
 - DMA tabanli okuma.
 - Boot gyro/accel kalibrasyonu.
 - Running median filtresi.
@@ -245,11 +250,12 @@ GY87 tarafinda mag/baro iskeleti var. Manyetometre hard-iron kalibrasyon iskelet
 - Median filtre ile spike bastirma var.
 - Boot calibration test edilebilir veri tiplerine ayrilmis.
 - Calibration storage API hazir.
+- Sensor I2C yolu HAL sinirina alindi; performans kritik DMA yolu RP2350 DREQ ve FIFO register adresleriyle korunuyor.
 
 ### Riskler
 
-- `Sensors.cpp` hala DMA/I2C orkestrasyonu nedeniyle buyuk, ancak gyro/mag/baro davranislari ayrilmaya basladi.
-- I2C/Pico SDK bagimliligi dogrudan.
+- `Sensors.cpp` artik gyro/mag/baro davranislari, I2C adapter siniri ve DMA bus ayrimi sonrasi belirgin sekilde inceldi.
+- I2C/Pico SDK bagimliligi `hal/rp2350/RP2350_I2C.*` icine sinirlandi.
 - DMA hata durumlari daha ayrintili fault code'a ayrilmali.
 - Barometre ve manyetometre health durumlari kismen tamam.
 - Sensor timing/jitter olcumu yok.
@@ -265,7 +271,7 @@ drivers/sensors/
   SensorHealthMonitor.*
 ```
 
-HAL gecisi sonrasi her sensor surucusu `IHALI2C` kullanmali.
+HAL gecisinde sensor yoneticisi `RP2350I2C` adapter'ini kullanir; DMA orkestrasyonu `SensorDmaBus` icindedir.
 
 ## Bolum 5 - Sensor Fusion ve Estimator
 
@@ -362,7 +368,7 @@ baglanmali.
 
 ### Kritik Eksikler
 
-- Brownout/battery monitoring yok.
+- Battery/brownout monitoring altyapisi var; RP2350 ADC adapter ve brownout reason modeli eklendi. Donanim bolucu/pin dogrulanmadan `BATTERY_ADC_ENABLED` kapali tutulur.
 - Emergency landing veya safe mode yok.
 - FailsafeManager merkezi degil.
 - PreflightHealth arming kapisina bagli; IMU, RC/failsafe ve timing durumunu kullaniyor.
@@ -452,7 +458,7 @@ Bu cok rahat bir alan oldugunu gosterir. Simdilik performans ve bellek acisindan
 | Ozellik | AeroPico | PX4 | ArduPilot | Yorum |
 |---|---|---|---|---|
 | HAL | Basladi | Olgun | Olgun | AeroPico HAL iskeleti var, entegrasyon eksik. |
-| Scheduler | Basladi | Olgun | Olgun | Testli Scheduler var, runtime entegrasyon bekliyor. |
+| Scheduler | Iyi | Olgun | Olgun | Testli Scheduler var; telemetry, sensor, RC, state, preflight ve watchdog akislari runtime'a baglandi. |
 | EKF | Yok | Olgun | Olgun | Bilincli olarak ertelenmeli. |
 | Mission | Yok | Var | Var | Bu fazda girilmemeli. |
 | Fixed-wing focus | Var | Var | Var | AeroPico daha kucuk ve odakli olabilir. |
@@ -592,7 +598,7 @@ flowchart LR
 
 | Oncelik | Is | Beklenen Kazanc |
 |---|---|---|
-| P0 | Scheduler'i RC/sensor pipeline frekanslarina genislet | Kismi: telemetry/log/health scheduler'da; sensor/control task frekanslari sonraki iterasyon |
+| P0 | Scheduler'i RC/sensor pipeline frekanslarina genislet | Tamamlandi: core0 sensor/RC/state/preflight/watchdog multi-rate scheduler'a baglandi; core1 control 400Hz deterministik kalir |
 | P0 | PreflightHealth'i battery/memory/actuator check'leriyle genislet | Tamamlandi: memory ve actuator required, battery altyapisi optional |
 | P1 | Output surucusunu tam HAL PWM arkasina al | Tamamlandi: control loop `IHALPWM` ustunden yaziyor |
 | P1 | Sensors.cpp dosyasini gyro/mag/baro rolleriyle bol | Kismen tamamlandi: `GyroAccelDriver`, `MagDriver`, `BaroDriver` eklendi |

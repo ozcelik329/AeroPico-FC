@@ -142,7 +142,7 @@ Hedef: Mevcut calisan cekirdegi, daha profesyonel FC mimarisine yaklastirmak.
 | F8-03 | Tamamlandi | `FailsafeManager` ile failsafe kararlarini merkezilestir | `core/FailsafeManager.*`, `test/test_failsafe_manager/` |
 | F8-04 | Tamamlandi | `FlightData` yerine `RcInputState`, `VehicleState`, `ActuatorState`, `NavigationState` ayrimini genislet | `types.h`, `core/StatePublisher.*`, `test/test_state_publisher/` |
 | F8-05 | Basladi | Gercek HAL katmani tasarla: GPIO/PWM/I2C/UART/ADC/TIMER | `hal/`, `hal/rp2350/` |
-| F8-06 | Basladi | Multi-rate scheduler tasarimi: 400/200/100/50/20/10/5/1Hz | `core/Scheduler.*`, `test/test_scheduler/` |
+| F8-06 | Tamamlandi | Multi-rate scheduler tasarimi: 400/200/100/50/20/10/5/1Hz | `core/Scheduler.*`, `test/test_scheduler/`, `main.cpp` |
 | F8-07 | Tamamlandi | Runtime parametre kapsamlarini genislet: servo reverse, trim, mixer, failsafe, RC | `telemetry/ParamManager.*`, `test/test_param_manager/` |
 | F8-08 | Basladi | Boot sequence, driver registration, dependency graph, health check ve self-test akisini kod seviyesinde ayir | `core/PreflightHealth.*`, `core/BatteryMonitor.*`, `test/test_preflight/`, `test/test_battery_monitor/` |
 | F8-09 | Tamamlandi | Scheduler'i telemetry/log/health akisina bagla | `main.cpp`, `core/Scheduler.*` |
@@ -165,6 +165,9 @@ Hedef: GPS/otonom moda hemen girmeden, ileride EKF ve urun farklilastirmasi icin
 
 - 2026-07-07 mimari ayrim sonrasi dogrulama: `pio test -e native` sonucu 65/65 test basarili.
 - 2026-07-07 mimari ayrim sonrasi dogrulama: `pio run -e pico` basarili.
+- 2026-07-08 sensor I2C HAL gecisi sonrasi dogrulama: `pio test -e native` sonucu 73/73 test basarili; `pio run -e pico` basarili.
+- 2026-07-08 SensorDmaBus ayrimi ve core0 multi-rate scheduler sonrasi dogrulama: `pio test -e native` sonucu 73/73 test basarili; `pio run -e pico` basarili.
+- 2026-07-08 battery/brownout ADC altyapisi sonrasi dogrulama: `pio test -e native` sonucu 74/74 test basarili; `pio run -e pico` basarili.
 - Donanim elde olmadigi icin heartbeat, SBUS UART0/GP1, sensor health ve blackbox alanlari sahada beklemede.
 - GitHub Actions dosyasi mevcut; uzak CI sonucu repo GitHub'a baglandiktan sonra dogrulanmali.
 
@@ -174,8 +177,10 @@ Hedef: GPS/otonom moda hemen girmeden, ileride EKF ve urun farklilastirmasi icin
 2. Donanimda SBUS UART0/GP1 okumasini dogrula.
 3. Donanimda sensor health ve blackbox alanlarini dogrula.
 4. CI ortaminda yeni test setinin gectigini dogrula.
-5. Kalibrasyon storage API'sini RP flash veya LittleFS implementasyonuna bagla.
-6. ParamManager kalici saklama entegrasyonunu storage katmani uzerinden tasarla.
-7. Donanim bench sonuclarini checklist'e isle.
-8. Inovasyon backlog'unu estimator ve timing sonuclarina gore onceliklendir.
-9. Sensor I2C/DMA yolunu `IHALI2C` arkasina kademeli tasi.
+5. Battery ADC pinini ve voltaj bolucu oranini donanim uzerinde dogrula; `BATTERY_ADC_ENABLED` sonra acilacak.
+6. Kalibrasyon storage API'sini RP flash veya LittleFS implementasyonuna bagla.
+7. ParamManager kalici saklama entegrasyonunu storage katmani uzerinden tasarla.
+8. HIL/fault-injection CI akisina fiziksel smoke test bagla.
+9. Sensor quality skoru ve acik pre-arm nedenlerini genislet.
+10. EKF-lite ve altitude estimator prototipini gelistir.
+11. Inovasyon backlog'unu estimator ve timing sonuclarina gore onceliklendir.

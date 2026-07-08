@@ -27,16 +27,23 @@ enum class SensorFaultCode : uint8_t {
     BaroReadFailed
 };
 
+struct SensorQuality {
+    SensorHealth health;
+    uint8_t score;
+    uint32_t ageUs;
+};
+
 struct SensorBuffer {
 	float ax, ay, az;
 	float gx, gy, gz;
 	float tempC;
-#ifdef USE_GY87
 	float mx, my, mz;
-	float pressure;
-#endif
+	float pressureHpa;
 	uint32_t timestamp;
+    uint32_t sampleAgeUs;
+    uint8_t qualityScore;
 	bool valid;
+    bool baroValid;
 	SensorHealth health;
 };
 
@@ -60,10 +67,16 @@ struct MagCalibration {
 struct FlightData {
     float roll, pitch, yaw;
     float gyroX, gyroY, gyroZ;
+    float altitudeM;
+    float verticalSpeedMps;
     uint16_t aileron, elevator, throttle, rudder;
     bool failsafe;
     SensorHealth sensorHealth;
+    SensorHealth estimatorHealth;
+    uint8_t sensorQualityScore;
+    uint32_t sensorAgeUs;
     uint32_t timestamp;
+    bool estimatorValid;
 };
 
 struct SensorState {
@@ -73,9 +86,15 @@ struct SensorState {
     float gyroX;
     float gyroY;
     float gyroZ;
+    float altitudeM;
+    float verticalSpeedMps;
     SensorHealth health;
+    SensorHealth estimatorHealth;
+    uint8_t sensorQualityScore;
+    uint32_t sensorAgeUs;
     uint32_t timestampUs;
     bool valid;
+    bool estimatorValid;
 };
 
 struct ActuatorState {
@@ -110,9 +129,15 @@ struct VehicleState {
     float gyroX;
     float gyroY;
     float gyroZ;
+    float altitudeM;
+    float verticalSpeedMps;
     SensorHealth sensorHealth;
+    SensorHealth estimatorHealth;
+    uint8_t sensorQualityScore;
+    uint32_t sensorAgeUs;
     uint32_t timestampUs;
     bool valid;
+    bool estimatorValid;
 };
 
 struct TimingBudgetStatus {
@@ -120,10 +145,31 @@ struct TimingBudgetStatus {
     uint32_t pidUs;
     uint32_t mixerUs;
     uint32_t totalUs;
+    uint32_t consumeAvgUs;
+    uint32_t pidAvgUs;
+    uint32_t mixerAvgUs;
+    uint32_t totalAvgUs;
+    uint32_t consumeJitterUs;
+    uint32_t pidJitterUs;
+    uint32_t mixerJitterUs;
+    uint32_t totalJitterUs;
+    uint16_t consumeDeadlineMisses;
+    uint16_t pidDeadlineMisses;
+    uint16_t mixerDeadlineMisses;
+    uint16_t totalDeadlineMisses;
     bool consumeExceeded;
     bool pidExceeded;
     bool mixerExceeded;
     bool totalExceeded;
+};
+
+struct EstimatorInput {
+    float rollDeg;
+    float pitchDeg;
+    float yawDeg;
+    SensorHealth sensorHealth;
+    uint32_t timestampUs;
+    bool failsafe;
 };
 
 struct EstimatedState {

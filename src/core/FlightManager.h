@@ -18,6 +18,9 @@ class FlightManager {
     // Initialize FlightManager with concrete drivers (dependency injection)
     void init(IImuDriver* imuDrv, IRxDriver* rxDrv);
     void update();
+    void updateSensors();
+    void updateRc();
+    void publishState();
 
     float getRoll();
     float getPitch();
@@ -34,6 +37,7 @@ class FlightManager {
 
     void setRCOverride(uint16_t aileron, uint16_t elevator, uint16_t throttle, uint16_t rudder);
     void clearRCOverride();
+    void applyRcMapping(const RcMapping& mapping);
 
     // Consumer: called by the single consumer (Core 1) to consume pending samples
     void consumeLatest();
@@ -44,6 +48,8 @@ class FlightManager {
   private:
     RCPipeline _rcPipeline;
     SensorPipeline _sensorPipeline;
+    VehicleState _vehicleState = {};
+    RcInputState _rcState = {};
 
     // Thread-safe ring buffer for multi-producer / multi-consumer usage
     ThreadSafeRingBuffer<FlightData, 4> _ringBuf;

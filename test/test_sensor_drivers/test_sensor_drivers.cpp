@@ -85,7 +85,8 @@ void test_baro_driver_computes_pressure_with_calibration() {
 
     SensorBuffer buffer = {};
     TEST_ASSERT_TRUE(driver.applyRawPressure(23843, buffer));
-    TEST_ASSERT_TRUE(buffer.pressure > 0.0f);
+    TEST_ASSERT_TRUE(buffer.pressureHpa > 0.0f);
+    TEST_ASSERT_TRUE(buffer.baroValid);
 }
 
 int main() {
