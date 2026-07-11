@@ -1,5 +1,7 @@
 #include "BaroVerticalKalman.h"
 
+#include <math.h>
+
 void BaroVerticalKalman::init(const BaroVerticalKalmanConfig& config) {
     _config.altitudeProcessNoise = constrain(config.altitudeProcessNoise, 0.0001f, 100.0f);
     _config.velocityProcessNoise = constrain(config.velocityProcessNoise, 0.0001f, 100.0f);
