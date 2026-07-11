@@ -49,11 +49,13 @@ bool SensorManager::_readWhoAmI(uint8_t& whoami) {
         _setFault(SensorFaultCode::I2cWhoamiReadFailed);
         return false;
     }
+    _lastWhoAmI = whoami;
     return true;
 }
 
 bool SensorManager::_readRawSample(int16_t& raw_ax, int16_t& raw_ay, int16_t& raw_az,
-                                   int16_t& raw_gx, int16_t& raw_gy, int16_t& raw_gz) {
+                                   int16_t& raw_gx, int16_t& raw_gy, int16_t& raw_gz,
+                                   int16_t* raw_temp) {
     uint8_t raw[GyroAccelDriver::RAW_LEN];
     if (!_readRawFrame(raw)) {
         return false;
@@ -66,6 +68,9 @@ bool SensorManager::_readRawSample(int16_t& raw_ax, int16_t& raw_ay, int16_t& ra
     raw_ax = to_int16(raw[0], raw[1]);
     raw_ay = to_int16(raw[2], raw[3]);
     raw_az = to_int16(raw[4], raw[5]);
+    if (raw_temp) {
+        *raw_temp = to_int16(raw[6], raw[7]);
+    }
     raw_gx = to_int16(raw[8], raw[9]);
     raw_gy = to_int16(raw[10], raw[11]);
     raw_gz = to_int16(raw[12], raw[13]);
@@ -116,20 +121,37 @@ bool SensorManager::runBootCalibration() {
     Logger::log("[SENSOR] Boot kalibrasyonu basliyor (ucak sabit olmali)...");
     float sumGx = 0.0f, sumGy = 0.0f, sumGz = 0.0f;
     float sumAx = 0.0f, sumAy = 0.0f, sumAz = 0.0f;
+    float sumTemp = 0.0f;
+    float sumTemp2 = 0.0f;
+    float sumGyroMag = 0.0f;
+    float sumTempGyroMag = 0.0f;
+    float minTemp = 1000.0f;
+    float maxTemp = -1000.0f;
     int validSamples = 0;
 
     for (int i = 0; i < BOOT_CAL_SAMPLES; i++) {
-        int16_t rax, ray, raz, rgx, rgy, rgz;
-        if (!_readRawSample(rax, ray, raz, rgx, rgy, rgz)) {
+        int16_t rax, ray, raz, rgx, rgy, rgz, rtemp;
+        if (!_readRawSample(rax, ray, raz, rgx, rgy, rgz, &rtemp)) {
             delay(2);
             continue;
         }
-        sumGx += rgx * GyroAccelDriver::GYRO_SCALE;
-        sumGy += rgy * GyroAccelDriver::GYRO_SCALE;
-        sumGz += rgz * GyroAccelDriver::GYRO_SCALE;
+        const float gx = rgx * GyroAccelDriver::GYRO_SCALE;
+        const float gy = rgy * GyroAccelDriver::GYRO_SCALE;
+        const float gz = rgz * GyroAccelDriver::GYRO_SCALE;
+        const float tempC = (float)rtemp / 340.0f + 36.53f;
+        const float gyroMag = sqrtf(gx * gx + gy * gy + gz * gz);
+        sumGx += gx;
+        sumGy += gy;
+        sumGz += gz;
         sumAx += rax * GyroAccelDriver::ACCEL_SCALE;
         sumAy += ray * GyroAccelDriver::ACCEL_SCALE;
         sumAz += raz * GyroAccelDriver::ACCEL_SCALE;
+        sumTemp += tempC;
+        sumTemp2 += tempC * tempC;
+        sumGyroMag += gyroMag;
+        sumTempGyroMag += tempC * gyroMag;
+        if (tempC < minTemp) minTemp = tempC;
+        if (tempC > maxTemp) maxTemp = tempC;
         validSamples++;
         delay(2);
     }
@@ -146,9 +168,18 @@ bool SensorManager::runBootCalibration() {
     _accelBiasY = sumAy / validSamples;
     // Z ekseninde ~1g yerçekimi kalır; düz uçak varsayımı
     _accelBiasZ = (sumAz / validSamples) - 1.0f;
+    constexpr float DEFAULT_GYRO_TEMP_COEFF = 0.004f;
+    const float denom = validSamples * sumTemp2 - sumTemp * sumTemp;
+    const float tempSpan = maxTemp - minTemp;
+    float measuredTempCoeff = DEFAULT_GYRO_TEMP_COEFF;
+    if (tempSpan >= 0.10f && fabsf(denom) > 1.0e-6f) {
+        measuredTempCoeff = fabsf((validSamples * sumTempGyroMag - sumTemp * sumGyroMag) / denom);
+        measuredTempCoeff = constrain(measuredTempCoeff, 0.0f, 0.05f);
+    }
     _imuCalibration = {
         _gyroBiasX, _gyroBiasY, _gyroBiasZ,
         _accelBiasX, _accelBiasY, _accelBiasZ,
+        measuredTempCoeff,
         true
     };
 
@@ -158,6 +189,9 @@ bool SensorManager::runBootCalibration() {
     Logger::log(line);
     snprintf(line, sizeof(line), "[SENSOR] Accel bias: %.4f, %.4f, %.4f g",
              _accelBiasX, _accelBiasY, _accelBiasZ);
+    Logger::log(line);
+    snprintf(line, sizeof(line), "[SENSOR] Gyro temp coeff: %.5f deg/s/C (span %.2f C)",
+             measuredTempCoeff, tempSpan);
     Logger::log(line);
     return true;
 }

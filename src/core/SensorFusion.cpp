@@ -6,6 +6,8 @@ SensorFusion::SensorFusion() : q0(1.0f), q1(0.0f), q2(0.0f), q3(0.0f), roll(0.0f
 
 void SensorFusion::init(float beta) {
     this->beta = beta;
+    _currentBeta = beta;
+    _accelErrorLpf = 0.0f;
     q0 = 1.0f;
     q1 = q2 = q3 = 0.0f;
     roll = pitch = yaw = 0.0f;
@@ -14,6 +16,20 @@ void SensorFusion::init(float beta) {
 
 void SensorFusion::setTemperature(float tempC) {
     _tempC = tempC;
+}
+
+void SensorFusion::setGyroTempCoeff(float coeffDegPerSecPerC) {
+    if (isfinite(coeffDegPerSecPerC)) {
+        _gyroTempCoeff = constrain(coeffDegPerSecPerC, 0.0f, 0.05f);
+    }
+}
+
+float SensorFusion::adaptiveBeta(float accelNorm) {
+    const float accelError = fabsf(accelNorm - 1.0f);
+    _accelErrorLpf += 0.125f * (accelError - _accelErrorLpf);
+    const float vibrationPenalty = constrain(_accelErrorLpf * 3.0f, 0.0f, 0.75f);
+    _currentBeta = constrain(beta * (1.0f - vibrationPenalty), beta * 0.25f, beta * 1.25f);
+    return _currentBeta;
 }
 
 void __not_in_flash_func(SensorFusion::update)(float gx, float gy, float gz,
@@ -42,6 +58,7 @@ void __not_in_flash_func(SensorFusion::update)(float gx, float gy, float gz,
 
     float norm = sqrtf(ax * ax + ay * ay + az * az);
     if (norm < 1e-6f) return;
+    const float betaEff = adaptiveBeta(norm);
     ax /= norm; ay /= norm; az /= norm;
 
     norm = magNorm;
@@ -106,10 +123,10 @@ void __not_in_flash_func(SensorFusion::update)(float gx, float gy, float gz,
     if (norm < 1e-6f) return;
     s0 /= norm; s1 /= norm; s2 /= norm; s3 /= norm;
 
-    float qDot1 = 0.5f * (-q1 * gx - q2 * gy - q3 * gz) - beta * s0;
-    float qDot2 = 0.5f * ( q0 * gx + q2 * gz - q3 * gy) - beta * s1;
-    float qDot3 = 0.5f * ( q0 * gy - q1 * gz + q3 * gx) - beta * s2;
-    float qDot4 = 0.5f * ( q0 * gz + q1 * gy - q2 * gx) - beta * s3;
+    float qDot1 = 0.5f * (-q1 * gx - q2 * gy - q3 * gz) - betaEff * s0;
+    float qDot2 = 0.5f * ( q0 * gx + q2 * gz - q3 * gy) - betaEff * s1;
+    float qDot3 = 0.5f * ( q0 * gy - q1 * gz + q3 * gx) - betaEff * s2;
+    float qDot4 = 0.5f * ( q0 * gz + q1 * gy - q2 * gx) - betaEff * s3;
 
     q0 += qDot1 * dt; q1 += qDot2 * dt;
     q2 += qDot3 * dt; q3 += qDot4 * dt;
@@ -134,6 +151,7 @@ void __not_in_flash_func(SensorFusion::updateIMU)(float gx, float gy, float gz,
 
     float norm = sqrtf(ax * ax + ay * ay + az * az);
     if (norm < 1e-6f) return;
+    const float betaEff = adaptiveBeta(norm);
     ax /= norm; ay /= norm; az /= norm;
 
     // Mahony-stili ivme tabanlı düzeltme (6-DOF yolu)
@@ -143,9 +161,9 @@ void __not_in_flash_func(SensorFusion::updateIMU)(float gx, float gy, float gz,
     float ex = (ay * vz - az * vy);
     float ey = (az * vx - ax * vz);
     float ez = (ax * vy - ay * vx);
-    gx += beta * ex;
-    gy += beta * ey;
-    gz += beta * ez;
+    gx += betaEff * ex;
+    gy += betaEff * ey;
+    gz += betaEff * ez;
 
     float qDot1 = 0.5f * (-q1 * gx - q2 * gy - q3 * gz);
     float qDot2 = 0.5f * ( q0 * gx + q2 * gz - q3 * gy);
@@ -164,6 +182,14 @@ void __not_in_flash_func(SensorFusion::updateIMU)(float gx, float gy, float gz,
 float SensorFusion::getRoll()  const { return roll; }
 float SensorFusion::getPitch() const { return pitch; }
 float SensorFusion::getYaw()   const { return yaw; }
+
+float SensorFusion::getVerticalAccelerationMps2(float ax, float ay, float az) const {
+    const float worldZ =
+        2.0f * (q1 * q3 - q0 * q2) * ax +
+        2.0f * (q0 * q1 + q2 * q3) * ay +
+        (q0 * q0 - q1 * q1 - q2 * q2 + q3 * q3) * az;
+    return (worldZ - 1.0f) * 9.80665f;
+}
 
 #ifdef UNIT_TEST
 void SensorFusion::setQuaternionForTest(float w, float x, float y, float z) {

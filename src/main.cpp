@@ -352,7 +352,9 @@ void setup() {
 
     bool imuOk = sensorManager.isImuAvailable();
     if (imuOk) {
-        BootLogger::okWithValue("MPU6050", "WHOAMI=0x68");
+        char whoamiText[16];
+        snprintf(whoamiText, sizeof(whoamiText), "WHOAMI=0x%02X", sensorManager.getLastWhoAmI());
+        BootLogger::okWithValue("MPU6050", whoamiText);
 
         CalibrationBlob calibrationBlob = {};
         if (calibrationStorage.load(calibrationBlob)) {

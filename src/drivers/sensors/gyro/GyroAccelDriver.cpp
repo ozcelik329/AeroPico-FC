@@ -4,6 +4,14 @@ static int16_t gyroToInt16(uint8_t hi, uint8_t lo) {
     return (int16_t)((hi << 8) | lo);
 }
 
+static float effectiveGyroTempCoeff(const ImuCalibration& calibration) {
+    constexpr float DEFAULT_GYRO_TEMP_COEFF = 0.004f;
+    if (!calibration.valid || calibration.gyroTempCoeff <= 0.0f || !isfinite(calibration.gyroTempCoeff)) {
+        return DEFAULT_GYRO_TEMP_COEFF;
+    }
+    return constrain(calibration.gyroTempCoeff, 0.0f, 0.05f);
+}
+
 void GyroAccelDriver::resetFilters() {
     _axFiltered = 0.0f;
     _ayFiltered = 0.0f;
@@ -51,6 +59,7 @@ void GyroAccelDriver::parseRawSample(const uint8_t raw[RAW_LEN],
     buffer.ax = _axFiltered;
     buffer.ay = _ayFiltered;
     buffer.az = _azFiltered;
+    buffer.gyroTempCoeff = effectiveGyroTempCoeff(calibration);
     buffer.tempC = (float)rawTemp / 340.0f + 36.53f;
     buffer.timestamp = timestampUs;
     buffer.valid = true;

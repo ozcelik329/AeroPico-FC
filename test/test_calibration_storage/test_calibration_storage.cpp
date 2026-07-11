@@ -12,6 +12,7 @@ static ImuCalibration makeImuCalibration() {
     imu.accelBiasX = 0.1f;
     imu.accelBiasY = 0.2f;
     imu.accelBiasZ = 0.3f;
+    imu.gyroTempCoeff = 0.006f;
     imu.valid = true;
     return imu;
 }
@@ -63,6 +64,7 @@ void test_memory_calibration_storage_round_trip() {
     TEST_ASSERT_TRUE(storage.save(saved));
     TEST_ASSERT_TRUE(storage.load(loaded));
     TEST_ASSERT_FLOAT_WITHIN(0.001f, saved.imu.gyroBiasY, loaded.imu.gyroBiasY);
+    TEST_ASSERT_FLOAT_WITHIN(0.001f, saved.imu.gyroTempCoeff, loaded.imu.gyroTempCoeff);
     TEST_ASSERT_FLOAT_WITHIN(0.001f, saved.mag.hardIronX, loaded.mag.hardIronX);
 }
 

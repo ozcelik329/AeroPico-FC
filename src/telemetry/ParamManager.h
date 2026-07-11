@@ -1,7 +1,7 @@
 #ifndef PARAM_MANAGER_H
 #define PARAM_MANAGER_H
 
-// ESP32-CAM gelene kadar deaktif
+// MAVLink parametre servisi MAVLINK_PARAMS_ENABLED ile derlemeye dahil edilir.
 #ifdef MAVLINK_PARAMS_ENABLED
 
 #include <Arduino.h>

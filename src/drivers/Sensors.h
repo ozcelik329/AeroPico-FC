@@ -48,6 +48,7 @@ class SensorManager : public IImuDriver, public IMagDriver, public IBaroDriver, 
     bool isDmaOk() const override;
     SensorFaultCode getFaultCode() const;
     const char* getFaultText() const;
+    uint8_t getLastWhoAmI() const { return _lastWhoAmI; }
     bool runBootCalibration() override;
     ImuCalibration getImuCalibration() const;
     void setImuCalibration(const ImuCalibration& calibration);
@@ -68,6 +69,7 @@ class SensorManager : public IImuDriver, public IMagDriver, public IBaroDriver, 
 
   private:
     bool _imuAvailable = false;
+    uint8_t _lastWhoAmI = 0;
     SensorFaultCode _faultCode = SensorFaultCode::None;
 
     uint8_t _reg_addr = MPU6050_REG_ACCEL;
@@ -91,7 +93,8 @@ class SensorManager : public IImuDriver, public IMagDriver, public IBaroDriver, 
 
     bool _readWhoAmI(uint8_t& whoami);
     bool _readRawSample(int16_t& raw_ax, int16_t& raw_ay, int16_t& raw_az,
-                        int16_t& raw_gx, int16_t& raw_gy, int16_t& raw_gz);
+                        int16_t& raw_gx, int16_t& raw_gy, int16_t& raw_gz,
+                        int16_t* raw_temp = nullptr);
 
     void _mpu_write_reg(uint8_t reg, uint8_t val);
     void _mpu_start_dma_read();

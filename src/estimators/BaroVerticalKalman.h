@@ -8,6 +8,7 @@ struct BaroVerticalKalmanConfig {
     float velocityProcessNoise;
     float baroMeasurementNoise;
     float innovationGateM;
+    float accelInputNoise = 1.2f;
 };
 
 class BaroVerticalKalman {
@@ -38,7 +39,7 @@ class BaroVerticalKalman {
     uint8_t _consecutiveRejects = 0;
 
     float clampDt(uint32_t nowUs);
-    void predict(float dt);
+    void predict(float dt, float verticalAccelMps2);
     bool correct(float baroAltitudeM);
     void copyAttitude(const EstimatorInput& input);
     bool stateFinite() const;

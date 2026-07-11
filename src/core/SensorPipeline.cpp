@@ -57,10 +57,12 @@ VehicleState SensorPipeline::getState() const {
 
 void SensorPipeline::updateFusion(const SensorBuffer& buffer) {
     if (!buffer.valid || buffer.health != SensorHealth::Ok) {
+        _lastVerticalAccelMps2 = 0.0f;
         return;
     }
 
     _fusion.setTemperature(buffer.tempC);
+    _fusion.setGyroTempCoeff(buffer.gyroTempCoeff);
 
     float gx = buffer.gx * DEG_TO_RAD;
     float gy = buffer.gy * DEG_TO_RAD;
@@ -76,6 +78,7 @@ void SensorPipeline::updateFusion(const SensorBuffer& buffer) {
     #else
         _fusion.updateIMU(gx, gy, gz, buffer.ax, buffer.ay, buffer.az);
     #endif
+    _lastVerticalAccelMps2 = _fusion.getVerticalAccelerationMps2(buffer.ax, buffer.ay, buffer.az);
 }
 
 EstimatorInput SensorPipeline::buildEstimatorInput() const {
@@ -83,6 +86,7 @@ EstimatorInput SensorPipeline::buildEstimatorInput() const {
     input.rollDeg = _state.rollDeg;
     input.pitchDeg = _state.pitchDeg;
     input.yawDeg = _state.yawDeg;
+    input.verticalAccelMps2 = _lastVerticalAccelMps2;
     input.sensorHealth = _state.sensorHealth;
     input.timestampUs = _state.timestampUs;
     input.failsafe = false;

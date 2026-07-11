@@ -18,10 +18,13 @@ class SensorFusion {
 
     // Sıcaklık kompanzasyonu
     void setTemperature(float tempC);
+    void setGyroTempCoeff(float coeffDegPerSecPerC);
 
     float getRoll() const;
     float getPitch() const;
     float getYaw() const;
+    float getCurrentBeta() const { return _currentBeta; }
+    float getVerticalAccelerationMps2(float ax, float ay, float az) const;
 
 #ifdef UNIT_TEST
     void setQuaternionForTest(float w, float x, float y, float z);
@@ -31,6 +34,8 @@ class SensorFusion {
     float q0, q1, q2, q3;
     float roll, pitch, yaw;
     float beta;
+    float _currentBeta = 0.1f;
+    float _accelErrorLpf = 0.0f;
     uint32_t lastUpdate;
 
     // Sıcaklık kompanzasyonu
@@ -38,6 +43,7 @@ class SensorFusion {
     float _gyroTempCoeff = 0.004f; // °C başına drift katsayısı (MPU6050 datasheet)
 
     void computeAngles();
+    float adaptiveBeta(float accelNorm);
 };
 
 #endif

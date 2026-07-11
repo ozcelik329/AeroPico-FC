@@ -25,6 +25,8 @@ void test_gyro_accel_driver_parses_raw_sample() {
     writeInt16(raw, 12, -65);
 
     ImuCalibration calibration = {};
+    calibration.gyroTempCoeff = 0.007f;
+    calibration.valid = true;
     SensorBuffer buffer = {};
     driver.parseRawSample(raw, calibration, buffer, 1234);
 
@@ -32,6 +34,7 @@ void test_gyro_accel_driver_parses_raw_sample() {
     TEST_ASSERT_EQUAL((int)SensorHealth::Ok, (int)buffer.health);
     TEST_ASSERT_EQUAL_UINT32(1234, buffer.timestamp);
     TEST_ASSERT_FLOAT_WITHIN(0.001f, 36.53f, buffer.tempC);
+    TEST_ASSERT_FLOAT_WITHIN(0.001f, 0.007f, buffer.gyroTempCoeff);
 }
 
 void test_mag_driver_applies_hard_iron_calibration() {

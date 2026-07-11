@@ -22,6 +22,7 @@ class SensorPipeline {
     BaroVerticalKalman _verticalKalman;
     ComplementaryEstimator _fallbackEstimator;
     VehicleState _state = {};
+    float _lastVerticalAccelMps2 = 0.0f;
 
     void updateFusion(const SensorBuffer& buffer);
     EstimatorInput buildEstimatorInput() const;

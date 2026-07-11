@@ -5,6 +5,7 @@ void BaroVerticalKalman::init(const BaroVerticalKalmanConfig& config) {
     _config.velocityProcessNoise = constrain(config.velocityProcessNoise, 0.0001f, 100.0f);
     _config.baroMeasurementNoise = constrain(config.baroMeasurementNoise, 0.0001f, 1000.0f);
     _config.innovationGateM = constrain(config.innovationGateM, 0.1f, 1000.0f);
+    _config.accelInputNoise = constrain(config.accelInputNoise, 0.0001f, 100.0f);
     reset();
 }
 
@@ -39,18 +40,26 @@ float BaroVerticalKalman::clampDt(uint32_t nowUs) {
     return dt;
 }
 
-void BaroVerticalKalman::predict(float dt) {
+void BaroVerticalKalman::predict(float dt, float verticalAccelMps2) {
     if (dt <= 0.0f) {
         return;
     }
 
-    _altitudeM += _verticalSpeedMps * dt;
+    const float accel = isfinite(verticalAccelMps2)
+        ? constrain(verticalAccelMps2, -30.0f, 30.0f)
+        : 0.0f;
+    _altitudeM += _verticalSpeedMps * dt + 0.5f * accel * dt * dt;
+    _verticalSpeedMps += accel * dt;
 
     const float dt2 = dt * dt;
-    const float np00 = _p00 + dt * (_p10 + _p01) + dt2 * _p11 + _config.altitudeProcessNoise * dt;
-    const float np01 = _p01 + dt * _p11;
-    const float np10 = _p10 + dt * _p11;
-    const float np11 = _p11 + _config.velocityProcessNoise * dt;
+    const float dt3 = dt2 * dt;
+    const float dt4 = dt2 * dt2;
+    const float accelNoise = _config.accelInputNoise;
+    const float np00 = _p00 + dt * (_p10 + _p01) + dt2 * _p11
+        + _config.altitudeProcessNoise * dt + 0.25f * dt4 * accelNoise;
+    const float np01 = _p01 + dt * _p11 + 0.5f * dt3 * accelNoise;
+    const float np10 = _p10 + dt * _p11 + 0.5f * dt3 * accelNoise;
+    const float np11 = _p11 + _config.velocityProcessNoise * dt + dt2 * accelNoise;
 
     _p00 = np00;
     _p01 = np01;
@@ -168,7 +177,7 @@ EstimatedState BaroVerticalKalman::update(const EstimatorInput& input, float bar
     }
 
     const float dt = clampDt(input.timestampUs);
-    predict(dt);
+    predict(dt, input.verticalAccelMps2);
     if (baroValid) {
         correct(baroAltitudeM);
     } else {

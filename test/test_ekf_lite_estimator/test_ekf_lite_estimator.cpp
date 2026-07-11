@@ -9,9 +9,16 @@ static EstimatorInput makeEstimatorInput(uint32_t timestamp, SensorHealth health
     input.rollDeg = 4.0f;
     input.pitchDeg = -1.0f;
     input.yawDeg = 12.0f;
+    input.verticalAccelMps2 = 0.0f;
     input.timestampUs = timestamp;
     input.sensorHealth = health;
     input.failsafe = failsafe;
+    return input;
+}
+
+static EstimatorInput makeEstimatorInputWithAccel(uint32_t timestamp, float verticalAccelMps2) {
+    EstimatorInput input = makeEstimatorInput(timestamp);
+    input.verticalAccelMps2 = verticalAccelMps2;
     return input;
 }
 
@@ -39,6 +46,18 @@ void test_ekf_lite_tracks_linear_climb_without_large_lag() {
     TEST_ASSERT_TRUE(state.altitudeM > 104.0f);
     TEST_ASSERT_TRUE(state.altitudeM < 111.0f);
     TEST_ASSERT_TRUE(state.verticalSpeedMps > 0.5f);
+}
+
+void test_ekf_lite_uses_vertical_acceleration_in_prediction() {
+    BaroVerticalKalman estimator;
+    estimator.init({0.08f, 0.6f, 1.2f, 20.0f, 1.0f});
+
+    estimator.update(makeEstimatorInput(1000000), 100.0f, true);
+    EstimatedState state = estimator.update(makeEstimatorInputWithAccel(2000000, 2.0f), 0.0f, false);
+
+    TEST_ASSERT_TRUE(state.valid);
+    TEST_ASSERT_TRUE(state.verticalSpeedMps > 1.5f);
+    TEST_ASSERT_TRUE(state.altitudeM > 100.5f);
 }
 
 void test_ekf_lite_rejects_large_baro_spike() {
@@ -130,6 +149,7 @@ int main() {
     UNITY_BEGIN();
     RUN_TEST(test_ekf_lite_initializes_from_first_baro_sample);
     RUN_TEST(test_ekf_lite_tracks_linear_climb_without_large_lag);
+    RUN_TEST(test_ekf_lite_uses_vertical_acceleration_in_prediction);
     RUN_TEST(test_ekf_lite_rejects_large_baro_spike);
     RUN_TEST(test_ekf_lite_marks_stale_after_repeated_rejections);
     RUN_TEST(test_ekf_lite_exposes_covariance_bounds);

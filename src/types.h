@@ -41,6 +41,7 @@ struct SensorQuality {
 struct SensorBuffer {
 	float ax, ay, az;
 	float gx, gy, gz;
+    float gyroTempCoeff;
 	float tempC;
 	float mx, my, mz;
 	float pressureHpa;
@@ -59,6 +60,7 @@ struct ImuCalibration {
     float accelBiasX;
     float accelBiasY;
     float accelBiasZ;
+    float gyroTempCoeff;
     bool valid;
 };
 
@@ -186,6 +188,7 @@ struct EstimatorInput {
     float rollDeg;
     float pitchDeg;
     float yawDeg;
+    float verticalAccelMps2;
     SensorHealth sensorHealth;
     uint32_t timestampUs;
     bool failsafe;
