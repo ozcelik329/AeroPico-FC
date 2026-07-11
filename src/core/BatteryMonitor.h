@@ -7,6 +7,7 @@ struct BatteryStatus {
     bool configured;
     bool healthy;
     bool brownout;
+    bool low;
     float voltage;
     const char* reason;
 };
@@ -19,13 +20,19 @@ class BatteryMonitor {
               float minVoltage = 0.0f,
               float maxVoltage = 100.0f,
               float brownoutVoltage = 0.0f);
-    BatteryStatus evaluate() const;
+    BatteryStatus evaluate();
 
   private:
     VoltageProvider _provider = nullptr;
     float _minVoltage = 0.0f;
     float _maxVoltage = 100.0f;
     float _brownoutVoltage = 0.0f;
+    float _filteredVoltage = 0.0f;
+    bool _filterInitialized = false;
+    bool _lowLatched = false;
+    bool _brownoutLatched = false;
+    uint8_t _lowSamples = 0;
+    uint8_t _unavailableSamples = 0;
 };
 
 #endif

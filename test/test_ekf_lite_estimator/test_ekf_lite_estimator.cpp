@@ -1,8 +1,8 @@
 #include <unity.h>
 
-#include "estimators/EkfLiteEstimator.h"
+#include "estimators/BaroVerticalKalman.h"
 
-#include "../../src/estimators/EkfLiteEstimator.cpp"
+#include "../../src/estimators/BaroVerticalKalman.cpp"
 
 static EstimatorInput makeEstimatorInput(uint32_t timestamp, SensorHealth health = SensorHealth::Ok, bool failsafe = false) {
     EstimatorInput input = {};
@@ -16,7 +16,7 @@ static EstimatorInput makeEstimatorInput(uint32_t timestamp, SensorHealth health
 }
 
 void test_ekf_lite_initializes_from_first_baro_sample() {
-    EkfLiteEstimator estimator;
+    BaroVerticalKalman estimator;
     estimator.init();
 
     EstimatedState state = estimator.update(makeEstimatorInput(1000000), 120.0f, true);
@@ -28,7 +28,7 @@ void test_ekf_lite_initializes_from_first_baro_sample() {
 }
 
 void test_ekf_lite_tracks_linear_climb_without_large_lag() {
-    EkfLiteEstimator estimator;
+    BaroVerticalKalman estimator;
     estimator.init({0.08f, 0.6f, 1.2f, 20.0f});
 
     estimator.update(makeEstimatorInput(1000000), 100.0f, true);
@@ -42,7 +42,7 @@ void test_ekf_lite_tracks_linear_climb_without_large_lag() {
 }
 
 void test_ekf_lite_rejects_large_baro_spike() {
-    EkfLiteEstimator estimator;
+    BaroVerticalKalman estimator;
     estimator.init({0.08f, 0.35f, 1.0f, 8.0f});
 
     estimator.update(makeEstimatorInput(1000000), 50.0f, true);
@@ -54,8 +54,36 @@ void test_ekf_lite_rejects_large_baro_spike() {
     TEST_ASSERT_TRUE(state.altitudeM < 70.0f);
 }
 
+void test_ekf_lite_marks_stale_after_repeated_rejections() {
+    BaroVerticalKalman estimator;
+    estimator.init({0.08f, 0.35f, 1.0f, 8.0f});
+
+    estimator.update(makeEstimatorInput(1000000), 50.0f, true);
+    estimator.update(makeEstimatorInput(2000000), 51.0f, true);
+    estimator.update(makeEstimatorInput(3000000), 150.0f, true);
+    estimator.update(makeEstimatorInput(4000000), 151.0f, true);
+    EstimatedState state = estimator.update(makeEstimatorInput(5000000), 152.0f, true);
+
+    TEST_ASSERT_FALSE(state.valid);
+    TEST_ASSERT_EQUAL_UINT8(3, estimator.consecutiveRejects());
+    TEST_ASSERT_EQUAL_INT((int)SensorHealth::Stale, (int)state.health);
+}
+
+void test_ekf_lite_exposes_covariance_bounds() {
+    BaroVerticalKalman estimator;
+    estimator.init({0.08f, 0.35f, 1.0f, 8.0f});
+
+    estimator.update(makeEstimatorInput(1000000), 50.0f, true);
+    estimator.update(makeEstimatorInput(2000000), 51.0f, true);
+
+    TEST_ASSERT_TRUE(estimator.getAltitudeVariance() > 0.0f);
+    TEST_ASSERT_TRUE(estimator.getVelocityVariance() > 0.0f);
+    TEST_ASSERT_TRUE(estimator.getAltitudeVariance() < 100000.1f);
+    TEST_ASSERT_TRUE(estimator.getVelocityVariance() < 100000.1f);
+}
+
 void test_ekf_lite_handles_missing_baro_by_prediction() {
-    EkfLiteEstimator estimator;
+    BaroVerticalKalman estimator;
     estimator.init({0.08f, 0.6f, 1.2f, 20.0f});
 
     estimator.update(makeEstimatorInput(1000000), 100.0f, true);
@@ -67,7 +95,7 @@ void test_ekf_lite_handles_missing_baro_by_prediction() {
 }
 
 void test_ekf_lite_marks_invalid_when_sensor_health_is_bad() {
-    EkfLiteEstimator estimator;
+    BaroVerticalKalman estimator;
     estimator.init();
 
     EstimatedState state = estimator.update(makeEstimatorInput(1000000, SensorHealth::Stale), 100.0f, true);
@@ -76,12 +104,38 @@ void test_ekf_lite_marks_invalid_when_sensor_health_is_bad() {
     TEST_ASSERT_EQUAL_INT((int)SensorHealth::Stale, (int)state.health);
 }
 
+void test_ekf_lite_rejects_nan_baro_sample() {
+    BaroVerticalKalman estimator;
+    estimator.init();
+
+    EstimatedState state = estimator.update(makeEstimatorInput(1000000), NAN, true);
+
+    TEST_ASSERT_FALSE(state.valid);
+    TEST_ASSERT_FALSE(estimator.getState().valid);
+}
+
+void test_ekf_lite_rejects_nan_attitude() {
+    BaroVerticalKalman estimator;
+    estimator.init();
+    EstimatorInput input = makeEstimatorInput(1000000);
+    input.rollDeg = NAN;
+
+    EstimatedState state = estimator.update(input, 100.0f, true);
+
+    TEST_ASSERT_FALSE(state.valid);
+    TEST_ASSERT_EQUAL_INT((int)SensorHealth::Invalid, (int)state.health);
+}
+
 int main() {
     UNITY_BEGIN();
     RUN_TEST(test_ekf_lite_initializes_from_first_baro_sample);
     RUN_TEST(test_ekf_lite_tracks_linear_climb_without_large_lag);
     RUN_TEST(test_ekf_lite_rejects_large_baro_spike);
+    RUN_TEST(test_ekf_lite_marks_stale_after_repeated_rejections);
+    RUN_TEST(test_ekf_lite_exposes_covariance_bounds);
     RUN_TEST(test_ekf_lite_handles_missing_baro_by_prediction);
     RUN_TEST(test_ekf_lite_marks_invalid_when_sensor_health_is_bad);
+    RUN_TEST(test_ekf_lite_rejects_nan_baro_sample);
+    RUN_TEST(test_ekf_lite_rejects_nan_attitude);
     return UNITY_END();
 }

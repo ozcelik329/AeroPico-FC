@@ -13,21 +13,25 @@
 // --------- //
 
 #define pwm_servo_wrap_target 0
-#define pwm_servo_wrap 2
+#define pwm_servo_wrap 6
 #define pwm_servo_pio_version 0
 
 static const uint16_t pwm_servo_program_instructions[] = {
             //     .wrap_target
-    0x8080, //  0: pull   noblock
-    0xa027, //  1: mov    x, osr
-    0x0042, //  2: jmp    x--, 2
+    0x80a0, //  0: pull   block
+    0x6030, //  1: out    x, 16
+    0x6050, //  2: out    y, 16
+    0xe001, //  3: set    pins, 1
+    0x0044, //  4: jmp    x--, 4
+    0xe000, //  5: set    pins, 0
+    0x0086, //  6: jmp    y--, 6
             //     .wrap
 };
 
 #if !PICO_NO_HARDWARE
 static const struct pio_program pwm_servo_program = {
     .instructions = pwm_servo_program_instructions,
-    .length = 3,
+    .length = 7,
     .origin = -1,
     .pio_version = pwm_servo_pio_version,
 #if PICO_PIO_VERSION > 0

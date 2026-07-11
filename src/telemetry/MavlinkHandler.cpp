@@ -26,6 +26,10 @@ void MavlinkHandler::setClearRCOverrideHandler(ClearRCOverrideHandler handler) {
     _clearRCOverrideHandler = handler;
 }
 
+void MavlinkHandler::setRCOverrideEnabled(bool enabled) {
+    _rcOverrideEnabled = enabled;
+}
+
 static uint16_t hzToPeriodMs(uint8_t hz, uint8_t minHz, uint8_t maxHz) {
     if (hz < minHz) hz = minHz;
     if (hz > maxHz) hz = maxHz;
@@ -109,6 +113,16 @@ void MavlinkHandler::_handleMessage(mavlink_message_t& msg) {
         case MAVLINK_MSG_ID_RC_CHANNELS_OVERRIDE: {
             mavlink_rc_channels_override_t rc;
             mavlink_msg_rc_channels_override_decode(&msg, &rc);
+            if (rc.target_system != 0 && rc.target_system != MAV_SYSTEM_ID) {
+                break;
+            }
+            if (rc.target_component != 0 && rc.target_component != MAV_COMPONENT_ID) {
+                break;
+            }
+            if (!_rcOverrideEnabled) {
+                sendStatusText("RC override rejected", MAV_SEVERITY_WARNING);
+                break;
+            }
             _applyRCOverrideRaw(rc.chan1_raw, rc.chan2_raw, rc.chan3_raw, rc.chan4_raw);
             break;
         }
@@ -152,6 +166,37 @@ void MavlinkHandler::_applyRCOverrideRaw(uint16_t rawCh1, uint16_t rawCh2, uint1
 #ifdef UNIT_TEST
 void MavlinkHandler::handleRCOverrideForTest(uint16_t ch1, uint16_t ch2, uint16_t ch3, uint16_t ch4) {
     _applyRCOverrideRaw(ch1, ch2, ch3, ch4);
+}
+
+void MavlinkHandler::handleRCOverrideMessageForTest(uint8_t targetSystem, uint8_t targetComponent,
+                                                    uint16_t ch1, uint16_t ch2, uint16_t ch3, uint16_t ch4) {
+    mavlink_message_t msg;
+    mavlink_msg_rc_channels_override_pack(
+        MAV_SYSTEM_ID,
+        MAV_COMPONENT_ID,
+        &msg,
+        targetSystem,
+        targetComponent,
+        ch1,
+        ch2,
+        ch3,
+        ch4,
+        UINT16_MAX,
+        UINT16_MAX,
+        UINT16_MAX,
+        UINT16_MAX,
+        UINT16_MAX,
+        UINT16_MAX,
+        UINT16_MAX,
+        UINT16_MAX,
+        UINT16_MAX,
+        UINT16_MAX,
+        UINT16_MAX,
+        UINT16_MAX,
+        UINT16_MAX,
+        UINT16_MAX
+    );
+    _handleMessage(msg);
 }
 #endif
 

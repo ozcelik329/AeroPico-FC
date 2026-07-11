@@ -29,6 +29,7 @@ class MavlinkHandler {
     void setArmStateProvider(ArmStateProvider provider);
     void setRCOverrideHandler(RCOverrideHandler handler);
     void setClearRCOverrideHandler(ClearRCOverrideHandler handler);
+    void setRCOverrideEnabled(bool enabled);
     void setStreamRates(uint8_t attitudeHz, uint8_t rcHz, uint8_t sysStatusHz);
 
     void sendHeartbeat();
@@ -43,6 +44,8 @@ class MavlinkHandler {
 
 #ifdef UNIT_TEST
     void handleRCOverrideForTest(uint16_t ch1, uint16_t ch2, uint16_t ch3, uint16_t ch4);
+    void handleRCOverrideMessageForTest(uint8_t targetSystem, uint8_t targetComponent,
+                                        uint16_t ch1, uint16_t ch2, uint16_t ch3, uint16_t ch4);
 #endif
 
   private:
@@ -59,6 +62,7 @@ class MavlinkHandler {
     ArmStateProvider _armStateProvider = nullptr;
     RCOverrideHandler _rcOverrideHandler = nullptr;
     ClearRCOverrideHandler _clearRCOverrideHandler = nullptr;
+    bool _rcOverrideEnabled = false;
 
     // Stream zamanlayıcıları
     uint32_t _lastHeartbeatSent   = 0;

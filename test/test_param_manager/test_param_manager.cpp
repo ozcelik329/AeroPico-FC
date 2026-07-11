@@ -27,6 +27,11 @@ static uint8_t appliedMavRc;
 static uint8_t appliedMavSys;
 static uint8_t appliedBlackboxHz;
 static uint8_t appliedPreflightQuality;
+static bool armed;
+
+static bool provideArmState() {
+    return armed;
+}
 
 static void applyGains(float angleP, float angleI, float angleD,
                        float rateP, float rateI, float rateD) {
@@ -89,6 +94,7 @@ void setUp() {
     appliedMavAtt = appliedMavRc = appliedMavSys = 0;
     appliedBlackboxHz = 0;
     appliedPreflightQuality = 0;
+    armed = false;
     paramManager = ParamManager();
     paramManager.setPidGainsApplyHandler(applyGains);
     paramManager.setMixerSettingsApplyHandler(applyMixer);
@@ -97,6 +103,7 @@ void setUp() {
     paramManager.setMavlinkRatesApplyHandler(applyMavlinkRates);
     paramManager.setBlackboxRateApplyHandler(applyBlackboxRate);
     paramManager.setPreflightQualityApplyHandler(applyPreflightQuality);
+    paramManager.setArmStateProvider(provideArmState);
 }
 
 void test_param_manager_sets_known_param_and_applies_callback() {
@@ -145,6 +152,28 @@ void test_param_manager_marks_dirty_and_saves_on_command() {
     TEST_ASSERT_FLOAT_WITHIN(0.001f, 4.0f, loaded.getAngleP());
 }
 
+void test_param_manager_rejects_save_while_armed() {
+    MemoryParamStorage storage;
+    paramManager.setStorage(&storage);
+    TEST_ASSERT_TRUE(paramManager.setParamByName("ANGLE_P", 4.0f));
+
+    armed = true;
+    TEST_ASSERT_FALSE(paramManager.setParamByName("PARAM_SAVE", 1.0f));
+    TEST_ASSERT_TRUE(paramManager.isDirty());
+    TEST_ASSERT_EQUAL_STRING("Parameter save rejected while armed", paramManager.getLastError());
+
+    ParamStorageBlob blob = {};
+    TEST_ASSERT_FALSE(storage.load(blob));
+}
+
+void test_param_manager_rejects_runtime_change_while_armed() {
+    armed = true;
+
+    TEST_ASSERT_FALSE(paramManager.setParamByName("ANGLE_P", 4.0f));
+    TEST_ASSERT_FALSE(gainsApplied);
+    TEST_ASSERT_EQUAL_STRING("Parameter change rejected while armed", paramManager.getLastError());
+}
+
 void test_param_manager_applies_rc_mapping_callback() {
     TEST_ASSERT_TRUE(paramManager.setParamByName("RC_ROLL_CH", 3.0f));
     TEST_ASSERT_TRUE(rcMappingApplied);
@@ -168,6 +197,32 @@ void test_param_manager_applies_preflight_quality_callback() {
     TEST_ASSERT_EQUAL_UINT8(75, appliedPreflightQuality);
 }
 
+void test_param_manager_schedules_non_blocking_parameter_stream() {
+    paramManager.sendAll();
+    TEST_ASSERT_TRUE(paramManager.isSendActive());
+    TEST_ASSERT_EQUAL_UINT8(PARAM_COUNT, paramManager.pendingSendCount());
+
+    paramManager.processSendQueue(100);
+    TEST_ASSERT_TRUE(paramManager.isSendActive());
+    TEST_ASSERT_EQUAL_UINT8(PARAM_COUNT - 1, paramManager.pendingSendCount());
+
+    paramManager.processSendQueue(110);
+    TEST_ASSERT_EQUAL_UINT8(PARAM_COUNT - 1, paramManager.pendingSendCount());
+    paramManager.processSendQueue(120);
+    TEST_ASSERT_EQUAL_UINT8(PARAM_COUNT - 2, paramManager.pendingSendCount());
+}
+
+void test_param_manager_rejects_message_for_other_system() {
+    mavlink_message_t message;
+    mavlink_msg_param_set_pack(
+        42, 1, &message,
+        77, MAV_COMPONENT_ID,
+        "ANGLE_P", 7.0f, MAV_PARAM_TYPE_REAL32
+    );
+    paramManager.handleMessage(message);
+    TEST_ASSERT_FLOAT_WITHIN(0.001f, ANGLE_P_GAIN, paramManager.getAngleP());
+}
+
 int main() {
     UNITY_BEGIN();
     RUN_TEST(test_param_manager_sets_known_param_and_applies_callback);
@@ -176,8 +231,12 @@ int main() {
     RUN_TEST(test_param_manager_applies_mixer_callback);
     RUN_TEST(test_param_manager_applies_failsafe_timeout_callback);
     RUN_TEST(test_param_manager_marks_dirty_and_saves_on_command);
+    RUN_TEST(test_param_manager_rejects_save_while_armed);
+    RUN_TEST(test_param_manager_rejects_runtime_change_while_armed);
     RUN_TEST(test_param_manager_applies_rc_mapping_callback);
     RUN_TEST(test_param_manager_applies_stream_and_log_callbacks);
     RUN_TEST(test_param_manager_applies_preflight_quality_callback);
+    RUN_TEST(test_param_manager_schedules_non_blocking_parameter_stream);
+    RUN_TEST(test_param_manager_rejects_message_for_other_system);
     return UNITY_END();
 }

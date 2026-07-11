@@ -1,17 +1,14 @@
 #include "ControlLoopExecutor.h"
 #include "../FlightManager.h"
 #include "../../config.h"
-
-static float mapFloat(float x, float inMin, float inMax, float outMin, float outMax) {
-    return (x - inMin) * (outMax - outMin) / (inMax - inMin) + outMin;
-}
+#include "../../utils/FastMath.h"
 
 void ControlLoopExecutor::init(IHALPWM* pwmOutput) {
     _pwm = pwmOutput;
     _pwmReady = false;
     if (_pwm) {
         _pwm->init();
-        _pwmReady = true;
+        _pwmReady = _pwm->isReady();
     }
 
     _rollAnglePID = PID(ANGLE_P_GAIN, ANGLE_I_GAIN, ANGLE_D_GAIN,
@@ -72,17 +69,20 @@ void ControlLoopExecutor::writeSafeOutputs() {
     writeOutputs(output);
 }
 
-ControlCorrections ControlLoopExecutor::computeCorrections(FlightManager& flightManager, float dt) {
-    float targetRoll = mapFloat(flightManager.getAileron(), 1000.0f, 2000.0f, -MAX_ROLL_ANGLE, MAX_ROLL_ANGLE);
-    float targetPitch = mapFloat(flightManager.getElevator(), 1000.0f, 2000.0f, -MAX_PITCH_ANGLE, MAX_PITCH_ANGLE);
-    float targetYawRate = mapFloat(flightManager.getRudder(), 1000.0f, 2000.0f, -MAX_YAW_RATE, MAX_YAW_RATE);
+ControlCorrections ControlLoopExecutor::computeCorrections(const FlightData& data, float dt) {
+    const float rollStick = AeroPicoFastMath::pwmToUnit(data.aileron);
+    const float pitchStick = AeroPicoFastMath::pwmToUnit(data.elevator);
+    const float yawStick = AeroPicoFastMath::pwmToUnit(data.rudder);
+    float targetRoll = rollStick * MAX_ROLL_ANGLE;
+    float targetPitch = pitchStick * MAX_PITCH_ANGLE;
+    float targetYawRate = yawStick * MAX_YAW_RATE;
 
-    float desiredRollRate = _rollAnglePID.compute(targetRoll, flightManager.getRoll(), dt);
-    float desiredPitchRate = _pitchAnglePID.compute(targetPitch, flightManager.getPitch(), dt);
+    float desiredRollRate = _rollAnglePID.compute(targetRoll, data.roll, dt);
+    float desiredPitchRate = _pitchAnglePID.compute(targetPitch, data.pitch, dt);
 
-    float rollCorr = _rollRatePID.compute(desiredRollRate, flightManager.getGyroX(), dt);
-    float pitchCorr = _pitchRatePID.compute(desiredPitchRate, flightManager.getGyroY(), dt);
-    float yawCorr = _yawRatePID.compute(targetYawRate, flightManager.getGyroZ(), dt);
+    float rollCorr = _rollRatePID.compute(desiredRollRate, data.gyroX, dt);
+    float pitchCorr = _pitchRatePID.compute(desiredPitchRate, data.gyroY, dt);
+    float yawCorr = _yawRatePID.compute(targetYawRate, data.gyroZ, dt);
 
     ControlCorrections corrections;
     corrections.roll = rollCorr;
@@ -91,15 +91,15 @@ ControlCorrections ControlLoopExecutor::computeCorrections(FlightManager& flight
     return corrections;
 }
 
-void ControlLoopExecutor::mixAndWrite(FlightManager& flightManager, const ControlCorrections& corrections) {
+void ControlLoopExecutor::mixAndWrite(const FlightData& data, const ControlCorrections& corrections) {
     MixerOutput output = _mixer.computeOutputs(
-        flightManager.getThrottle(),
+        data.throttle,
         corrections.roll,
         corrections.pitch,
         corrections.yaw,
-        flightManager.getAileron(),
-        flightManager.getElevator(),
-        flightManager.getRudder()
+        data.aileron,
+        data.elevator,
+        data.rudder
     );
     writeOutputs(output);
 }

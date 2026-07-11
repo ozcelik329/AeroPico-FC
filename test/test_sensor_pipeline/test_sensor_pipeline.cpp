@@ -3,7 +3,8 @@
 #include "core/SensorPipeline.h"
 
 #include "../../src/estimators/BaroAltitudeEstimator.cpp"
-#include "../../src/estimators/EkfLiteEstimator.cpp"
+#include "../../src/estimators/BaroVerticalKalman.cpp"
+#include "../../src/estimators/ComplementaryEstimator.cpp"
 #include "../../src/core/SensorFusion.cpp"
 #include "../../src/core/SensorPipeline.cpp"
 

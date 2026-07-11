@@ -45,11 +45,25 @@ void test_sensor_fusion_rejects_zero_accel_update() {
     TEST_ASSERT_FLOAT_WITHIN(0.001f, 0.0f, fusion.getPitch());
 }
 
+void test_sensor_fusion_falls_back_to_imu_when_mag_missing() {
+    SensorFusion fusion;
+    setMockMicros(0);
+    fusion.init(0.1f);
+
+    setMockMicros(20000);
+    fusion.update(0.0f, 0.0f, 1.0f,
+                  0.0f, 0.0f, 1.0f,
+                  0.0f, 0.0f, 0.0f);
+
+    TEST_ASSERT_TRUE(fabsf(fusion.getYaw()) > 0.5f);
+}
+
 int main() {
     UNITY_BEGIN();
     RUN_TEST(test_sensor_fusion_starts_level);
     RUN_TEST(test_sensor_fusion_known_roll_quaternion);
     RUN_TEST(test_sensor_fusion_known_pitch_quaternion);
     RUN_TEST(test_sensor_fusion_rejects_zero_accel_update);
+    RUN_TEST(test_sensor_fusion_falls_back_to_imu_when_mag_missing);
     return UNITY_END();
 }

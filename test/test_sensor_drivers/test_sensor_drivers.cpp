@@ -89,6 +89,17 @@ void test_baro_driver_computes_pressure_with_calibration() {
     TEST_ASSERT_TRUE(buffer.baroValid);
 }
 
+void test_baro_driver_rejects_zero_temperature_denominator() {
+    BaroDriver driver;
+    uint8_t calibration[22] = {};
+    writeInt16(calibration, 8, 1);
+    TEST_ASSERT_TRUE(driver.loadCalibration(calibration));
+    driver.setRawTemperature(0);
+    SensorBuffer buffer = {};
+    TEST_ASSERT_FALSE(driver.applyRawPressure(23843, buffer));
+    TEST_ASSERT_FALSE(buffer.baroValid);
+}
+
 int main() {
     UNITY_BEGIN();
     RUN_TEST(test_gyro_accel_driver_parses_raw_sample);
@@ -96,5 +107,6 @@ int main() {
     RUN_TEST(test_mag_driver_collects_hard_iron_calibration);
     RUN_TEST(test_baro_driver_rejects_pressure_without_calibration);
     RUN_TEST(test_baro_driver_computes_pressure_with_calibration);
+    RUN_TEST(test_baro_driver_rejects_zero_temperature_denominator);
     return UNITY_END();
 }

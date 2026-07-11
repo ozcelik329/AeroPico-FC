@@ -3,7 +3,7 @@
 FlightData StatePublisher::buildFlightData(const VehicleState& vehicle,
                                            const RcInputState& rc,
                                            const FailsafeDecision& failsafe) const {
-    FlightData data;
+    FlightData data = {};
     data.gyroX = vehicle.gyroX;
     data.gyroY = vehicle.gyroY;
     data.gyroZ = vehicle.gyroZ;
@@ -22,6 +22,7 @@ FlightData StatePublisher::buildFlightData(const VehicleState& vehicle,
     data.throttle = rc.throttle;
     data.rudder = rc.rudder;
     data.failsafe = failsafe.active;
+    data.controlMode = ControlMode::Stabilize;
     data.estimatorValid = vehicle.estimatorValid;
     return data;
 }

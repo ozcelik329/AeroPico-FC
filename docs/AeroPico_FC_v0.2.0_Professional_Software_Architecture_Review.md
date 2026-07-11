@@ -24,10 +24,13 @@ Proje artik basit bir Arduino/PlatformIO denemesinden cikmis, testli ve katmanla
 Hala ticari urun seviyesine gelmek icin en kritik eksikler:
 
 - HAL henuz tum suruculeri gercekten soyutlamiyor.
-- Scheduler telemetry/log/health akislari icin entegre edilmeye baslandi; control loop entegrasyonu henuz bekliyor.
+- Scheduler telemetry/log/health, RC/state/preflight/watchdog ve core1 control loop
+  akislari icin entegre edildi; release latency, runtime, jitter ve deadline miss
+  CI/test kapsaminda izleniyor.
 - Runtime parametre sistemi PID disinda dar.
 - Preflight health kararlari arming kapisina baglandi; sensor/RC/timing kontrolleri ilk seviyede kullaniliyor.
-- HIL ve donanim uzerinde dogrulama yok.
+- HIL smoke altyapisi ve manuel workflow mevcut; fiziksel bench kanitlari
+  donanim gerektiren V1-15/V1-16 kapisinda bekliyor.
 - EKF / mission / RTL gibi yuksek seviye ozellikler bilincli olarak ertelenmeli.
 
 ## Genel Puanlama
@@ -35,7 +38,7 @@ Hala ticari urun seviyesine gelmek icin en kritik eksikler:
 | Alan | Puan | Yorum |
 |---|---:|---|
 | Mimari temizlik | 8/10 | `ControlLoopExecutor`, `TimingMonitor`, `FailsafeManager` ve `SensorHealthMonitor` ile sorumluluklar ayrildi. Sensor driver bolme isi kademeli devam etmeli. |
-| Test kapsami | 8.5/10 | Native test seti 62 case'e cikti; failsafe, battery monitor, sensor health ve runtime parametreler testli. HIL smoke altyapisi var, fiziksel CI henuz yok. |
+| Test kapsami | 8.5/10 | Native test seti genisledi; failsafe, battery monitor, sensor health, runtime parametreler, SBUS backend, blackboard, blackbox, estimator ve native full-link hedefi testli. Fiziksel HIL kaniti donanim gerektiriyor. |
 | Gercek zaman uygunlugu | 8/10 | Timing budget ayri monitor sinifina tasindi; PID ve mixer safhalari tekrar ayri olculuyor. CPU load/percentile WCET sonraki adim. |
 | Guvenlik/failsafe | 8.5/10 | Watchdog gate, preflight arm gate, merkezi FailsafeManager, stale/timeout sensor blokajı, memory/actuator preflight ve battery altyapisi var. |
 | Donanim soyutlama | 8/10 | Output kontrol yolu HAL PWM arkasina alindi; Timer/Output ayrimi basladi. Sensor/I2C ve PIO UART tam HAL'e tasinmali. |
@@ -61,7 +64,7 @@ AeroPico FC v0.2.0, RP2350 tabanli sabit kanatli bir flight controller cekirdegi
 ### Kritik Eksikler
 
 - HAL arayuzleri var; output kontrol yolu HAL PWM arkasinda. `Sensors`, `RX` ve `PioUart` icin tam HAL gecisi devam etmeli.
-- Scheduler `taskTelemetry` icinde MAVLink, blackbox ve health raporu icin; `taskSensor` icinde sensor/RC/state/preflight/watchdog frekanslari icin kullaniliyor. Core1 kontrol dongusu deterministik 400Hz FreeRTOS ritminde kalir.
+- Scheduler `taskTelemetry` icinde MAVLink, blackbox ve health raporu icin; `taskSensor` icinde sensor/RC/state/preflight/watchdog frekanslari icin kullaniliyor. Core1 kontrol dongusu `FLIGHT_LOOP_PERIOD_US=2000` ile deterministik 500Hz FreeRTOS ritminde kalir.
 - `SystemTimer` artik facade; gercek kontrol task'i `FlightControlTask`, PID/mixer uygulamasi `ControlLoopExecutor`, timing ise `TimingMonitor` icinde.
 - `FlightData` geriye uyumluluk snapshot'i olarak kaliyor; `SensorState`, `ActuatorState`, `NavigationState` ve `StatePublisher` ayrimi eklendi.
 - Parametre sistemi PID disina genisledi: servo reverse/min/max/trim, mixer gain ve failsafe timeout runtime ayarlanabiliyor.
@@ -174,13 +177,13 @@ Bu mimari RP2350 icin mantikli. Ucus kontrol dongusu Core 1 uzerinde izole edilm
 - Core0 sensor/task akisi: sensor 200Hz, state publish 200Hz, RC 50Hz, preflight 20Hz, watchdog gate 100Hz.
 - Telemetry akisi: MAVLink 20Hz, blackbox 5Hz, health report 1Hz.
 
-Core1 kontrol dongusu 400Hz deterministik `vTaskDelayUntil` ritminde kalir; bu yol scheduler callback jitter'ina sokulmaz.
+Core1 kontrol dongusu 500Hz deterministik `vTaskDelayUntil` ritminde kalir; bu yol scheduler callback jitter'ina sokulmaz.
 
 Hedef scheduler haritasi:
 
 | Frekans | Gorev |
 |---:|---|
-| 400Hz | Control loop |
+| 500Hz | Control loop |
 | 200Hz | IMU update |
 | 100Hz | Attitude estimation |
 | 50Hz | RC input |
@@ -598,7 +601,7 @@ flowchart LR
 
 | Oncelik | Is | Beklenen Kazanc |
 |---|---|---|
-| P0 | Scheduler'i RC/sensor pipeline frekanslarina genislet | Tamamlandi: core0 sensor/RC/state/preflight/watchdog multi-rate scheduler'a baglandi; core1 control 400Hz deterministik kalir |
+| P0 | Scheduler'i RC/sensor pipeline frekanslarina genislet | Tamamlandi: core0 sensor/RC/state/preflight/watchdog multi-rate scheduler'a baglandi; core1 control 500Hz deterministik kalir |
 | P0 | PreflightHealth'i battery/memory/actuator check'leriyle genislet | Tamamlandi: memory ve actuator required, battery altyapisi optional |
 | P1 | Output surucusunu tam HAL PWM arkasina al | Tamamlandi: control loop `IHALPWM` ustunden yaziyor |
 | P1 | Sensors.cpp dosyasini gyro/mag/baro rolleriyle bol | Kismen tamamlandi: `GyroAccelDriver`, `MagDriver`, `BaroDriver` eklendi |

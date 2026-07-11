@@ -7,6 +7,7 @@ class RP2350PWM : public IHALPWM {
   public:
     void init() override;
     void write(const HALPwmOutputs& outputs) override;
+    bool isReady() const override;
 };
 
 #endif

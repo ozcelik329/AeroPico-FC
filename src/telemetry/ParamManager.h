@@ -64,6 +64,7 @@ class ParamManager {
     using MavlinkRatesApplyHandler = void (*)(uint8_t attitudeHz, uint8_t rcHz, uint8_t sysStatusHz);
     using BlackboxRateApplyHandler = void (*)(uint8_t logHz);
     using PreflightQualityApplyHandler = void (*)(uint8_t minQuality);
+    using ArmStateProvider = bool (*)();
 
     void init();
     void setPidGainsApplyHandler(PidGainsApplyHandler handler);
@@ -73,17 +74,24 @@ class ParamManager {
     void setMavlinkRatesApplyHandler(MavlinkRatesApplyHandler handler);
     void setBlackboxRateApplyHandler(BlackboxRateApplyHandler handler);
     void setPreflightQualityApplyHandler(PreflightQualityApplyHandler handler);
+    void setArmStateProvider(ArmStateProvider provider);
     void setStorage(IParamStorage* storage);
     bool loadPersistent();
     bool savePersistent();
     bool setParamByName(const char* name, float value);
     bool isDirty() const { return _dirty; }
+    const char* getLastError() const { return _lastError; }
 
     // Gelen MAVLink mesajını işle
     void handleMessage(const mavlink_message_t& msg);
 
     // Tüm parametreleri GCS'e gönder
     void sendAll();
+    void processSendQueue(uint32_t nowMs);
+    bool isSendActive() const { return _sendActive; }
+    uint8_t pendingSendCount() const {
+        return _sendActive ? (uint8_t)(PARAM_COUNT - _sendIndex) : 0;
+    }
 
     // Tek parametre gönder
     void sendParam(uint8_t index);
@@ -146,8 +154,13 @@ class ParamManager {
     MavlinkRatesApplyHandler _mavlinkRatesApplyHandler = nullptr;
     BlackboxRateApplyHandler _blackboxRateApplyHandler = nullptr;
     PreflightQualityApplyHandler _preflightQualityApplyHandler = nullptr;
+    ArmStateProvider _armStateProvider = nullptr;
     IParamStorage* _storage = nullptr;
     bool _dirty = false;
+    const char* _lastError = "";
+    uint8_t _sendIndex = 0;
+    uint32_t _nextSendMs = 0;
+    bool _sendActive = false;
 
     bool _isPidParam(uint8_t index) const;
     bool _isMixerParam(uint8_t index) const;

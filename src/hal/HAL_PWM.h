@@ -15,6 +15,7 @@ class IHALPWM {
     virtual ~IHALPWM() {}
     virtual void init() = 0;
     virtual void write(const HALPwmOutputs& outputs) = 0;
+    virtual bool isReady() const = 0;
 };
 
 #endif

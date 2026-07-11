@@ -14,7 +14,7 @@ class FlightControlTask {
     static void endTiming(SystemTimer::LoopPhase phase);
     static bool checkTimingBudgets();
     static TimingBudgetStatus getTimingBudgetStatus();
-    static void logTimingStats();
+    static void requestTimingWindowReset();
     static bool outputsReady();
     static void applyPidGains(float angleP, float angleI, float angleD,
                               float rateP, float rateI, float rateD);

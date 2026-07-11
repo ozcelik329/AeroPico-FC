@@ -32,19 +32,14 @@
 #define PIN_THROTTLE    19
 
 // --- Battery / Brownout ADC ---
-// Donanim bolucu orani dogrulanana kadar kapali kalir.
-#define BATTERY_ADC_ENABLED 0
+// Varsayilan acik: divider/pin hatasi preflight ve health tarafinda gorunur olmalidir.
+#define BATTERY_ADC_ENABLED 1
 #define PIN_BATTERY_ADC 26
 #define BATTERY_ADC_CHANNEL 0
 #define BATTERY_VOLTAGE_DIVIDER_RATIO 11.0f
 #define BATTERY_MIN_VOLTAGE 10.5f
 #define BATTERY_MAX_VOLTAGE 12.8f
 #define BATTERY_BROWNOUT_VOLTAGE 9.6f
-
-// --- Uçuş Parametreleri ---
-#define PID_P_GAIN 0.5
-#define PID_I_GAIN 0.01
-#define PID_D_GAIN 0.05
 
 // Sensör filtreleme
 #define SENSOR_MEDIAN_WINDOW 3

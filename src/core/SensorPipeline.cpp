@@ -7,7 +7,8 @@ void SensorPipeline::init(IImuDriver* imuDriver, float fusionBeta) {
     }
     _fusion.init(fusionBeta);
     _baroAltitude.init();
-    _ekfLite.init();
+    _verticalKalman.init();
+    _fallbackEstimator.init();
     _state = {};
     _state.sensorHealth = SensorHealth::WarmingUp;
     _state.estimatorHealth = SensorHealth::WarmingUp;
@@ -37,7 +38,12 @@ VehicleState SensorPipeline::update() {
 
     float baroAltitudeM = 0.0f;
     const bool baroAltitudeValid = _baroAltitude.update(buffer.pressureHpa, buffer.baroValid, baroAltitudeM);
-    EstimatedState estimated = _ekfLite.update(buildEstimatorInput(), baroAltitudeM, baroAltitudeValid);
+    const EstimatorInput estimatorInput = buildEstimatorInput();
+    EstimatedState estimated = _verticalKalman.update(estimatorInput, baroAltitudeM, baroAltitudeValid);
+    EstimatedState fallback = _fallbackEstimator.update(estimatorInput, baroAltitudeM, baroAltitudeValid);
+    if (!estimated.valid && fallback.valid) {
+        estimated = fallback;
+    }
     _state.altitudeM = estimated.altitudeM;
     _state.verticalSpeedMps = estimated.verticalSpeedMps;
     _state.estimatorHealth = estimated.health;
@@ -61,7 +67,12 @@ void SensorPipeline::updateFusion(const SensorBuffer& buffer) {
     float gz = buffer.gz * DEG_TO_RAD;
 
     #ifdef USE_GY87
-        _fusion.update(gx, gy, gz, buffer.ax, buffer.ay, buffer.az, buffer.mx, buffer.my, buffer.mz);
+        const float magNormSq = buffer.mx * buffer.mx + buffer.my * buffer.my + buffer.mz * buffer.mz;
+        if (magNormSq > 1.0e-6f) {
+            _fusion.update(gx, gy, gz, buffer.ax, buffer.ay, buffer.az, buffer.mx, buffer.my, buffer.mz);
+        } else {
+            _fusion.updateIMU(gx, gy, gz, buffer.ax, buffer.ay, buffer.az);
+        }
     #else
         _fusion.updateIMU(gx, gy, gz, buffer.ax, buffer.ay, buffer.az);
     #endif

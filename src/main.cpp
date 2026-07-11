@@ -4,6 +4,7 @@
 #include "hardware/watchdog.h"
 #include "pico/time.h"
 #include "config.h"
+#include "def.h"
 #include "core/FlightManager.h"
 #include "core/SystemTimer.h"
 #include "core/WatchdogGate.h"
@@ -11,6 +12,7 @@
 #include "core/PreflightHealth.h"
 #include "core/SensorPreflightEvaluator.h"
 #include "core/BatteryMonitor.h"
+#include "core/events/SystemEventBus.h"
 #include "storage/CalibrationStorage.h"
 #include "storage/ParamStorage.h"
 #include "utils/Logger.h"
@@ -49,6 +51,21 @@ static constexpr uint32_t PREFLIGHT_MIN_FREE_HEAP_BYTES = 24 * 1024;
 static uint8_t preflightMinSensorQuality = 60;
 static char sensorPreflightReason[72] = "Sensor not evaluated";
 static uint32_t lastWatchdogBlockLogMs = 0;
+static constexpr uint32_t CONTROL_LOOP_HZ = 1000000UL / FLIGHT_LOOP_PERIOD_US;
+static uint32_t lastBlackboxDroppedRecords = 0;
+static bool batteryWarningLatched = false;
+static bool latestBatteryCritical = false;
+static constexpr uint16_t SENSOR_TASK_STACK_WORDS = 1536;
+static constexpr uint16_t FLIGHT_TASK_STACK_WORDS = 2048;
+static constexpr uint16_t TELEMETRY_TASK_STACK_WORDS = 1536;
+static TaskHandle_t sensorTaskHandle = nullptr;
+static TaskHandle_t flightTaskHandle = nullptr;
+static TaskHandle_t telemetryTaskHandle = nullptr;
+static RuntimeHealthStatus runtimeHealth = {};
+
+static uint16_t clampStackWords(UBaseType_t value) {
+    return value > 0xFFFFu ? 0xFFFFu : (uint16_t)value;
+}
 
 static WatchdogDecision evaluateWatchdogGate() {
     return WatchdogGate::evaluate(
@@ -126,6 +143,7 @@ static PreflightResult evaluatePreflight() {
     BatteryStatus battery = batteryMonitor.evaluate();
     uint32_t freeHeap = rp2040.getFreeHeap();
     bool sensorOk = evaluateSensorPreflight();
+    latestBatteryCritical = battery.configured && battery.brownout;
 
     preflightHealth.reset();
     preflightHealth.setCheck(PreflightCheckId::Boot, true, true, "");
@@ -154,6 +172,11 @@ static void runRcUpdate() {
 }
 
 static void runStatePublish() {
+    flightManager.setSystemFaults(
+        !SystemTimer::checkTimingBudgets(),
+        latestBatteryCritical,
+        !SystemTimer::outputsReady()
+    );
     flightManager.publishState();
 }
 
@@ -175,6 +198,9 @@ static void runWatchdogGate() {
 
 static void runMavlinkTelemetry() {
     mavlink.update();
+#ifdef MAVLINK_PARAMS_ENABLED
+    paramManager.processSendQueue(millis());
+#endif
 }
 
 static void runBlackboxLog() {
@@ -201,9 +227,31 @@ static void runBlackboxLog() {
 
 static void runHealthReport() {
     lastPreflightResult = evaluatePreflight();
+    BatteryStatus battery = batteryMonitor.evaluate();
+    latestBatteryCritical = battery.configured && battery.brownout;
+    runtimeHealth.sensorStackHighWaterWords = sensorTaskHandle
+        ? clampStackWords(uxTaskGetStackHighWaterMark(sensorTaskHandle)) : 0;
+    runtimeHealth.flightStackHighWaterWords = flightTaskHandle
+        ? clampStackWords(uxTaskGetStackHighWaterMark(flightTaskHandle)) : 0;
+    runtimeHealth.telemetryStackHighWaterWords = telemetryTaskHandle
+        ? clampStackWords(uxTaskGetStackHighWaterMark(telemetryTaskHandle)) : 0;
+    runtimeHealth.eventQueueDrops = systemEventBus.droppedCount() > 0xFFFFu
+        ? 0xFFFFu : (uint16_t)systemEventBus.droppedCount();
 
     if (!lastPreflightResult.canArm) {
         mavlink.sendStatusText(lastPreflightResult.firstFailureReason);
+    }
+
+    if (battery.configured && !battery.healthy && !batteryWarningLatched) {
+        batteryWarningLatched = true;
+        systemEventBus.publish({
+            SystemEventType::BatteryWarning,
+            micros(),
+            battery.brownout ? 2u : 1u
+        });
+        mavlink.sendStatusText(battery.reason);
+    } else if (battery.configured && battery.healthy) {
+        batteryWarningLatched = false;
     }
 
     if (sensorManager.getFaultCode() != SensorFaultCode::None) {
@@ -214,8 +262,25 @@ static void runHealthReport() {
         TimingBudgetStatus status = SystemTimer::getTimingBudgetStatus();
         blackbox.logTimingBudget(status);
         mavlink.sendStatusText("Timing budget exceeded");
-        SystemTimer::logTimingStats();
+        systemEventBus.publish({
+            SystemEventType::TimingOverrun,
+            micros(),
+            ((uint32_t)status.totalDeadlineMisses << 16) | status.totalLoadPermille
+        });
     }
+    const uint32_t droppedBlackbox = blackbox.droppedRecords();
+    runtimeHealth.blackboxDrops = droppedBlackbox > 0xFFFFu ? 0xFFFFu : (uint16_t)droppedBlackbox;
+    blackbox.logRuntimeHealth(runtimeHealth);
+    if (droppedBlackbox != lastBlackboxDroppedRecords) {
+        lastBlackboxDroppedRecords = droppedBlackbox;
+        systemEventBus.publish({
+            SystemEventType::BlackboxDrop,
+            micros(),
+            droppedBlackbox
+        });
+        mavlink.sendStatusText("Blackbox records dropped");
+    }
+    SystemTimer::requestTimingWindowReset();
 }
 
 extern "C" void vApplicationStackOverflowHook(TaskHandle_t xTask, char* pcTaskName) {
@@ -233,7 +298,7 @@ extern "C" void vApplicationMallocFailedHook() {
 void taskSensor(void* pvParameters) {
     core0Scheduler.reset();
     core0Scheduler.addTask("sensor", 200, runSensorUpdate);
-    core0Scheduler.addTask("rc", 50, runRcUpdate);
+    core0Scheduler.addTask("rc", 150, runRcUpdate);
     core0Scheduler.addTask("state", 200, runStatePublish);
     core0Scheduler.addTask("preflight", 20, updatePreflightArmGate);
     core0Scheduler.addTask("watchdog", 100, runWatchdogGate);
@@ -327,6 +392,7 @@ void setup() {
     mavlink.setArmStateProvider(provideArmState);
     mavlink.setRCOverrideHandler(applyRCOverride);
     mavlink.setClearRCOverrideHandler(clearRCOverride);
+    mavlink.setRCOverrideEnabled(true);
     mavlink.init();
     blackbox.init();
 
@@ -338,6 +404,7 @@ void setup() {
     paramManager.setMavlinkRatesApplyHandler(applyMavlinkRates);
     paramManager.setBlackboxRateApplyHandler(applyBlackboxRate);
     paramManager.setPreflightQualityApplyHandler(applyPreflightQuality);
+    paramManager.setArmStateProvider(provideArmState);
     paramManager.setStorage(&paramStorage);
     paramManager.init();
     applyPidGains(
@@ -367,7 +434,7 @@ void setup() {
     bool rxOk   = true;
 
     BootLogger::printHealthReport(
-        500,
+        CONTROL_LOOP_HZ,
         imuOk,
         baroOk,
         magOk,
@@ -379,22 +446,32 @@ void setup() {
     );
     BootLogger::printReadyMessage();
 
-    xTaskCreateAffinitySet(
+    static StaticTask_t sensorTaskTcb;
+    static StaticTask_t flightTaskTcb;
+    static StaticTask_t telemetryTaskTcb;
+    static StackType_t sensorTaskStack[SENSOR_TASK_STACK_WORDS];
+    static StackType_t flightTaskStack[FLIGHT_TASK_STACK_WORDS];
+    static StackType_t telemetryTaskStack[TELEMETRY_TASK_STACK_WORDS];
+
+    sensorTaskHandle = xTaskCreateStaticAffinitySet(
         taskSensor, "SensorTask",
-        2048, NULL, 2,
-        (1 << 0), NULL
+        SENSOR_TASK_STACK_WORDS, NULL, 2,
+        sensorTaskStack, &sensorTaskTcb,
+        (1 << 0)
     );
 
-    xTaskCreateAffinitySet(
+    flightTaskHandle = xTaskCreateStaticAffinitySet(
         taskFlight, "FlightTask",
-        2048, NULL, 3,
-        (1 << 1), NULL
+        FLIGHT_TASK_STACK_WORDS, NULL, 3,
+        flightTaskStack, &flightTaskTcb,
+        (1 << 1)
     );
 
-    xTaskCreateAffinitySet(
+    telemetryTaskHandle = xTaskCreateStaticAffinitySet(
         taskTelemetry, "TelemetryTask",
-        2048, NULL, 1,
-        (1 << 0), NULL
+        TELEMETRY_TASK_STACK_WORDS, NULL, 1,
+        telemetryTaskStack, &telemetryTaskTcb,
+        (1 << 0)
     );
 
     vTaskStartScheduler();

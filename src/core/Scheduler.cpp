@@ -2,8 +2,7 @@
 #include <string.h>
 
 void Scheduler::reset() {
-    _tasks[0] = {};
-    for (size_t i = 1; i < MAX_TASKS; ++i) {
+    for (size_t i = 0; i < MAX_TASKS; ++i) {
         _tasks[i] = {};
     }
     _taskCount = 0;
@@ -23,9 +22,12 @@ bool Scheduler::addTask(const char* name, uint16_t rateHz, SchedulerCallback cal
     _tasks[_taskCount].rateHz = rateHz;
     _tasks[_taskCount].periodUs = periodUs;
     _tasks[_taskCount].lastRunUs = 0;
+    _tasks[_taskCount].maxReleaseLatencyUs = 0;
+    _tasks[_taskCount].maxRuntimeUs = 0;
     _tasks[_taskCount].callback = callback;
     _tasks[_taskCount].enabled = true;
     _tasks[_taskCount].runCount = 0;
+    _tasks[_taskCount].deadlineMisses = 0;
     _taskCount++;
     return true;
 }
@@ -37,13 +39,26 @@ void Scheduler::tick(uint32_t nowUs) {
             continue;
         }
 
-        if ((uint32_t)(nowUs - task.lastRunUs) < task.periodUs) {
+        const uint32_t elapsedUs = (uint32_t)(nowUs - task.lastRunUs);
+        if (elapsedUs < task.periodUs) {
             continue;
         }
 
+        const uint32_t latencyUs = task.lastRunUs == 0 ? 0 : elapsedUs - task.periodUs;
+        if (latencyUs > task.maxReleaseLatencyUs) {
+            task.maxReleaseLatencyUs = latencyUs;
+        }
         task.lastRunUs = nowUs;
         task.runCount++;
+        const uint32_t startUs = micros();
         task.callback();
+        const uint32_t runtimeUs = (uint32_t)(micros() - startUs);
+        if (runtimeUs > task.maxRuntimeUs) {
+            task.maxRuntimeUs = runtimeUs;
+        }
+        if (runtimeUs > task.periodUs) {
+            task.deadlineMisses++;
+        }
     }
 }
 

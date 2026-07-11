@@ -1,4 +1,5 @@
 #include "FixedWingMixer.h"
+#include "../utils/FastMath.h"
 #include <math.h>
 
 FixedWingMixer::FixedWingMixer() {
@@ -43,8 +44,7 @@ int FixedWingMixer::mapThrottle(uint16_t throttle) {
 }
 
 static int mapPulse(uint16_t value) {
-    long mapped = ((long)value - 1000L) * (PWM_MAX - PWM_MIN) / 1000L + PWM_MIN;
-    return constrain((int)mapped, PWM_MIN, PWM_MAX);
+    return AeroPicoFastMath::pwmToRange(value, PWM_MIN, PWM_MAX);
 }
 
 MixerOutput FixedWingMixer::computeOutputs(uint16_t rawThrottle,

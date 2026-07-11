@@ -17,10 +17,12 @@ class PID {
   private:
     float kp, ki, kd;
     float prev_error;
+    float prev_measurement;
     float integral;
     float outputMin;
     float outputMax;
     float integralLimit;
+    bool hasPrevMeasurement;
 };
 
 #endif

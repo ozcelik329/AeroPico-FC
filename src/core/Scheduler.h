@@ -10,9 +10,12 @@ struct ScheduledTask {
     uint16_t rateHz;
     uint32_t periodUs;
     uint32_t lastRunUs;
+    uint32_t maxReleaseLatencyUs;
+    uint32_t maxRuntimeUs;
     SchedulerCallback callback;
     bool enabled;
     uint32_t runCount;
+    uint16_t deadlineMisses;
 };
 
 class Scheduler {

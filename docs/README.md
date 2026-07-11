@@ -20,5 +20,7 @@ Bu klasor yalnizca aktif ve bakimi suren proje dokumanlarini tutar.
 - `Innovation_Backlog.md`: Ileride urun farki yaratabilecek fikirler.
 - `V1_0_Remaining_Work.md`: V1.0 icin kalan mimari, guvenlik, performans ve
   fiziksel dogrulama isleri.
+- `External_Review_Findings_2026-07-09.md`: Harici PDF incelemesindeki
+  P0/P1/P2 bulgularinin kod dogrulamasi ve kapanis takibi.
 
 Eski faz snapshot'lari, tarihli brainstorm dosyalari ve guncel markdown raporunun eski PDF/DOCX export'lari tutulmaz.

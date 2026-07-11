@@ -3,7 +3,8 @@
 
 #include <Arduino.h>
 #include "../drivers/IDrivers.h"
-#include "ThreadSafeRingBuffer.h"
+#include "data/SystemBlackboard.h"
+#include "events/SystemEventBus.h"
 #include "RCPipeline.h"
 #include "SensorPipeline.h"
 #include "FailsafeManager.h"
@@ -32,15 +33,17 @@ class FlightManager {
     uint16_t getElevator();
     uint16_t getThrottle();
     uint16_t getRudder();
-    bool isArmed() { return _controlPipeline.isArmed(); }
+    bool isArmed() const { return __atomic_load_n(&_armedShared, __ATOMIC_ACQUIRE) != 0; }
     void setPreflightArmAllowed(bool allowed);
+    void setSystemFaults(bool timingExceeded, bool batteryCritical, bool actuatorFault);
 
     void setRCOverride(uint16_t aileron, uint16_t elevator, uint16_t throttle, uint16_t rudder);
     void clearRCOverride();
     void applyRcMapping(const RcMapping& mapping);
 
     // Consumer: called by the single consumer (Core 1) to consume pending samples
-    void consumeLatest();
+    bool consumeLatest();
+    bool consumeLatest(FlightData& out);
 
     // Peek latest without consuming — safe for telemetry (secondary reader)
     bool peekLatest(FlightData& out) const;
@@ -51,20 +54,20 @@ class FlightManager {
     VehicleState _vehicleState = {};
     RcInputState _rcState = {};
 
-    // Thread-safe ring buffer for multi-producer / multi-consumer usage
-    ThreadSafeRingBuffer<FlightData, 4> _ringBuf;
-
-    // Son okunan veri (Core 1 tarafında cache)
+    // Core 1 cache; source is the typed lock-free blackboard topic.
     FlightData _latest = {};
 
     StatePublisher _statePublisher;
     ControlPipeline _controlPipeline;
     FailsafeManager _failsafeManager;
     bool _preflightArmAllowed = false;
+    bool _timingExceeded = false;
+    bool _batteryCritical = false;
+    bool _actuatorFault = false;
+    mutable uint8_t _armedShared = 0;
+    SensorHealth _lastPublishedSensorHealth = SensorHealth::Invalid;
 
-    // Sequence counter to provide atomic-like snapshot semantics for `_latest`
-    volatile uint32_t _latest_seq = 0;
-    FlightData readLatestSnapshot() const;
+    FlightData readLatestSnapshot() const { return _latest; }
     
 };
 

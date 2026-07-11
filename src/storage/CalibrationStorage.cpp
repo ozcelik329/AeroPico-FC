@@ -2,8 +2,21 @@
 
 #if !defined(UNIT_TEST)
 #include "hardware/flash.h"
-#include "hardware/sync.h"
+#include "pico/flash.h"
 #include "pico/platform.h"
+
+namespace {
+struct CalibrationFlashWriteContext {
+    uint32_t offset;
+    const uint8_t* page;
+};
+
+void __not_in_flash_func(programCalibrationFlash)(void* opaque) {
+    auto* context = static_cast<CalibrationFlashWriteContext*>(opaque);
+    flash_range_erase(context->offset, FLASH_SECTOR_SIZE);
+    flash_range_program(context->offset, context->page, FLASH_PAGE_SIZE);
+}
+}
 #endif
 
 static_assert(sizeof(CalibrationBlob) <= 256, "CalibrationBlob must fit in one flash page");
@@ -92,10 +105,8 @@ bool RPFlashCalibrationStorage::save(const CalibrationBlob& blob) {
     memset(page, 0xFF, sizeof(page));
     memcpy(page, &blob, sizeof(CalibrationBlob));
 
-    uint32_t irqState = save_and_disable_interrupts();
-    flash_range_erase(FLASH_TARGET_OFFSET, FLASH_SECTOR_SIZE);
-    flash_range_program(FLASH_TARGET_OFFSET, page, PAGE_SIZE);
-    restore_interrupts(irqState);
-    return true;
+    CalibrationFlashWriteContext context = {FLASH_TARGET_OFFSET, page};
+    constexpr uint32_t FLASH_SAFE_TIMEOUT_MS = 1000;
+    return flash_safe_execute(programCalibrationFlash, &context, FLASH_SAFE_TIMEOUT_MS) == PICO_OK;
 #endif
 }

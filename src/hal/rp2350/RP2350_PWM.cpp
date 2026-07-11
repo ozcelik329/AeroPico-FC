@@ -8,3 +8,7 @@ void RP2350PWM::init() {
 void RP2350PWM::write(const HALPwmOutputs& outputs) {
     writeMotors(outputs.throttle, outputs.aileron, outputs.elevator, outputs.rudder);
 }
+
+bool RP2350PWM::isReady() const {
+    return servoOutput.isReady();
+}

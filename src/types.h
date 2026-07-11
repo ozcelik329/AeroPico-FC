@@ -27,6 +27,11 @@ enum class SensorFaultCode : uint8_t {
     BaroReadFailed
 };
 
+enum class ControlMode : uint8_t {
+    Manual = 0,
+    Stabilize = 1
+};
+
 struct SensorQuality {
     SensorHealth health;
     uint8_t score;
@@ -71,6 +76,10 @@ struct FlightData {
     float verticalSpeedMps;
     uint16_t aileron, elevator, throttle, rudder;
     bool failsafe;
+    bool timingExceeded;
+    bool batteryCritical;
+    bool actuatorFault;
+    ControlMode controlMode;
     SensorHealth sensorHealth;
     SensorHealth estimatorHealth;
     uint8_t sensorQualityScore;
@@ -157,10 +166,20 @@ struct TimingBudgetStatus {
     uint16_t pidDeadlineMisses;
     uint16_t mixerDeadlineMisses;
     uint16_t totalDeadlineMisses;
+    uint16_t totalLoadPermille;
+    uint16_t windowSamples;
     bool consumeExceeded;
     bool pidExceeded;
     bool mixerExceeded;
     bool totalExceeded;
+};
+
+struct RuntimeHealthStatus {
+    uint16_t sensorStackHighWaterWords;
+    uint16_t flightStackHighWaterWords;
+    uint16_t telemetryStackHighWaterWords;
+    uint16_t eventQueueDrops;
+    uint16_t blackboxDrops;
 };
 
 struct EstimatorInput {

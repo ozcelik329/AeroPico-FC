@@ -55,7 +55,7 @@ Bu liste ilk enerji verme, firmware degisikligi ve ucus oncesi masa testleri ici
 
 - Core 1 heartbeat taze kaliyor mu?
 - Core0 scheduler frekanslari beklenen seviyede mi: sensor/state 200Hz, RC 50Hz, preflight 20Hz, watchdog gate 100Hz?
-- Core1 control loop 400Hz civarinda ve timing budget icinde mi?
+- Core1 control loop 500Hz civarinda ve timing budget icinde mi?
 - Timing max/average/jitter ve deadline-miss sayaclari uzun sureli bench kosusunda incelendi mi?
 - Uzun sureli bench calismasinda watchdog reset yok mu?
 - Bilerek Core 1 donmasi veya sensor task blokaj testi yapildiginda watchdog beklenen sekilde resetliyor mu?

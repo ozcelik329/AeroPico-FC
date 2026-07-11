@@ -3,11 +3,13 @@
 
 #include <Arduino.h>
 #include "../config.h"
-#include "sbus.h"
 #include "IDrivers.h"
+#include "rc/SbusBackend.h"
 
 class RXManager : public IRxDriver {
   public:
+    explicit RXManager(ISbusBackend* backend = nullptr) : _backend(backend) {}
+    void setBackend(ISbusBackend* backend);
     void init() override;
     void update() override;
     bool isValid() const override;
@@ -22,6 +24,7 @@ class RXManager : public IRxDriver {
     bool _failsafe     = false;
     uint32_t _lastValidTime = 0;
     uint32_t _failsafeTimeoutMs = FAILSAFE_TIMEOUT_MS;
+    ISbusBackend* _backend = nullptr;
 };
 
 #endif

@@ -39,6 +39,10 @@ void ParamManager::setPreflightQualityApplyHandler(PreflightQualityApplyHandler 
     _preflightQualityApplyHandler = handler;
 }
 
+void ParamManager::setArmStateProvider(ArmStateProvider provider) {
+    _armStateProvider = provider;
+}
+
 void ParamManager::setStorage(IParamStorage* storage) {
     _storage = storage;
 }
@@ -123,7 +127,15 @@ bool ParamManager::loadPersistent() {
 }
 
 bool ParamManager::savePersistent() {
-    if (!_storage) return false;
+    _lastError = "";
+    if (!_storage) {
+        _lastError = "Parameter storage unavailable";
+        return false;
+    }
+    if (_armStateProvider && _armStateProvider()) {
+        _lastError = "Parameter save rejected while armed";
+        return false;
+    }
 
     float values[PARAM_PERSISTED_COUNT];
     for (uint8_t i = 0; i < PARAM_PERSISTED_COUNT; i++) {
@@ -132,6 +144,7 @@ bool ParamManager::savePersistent() {
 
     ParamStorageBlob blob = ParamStorage::makeBlob(values, PARAM_PERSISTED_COUNT);
     if (!_storage->save(blob)) {
+        _lastError = "Parameter flash write failed";
         return false;
     }
 
@@ -150,6 +163,12 @@ bool ParamManager::setParamByName(const char* name, float value) {
         return value >= 0.5f ? savePersistent() : true;
     }
 
+    if (_armStateProvider && _armStateProvider()) {
+        _lastError = "Parameter change rejected while armed";
+        return false;
+    }
+
+    _lastError = "";
     _params[index].value = constrain(value, _params[index].minVal, _params[index].maxVal);
     _dirty = index < PARAM_PERSISTED_COUNT;
     _applyParam((uint8_t)index);
@@ -187,10 +206,23 @@ void ParamManager::handleMessage(const mavlink_message_t& msg) {
 }
 
 void ParamManager::sendAll() {
-    for (uint8_t i = 0; i < PARAM_COUNT; i++) {
-        sendParam(i);
-        delay(10);  // GCS'in işlemesi için küçük gecikme
+    _sendIndex = 0;
+    _nextSendMs = 0;
+    _sendActive = true;
+}
+
+void ParamManager::processSendQueue(uint32_t nowMs) {
+    if (!_sendActive || (int32_t)(nowMs - _nextSendMs) < 0) {
+        return;
     }
+
+    sendParam(_sendIndex++);
+    if (_sendIndex >= PARAM_COUNT) {
+        _sendActive = false;
+        return;
+    }
+    constexpr uint32_t PARAM_SEND_INTERVAL_MS = 20;
+    _nextSendMs = nowMs + PARAM_SEND_INTERVAL_MS;
 }
 
 void ParamManager::sendParam(uint8_t index) {
@@ -213,6 +245,10 @@ void ParamManager::sendParam(uint8_t index) {
 }
 
 void ParamManager::_handleParamRequestList(const mavlink_message_t& msg) {
+    mavlink_param_request_list_t request;
+    mavlink_msg_param_request_list_decode(&msg, &request);
+    if (request.target_system != 0 && request.target_system != MAV_SYSTEM_ID) return;
+    if (request.target_component != 0 && request.target_component != MAV_COMPONENT_ID) return;
     Serial.println("[PARAMS] GCS parametre listesi istedi.");
     sendAll();
 }
@@ -220,6 +256,8 @@ void ParamManager::_handleParamRequestList(const mavlink_message_t& msg) {
 void ParamManager::_handleParamSet(const mavlink_message_t& msg) {
     mavlink_param_set_t set;
     mavlink_msg_param_set_decode(&msg, &set);
+    if (set.target_system != 0 && set.target_system != MAV_SYSTEM_ID) return;
+    if (set.target_component != 0 && set.target_component != MAV_COMPONENT_ID) return;
 
     int index = _findParamIndex(set.param_id);
     if (index >= 0) {

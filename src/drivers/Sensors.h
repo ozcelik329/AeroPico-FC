@@ -11,6 +11,8 @@
 #include "sensors/baro/BaroDriver.h"
 #include "sensors/gyro/GyroAccelDriver.h"
 #include "sensors/mag/MagDriver.h"
+#include "../hal/HAL_I2C.h"
+#include "../hal/rp2350/RP2350_I2C.h"
 
 #define MPU6050_ADDR        0x68
 #define MPU6050_REG_PWR     0x6B
@@ -37,6 +39,8 @@
 class SensorManager : public IImuDriver, public IMagDriver, public IBaroDriver, public IGpsDriver {
   public:
     void init();
+    void setI2CBus(IHALI2C* bus);
+    void setI2CBus(RP2350I2C* bus);
     void update();
     SensorBuffer getLatest();
 
@@ -76,6 +80,9 @@ class SensorManager : public IImuDriver, public IMagDriver, public IBaroDriver, 
     MagDriver _magDriver;
     BaroDriver _baroDriver;
     SensorHealthMonitor _healthMonitor;
+    IHALI2C* _i2cBus = nullptr;
+    RP2350I2C* _rp2350Bus = nullptr;
+    bool _dmaFastPath = false;
 
     // Boot kalibrasyon ofsetleri
     float _gyroBiasX = 0.0f, _gyroBiasY = 0.0f, _gyroBiasZ = 0.0f;
@@ -89,7 +96,10 @@ class SensorManager : public IImuDriver, public IMagDriver, public IBaroDriver, 
     void _mpu_write_reg(uint8_t reg, uint8_t val);
     void _mpu_start_dma_read();
     bool _mpu_dma_ready();
+    bool _readRawFrame(uint8_t raw[GyroAccelDriver::RAW_LEN]);
     void _setFault(SensorFaultCode code);
+    IHALI2C& _bus();
+    RP2350I2C* _rpBus();
 
     SensorBuffer _buf[2];
     volatile uint8_t _writeIdx = 0;

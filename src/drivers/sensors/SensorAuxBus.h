@@ -48,12 +48,21 @@ class SensorAuxBus {
         BMP_PRESSURE_READ
     };
 
+    enum AuxReadKind : uint8_t {
+        AUX_NONE,
+        AUX_MAG,
+        AUX_BARO_TEMP,
+        AUX_BARO_PRESSURE
+    };
+
     uint8_t _hmcDmaBuf[6] = {};
     uint8_t _bmpDmaBuf[3] = {};
     BmpState _bmpState = BMP_IDLE;
+    AuxReadKind _auxReadKind = AUX_NONE;
     uint32_t _bmpWaitUntilUs = 0;
     bool _hasMag = false;
     bool _hasBaro = false;
+    bool _magTurn = true;
 
     bool writeReg(RP2350I2C& bus, uint8_t address, uint8_t reg, uint8_t value, SensorFaultCode& faultCode);
     bool readRegsDma(SensorDmaBus& dmaBus,
@@ -63,6 +72,19 @@ class SensorAuxBus {
                      uint8_t* dest,
                      size_t len,
                      SensorFaultCode& faultCode);
+    bool startRegsDma(SensorDmaBus& dmaBus,
+                      RP2350I2C& bus,
+                      uint8_t address,
+                      uint8_t reg,
+                      uint8_t* dest,
+                      size_t len,
+                      AuxReadKind kind,
+                      SensorFaultCode& faultCode);
+    bool processPendingRead(SensorDmaBus& dmaBus,
+                            MagDriver& magDriver,
+                            BaroDriver& baroDriver,
+                            SensorBuffer& buffer,
+                            SensorFaultCode& faultCode);
     bool initMag(RP2350I2C& bus, SensorFaultCode& faultCode);
     bool initBaro(SensorDmaBus& dmaBus, RP2350I2C& bus, BaroDriver& baroDriver, SensorFaultCode& faultCode);
     void readMag(SensorDmaBus& dmaBus,

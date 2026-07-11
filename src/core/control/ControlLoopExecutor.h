@@ -3,6 +3,7 @@
 
 #include <Arduino.h>
 #include "../../hal/HAL_PWM.h"
+#include "../../types.h"
 #include "../PID.h"
 #include "../FixedWingMixer.h"
 
@@ -22,8 +23,8 @@ class ControlLoopExecutor {
                        float rateP, float rateI, float rateD);
     void applyMixerSettings(const MixerSettings& settings);
     void writeSafeOutputs();
-    ControlCorrections computeCorrections(FlightManager& flightManager, float dt);
-    void mixAndWrite(FlightManager& flightManager, const ControlCorrections& corrections);
+    ControlCorrections computeCorrections(const FlightData& data, float dt);
+    void mixAndWrite(const FlightData& data, const ControlCorrections& corrections);
     bool outputsReady() const { return _pwm != nullptr && _pwmReady; }
 
   private:

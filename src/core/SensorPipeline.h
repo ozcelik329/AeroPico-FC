@@ -5,7 +5,8 @@
 #include "../drivers/IDrivers.h"
 #include "../types.h"
 #include "../estimators/BaroAltitudeEstimator.h"
-#include "../estimators/EkfLiteEstimator.h"
+#include "../estimators/BaroVerticalKalman.h"
+#include "../estimators/ComplementaryEstimator.h"
 #include "SensorFusion.h"
 
 class SensorPipeline {
@@ -18,7 +19,8 @@ class SensorPipeline {
     IImuDriver* _imu = nullptr;
     SensorFusion _fusion;
     BaroAltitudeEstimator _baroAltitude;
-    EkfLiteEstimator _ekfLite;
+    BaroVerticalKalman _verticalKalman;
+    ComplementaryEstimator _fallbackEstimator;
     VehicleState _state = {};
 
     void updateFusion(const SensorBuffer& buffer);

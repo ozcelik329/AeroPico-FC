@@ -19,8 +19,13 @@ void SensorFusion::setTemperature(float tempC) {
 void __not_in_flash_func(SensorFusion::update)(float gx, float gy, float gz,
                                                 float ax, float ay, float az,
                                                 float mx, float my, float mz) {
-    // Sıcaklık kompanzasyonu
-    float tempOffset = (_tempC - 25.0f) * _gyroTempCoeff;
+    float magNorm = sqrtf(mx * mx + my * my + mz * mz);
+    if (magNorm < 1e-6f) {
+        updateIMU(gx, gy, gz, ax, ay, az);
+        return;
+    }
+
+    float tempOffset = ((_tempC - 25.0f) * _gyroTempCoeff) * DEG_TO_RAD;
     gx -= tempOffset;
     gy -= tempOffset;
     gz -= tempOffset;
@@ -35,12 +40,11 @@ void __not_in_flash_func(SensorFusion::update)(float gx, float gy, float gz,
     float q2q2 = q2 * q2;
     float q3q3 = q3 * q3;
 
-    float norm = sqrt(ax * ax + ay * ay + az * az);
+    float norm = sqrtf(ax * ax + ay * ay + az * az);
     if (norm < 1e-6f) return;
     ax /= norm; ay /= norm; az /= norm;
 
-    norm = sqrt(mx * mx + my * my + mz * mz);
-    if (norm < 1e-6f) return;
+    norm = magNorm;
     mx /= norm; my /= norm; mz /= norm;
 
     float _2q0mx = 2.0f * q0 * mx;
@@ -62,7 +66,7 @@ void __not_in_flash_func(SensorFusion::update)(float gx, float gy, float gz,
 
     float hx = mx * q0q0 - _2q0my * q3 + _2q0mz * q2 + mx * q1q1 + _2q1 * my * q2 + _2q1 * mz * q3 - mx * q2q2 - mx * q3q3;
     float hy = _2q0mx * q3 + my * q0q0 - _2q0mz * q1 + _2q1mx * q2 - my * q1q1 + my * q2q2 + _2q2 * mz * q3 - my * q3q3;
-    float _2bx = sqrt(hx * hx + hy * hy);
+    float _2bx = sqrtf(hx * hx + hy * hy);
     float _2bz = -_2q0mx * q2 + _2q0my * q1 + mz * q0q0 + _2q1mx * q3 - mz * q1q1 + _2q2 * my * q3 - mz * q2q2 + mz * q3q3;
     float _4bx = 2.0f * _2bx;
     float _4bz = 2.0f * _2bz;
@@ -98,7 +102,7 @@ void __not_in_flash_func(SensorFusion::update)(float gx, float gy, float gz,
     float s2 =  J_13or22 * f2 - J_33     * f3 - J_43 * f4 + J_53 * f5 + J_63 * f6;
     float s3 =  J_12or23 * f1 + J_11or24 * f2 - J_44 * f4 - J_54 * f5 - J_64 * f6;
 
-    norm = sqrt(s0 * s0 + s1 * s1 + s2 * s2 + s3 * s3);
+    norm = sqrtf(s0 * s0 + s1 * s1 + s2 * s2 + s3 * s3);
     if (norm < 1e-6f) return;
     s0 /= norm; s1 /= norm; s2 /= norm; s3 /= norm;
 
@@ -110,7 +114,7 @@ void __not_in_flash_func(SensorFusion::update)(float gx, float gy, float gz,
     q0 += qDot1 * dt; q1 += qDot2 * dt;
     q2 += qDot3 * dt; q3 += qDot4 * dt;
 
-    norm = sqrt(q0 * q0 + q1 * q1 + q2 * q2 + q3 * q3);
+    norm = sqrtf(q0 * q0 + q1 * q1 + q2 * q2 + q3 * q3);
     q0 /= norm; q1 /= norm; q2 /= norm; q3 /= norm;
 
     computeAngles();
@@ -118,8 +122,7 @@ void __not_in_flash_func(SensorFusion::update)(float gx, float gy, float gz,
 
 void __not_in_flash_func(SensorFusion::updateIMU)(float gx, float gy, float gz,
                                                    float ax, float ay, float az) {
-    // Sıcaklık kompanzasyonu
-    float tempOffset = (_tempC - 25.0f) * _gyroTempCoeff;
+    float tempOffset = ((_tempC - 25.0f) * _gyroTempCoeff) * DEG_TO_RAD;
     gx -= tempOffset;
     gy -= tempOffset;
     gz -= tempOffset;
@@ -129,7 +132,7 @@ void __not_in_flash_func(SensorFusion::updateIMU)(float gx, float gy, float gz,
     if (dt <= 0.0f) dt = 0.001f;
     lastUpdate = now;
 
-    float norm = sqrt(ax * ax + ay * ay + az * az);
+    float norm = sqrtf(ax * ax + ay * ay + az * az);
     if (norm < 1e-6f) return;
     ax /= norm; ay /= norm; az /= norm;
 
@@ -152,7 +155,7 @@ void __not_in_flash_func(SensorFusion::updateIMU)(float gx, float gy, float gz,
     q0 += qDot1 * dt; q1 += qDot2 * dt;
     q2 += qDot3 * dt; q3 += qDot4 * dt;
 
-    norm = sqrt(q0 * q0 + q1 * q1 + q2 * q2 + q3 * q3);
+    norm = sqrtf(q0 * q0 + q1 * q1 + q2 * q2 + q3 * q3);
     q0 /= norm; q1 /= norm; q2 /= norm; q3 /= norm;
 
     computeAngles();
@@ -173,7 +176,7 @@ void SensorFusion::setQuaternionForTest(float w, float x, float y, float z) {
 #endif
 
 void __not_in_flash_func(SensorFusion::computeAngles)() {
-    roll  = atan2(2.0f * (q0 * q1 + q2 * q3), 1.0f - 2.0f * (q1 * q1 + q2 * q2)) * 180.0f / PI;
-    pitch = asin(constrain(2.0f * (q0 * q2 - q3 * q1), -1.0f, 1.0f)) * 180.0f / PI;
-    yaw   = atan2(2.0f * (q0 * q3 + q1 * q2), 1.0f - 2.0f * (q2 * q2 + q3 * q3)) * 180.0f / PI;
+    roll  = atan2f(2.0f * (q0 * q1 + q2 * q3), 1.0f - 2.0f * (q1 * q1 + q2 * q2)) * 180.0f / PI;
+    pitch = asinf(constrain(2.0f * (q0 * q2 - q3 * q1), -1.0f, 1.0f)) * 180.0f / PI;
+    yaw   = atan2f(2.0f * (q0 * q3 + q1 * q2), 1.0f - 2.0f * (q2 * q2 + q3 * q3)) * 180.0f / PI;
 }

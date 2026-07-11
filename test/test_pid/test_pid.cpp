@@ -38,7 +38,16 @@ void test_pid_handles_invalid_dt() {
     PID pid(1.0f, 0.0f, 1.0f, -100.0f, 100.0f);
 
     float output = pid.compute(1.0f, 0.0f, 0.0f);
-    TEST_ASSERT_FLOAT_WITHIN(0.001f, 100.0f, output);
+    TEST_ASSERT_FLOAT_WITHIN(0.001f, 1.0f, output);
+}
+
+void test_pid_derivative_does_not_kick_on_setpoint_step() {
+    PID pid(0.0f, 0.0f, 1.0f, -100.0f, 100.0f);
+
+    pid.compute(0.0f, 0.0f, 0.02f);
+    float output = pid.compute(10.0f, 0.0f, 0.02f);
+
+    TEST_ASSERT_FLOAT_WITHIN(0.001f, 0.0f, output);
 }
 
 int main() {
@@ -47,5 +56,6 @@ int main() {
     RUN_TEST(test_pid_freezes_integral_when_saturating_further);
     RUN_TEST(test_pid_allows_integral_to_reduce_saturation);
     RUN_TEST(test_pid_handles_invalid_dt);
+    RUN_TEST(test_pid_derivative_does_not_kick_on_setpoint_step);
     return UNITY_END();
 }

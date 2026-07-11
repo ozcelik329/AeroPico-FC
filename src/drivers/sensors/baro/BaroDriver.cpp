@@ -34,7 +34,11 @@ bool BaroDriver::applyRawPressure(int32_t rawPressure, SensorBuffer& buffer) con
     }
 
     int32_t x1 = (_rawTemperature - _ac6) * _ac5 >> 15;
-    int32_t x2 = ((int32_t)_mc << 11) / (x1 + _md);
+    const int32_t temperatureDenominator = x1 + _md;
+    if (temperatureDenominator == 0) {
+        return false;
+    }
+    int32_t x2 = ((int32_t)_mc << 11) / temperatureDenominator;
     int32_t b5 = x1 + x2;
     int32_t t = (b5 + 8) >> 4;
     int32_t b6 = b5 - 4000;
@@ -46,6 +50,9 @@ bool BaroDriver::applyRawPressure(int32_t rawPressure, SensorBuffer& buffer) con
     int32_t x2pp = (_b1 * ((b6 * b6) >> 12)) >> 16;
     int32_t x3p = ((x1pp + x2pp) + 2) >> 2;
     int32_t b4 = (_ac4 * (uint32_t)(x1pp + x3p + 32768)) >> 15;
+    if (b4 == 0) {
+        return false;
+    }
     int32_t b7 = ((uint32_t)rawPressure - b3) * (50000 >> 3);
     int32_t p = (b7 < 0) ? (b7 * 2) / b4 : (b7 / b4) * 2;
     int32_t x1ppp = (p >> 8) * (p >> 8);

@@ -29,8 +29,8 @@ TimingBudgetStatus SystemTimer::getTimingBudgetStatus() {
     return FlightControlTask::getTimingBudgetStatus();
 }
 
-void SystemTimer::logTimingStats() {
-    FlightControlTask::logTimingStats();
+void SystemTimer::requestTimingWindowReset() {
+    FlightControlTask::requestTimingWindowReset();
 }
 
 bool SystemTimer::outputsReady() {

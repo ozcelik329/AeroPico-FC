@@ -145,7 +145,28 @@ bool SensorDmaBus::readAuxRegistersDma(RP2350I2C& bus,
                                        size_t len,
                                        uint32_t timeoutUs,
                                        uint32_t (*nowUs)()) {
-    if (!hasAuxChannel()) {
+    if (!startAuxRead(bus, address, reg, dest, len, nowUs())) {
+        return false;
+    }
+    const uint32_t startUs = nowUs();
+    while (!isAuxReady()) {
+        if ((uint32_t)(nowUs() - startUs) > timeoutUs) {
+            abortAux();
+            return false;
+        }
+        yield();
+    }
+
+    return true;
+}
+
+bool SensorDmaBus::startAuxRead(RP2350I2C& bus,
+                                uint8_t address,
+                                uint8_t reg,
+                                uint8_t* dest,
+                                size_t len,
+                                uint32_t nowUs) {
+    if (!hasAuxChannel() || _auxActive) {
         return false;
     }
 
@@ -168,16 +189,28 @@ bool SensorDmaBus::readAuxRegistersDma(RP2350I2C& bus,
 
     dma_channel_start(_auxRxChan);
     dma_channel_start(_auxTxChan);
-
-    const uint32_t startUs = nowUs();
-    while (dma_channel_is_busy(_auxRxChan)) {
-        if ((uint32_t)(nowUs() - startUs) > timeoutUs) {
-            dma_channel_abort(_auxRxChan);
-            dma_channel_abort(_auxTxChan);
-            return false;
-        }
-        tight_loop_contents();
-    }
-
+    _auxStartUs = nowUs;
+    _auxActive = true;
     return true;
+}
+
+bool SensorDmaBus::isAuxReady() const {
+    if (!_auxActive || !hasAuxChannel()) {
+        return false;
+    }
+    return !dma_channel_is_busy(_auxRxChan);
+}
+
+bool SensorDmaBus::auxTimedOut(uint32_t nowUs, uint32_t timeoutUs) const {
+    return _auxActive && hasAuxChannel() && (uint32_t)(nowUs - _auxStartUs) > timeoutUs;
+}
+
+void SensorDmaBus::finishAux() {
+    _auxActive = false;
+}
+
+void SensorDmaBus::abortAux() {
+    if (_auxRxChan >= 0) dma_channel_abort(_auxRxChan);
+    if (_auxTxChan >= 0) dma_channel_abort(_auxTxChan);
+    _auxActive = false;
 }

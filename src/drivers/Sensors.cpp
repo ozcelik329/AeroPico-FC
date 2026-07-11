@@ -1,7 +1,31 @@
 #include "Sensors.h"
 #include "../hal/rp2350/RP2350_I2C.h"
+#include "../utils/Logger.h"
 
-static RP2350I2C i2cBus(i2c0);
+static RP2350I2C defaultI2cBus(i2c0);
+
+IHALI2C& SensorManager::_bus() {
+    return _i2cBus ? *_i2cBus : defaultI2cBus;
+}
+
+RP2350I2C* SensorManager::_rpBus() {
+    if (_rp2350Bus) {
+        return _rp2350Bus;
+    }
+    return _i2cBus ? nullptr : &defaultI2cBus;
+}
+
+void SensorManager::setI2CBus(IHALI2C* bus) {
+    _i2cBus = bus;
+    _rp2350Bus = nullptr;
+    _dmaFastPath = false;
+}
+
+void SensorManager::setI2CBus(RP2350I2C* bus) {
+    _i2cBus = bus;
+    _rp2350Bus = bus;
+    _dmaFastPath = false;
+}
 
 void SensorManager::_setFault(SensorFaultCode code) {
     if (code != SensorFaultCode::None) {
@@ -10,18 +34,18 @@ void SensorManager::_setFault(SensorFaultCode code) {
 }
 
 void SensorManager::_mpu_write_reg(uint8_t reg, uint8_t val) {
-    if (!i2cBus.writeRegister(MPU6050_ADDR, reg, val)) {
+    if (!_bus().writeRegister(MPU6050_ADDR, reg, val)) {
         _setFault(SensorFaultCode::I2cRawWriteFailed);
     }
 }
 
 bool SensorManager::_readWhoAmI(uint8_t& whoami) {
     const uint8_t reg = MPU6050_REG_WHOAMI;
-    if (!i2cBus.writeRaw(MPU6050_ADDR, &reg, 1, true)) {
+    if (!_bus().writeRaw(MPU6050_ADDR, &reg, 1, true)) {
         _setFault(SensorFaultCode::I2cWhoamiWriteFailed);
         return false;
     }
-    if (!i2cBus.readRaw(MPU6050_ADDR, &whoami, 1, false)) {
+    if (!_bus().readRaw(MPU6050_ADDR, &whoami, 1, false)) {
         _setFault(SensorFaultCode::I2cWhoamiReadFailed);
         return false;
     }
@@ -30,14 +54,8 @@ bool SensorManager::_readWhoAmI(uint8_t& whoami) {
 
 bool SensorManager::_readRawSample(int16_t& raw_ax, int16_t& raw_ay, int16_t& raw_az,
                                    int16_t& raw_gx, int16_t& raw_gy, int16_t& raw_gz) {
-    uint8_t reg = MPU6050_REG_ACCEL;
-    uint8_t raw[14];
-    if (!i2cBus.writeRaw(MPU6050_ADDR, &reg, 1, true)) {
-        _setFault(SensorFaultCode::I2cRawWriteFailed);
-        return false;
-    }
-    if (!i2cBus.readRaw(MPU6050_ADDR, raw, sizeof(raw), false)) {
-        _setFault(SensorFaultCode::I2cRawReadFailed);
+    uint8_t raw[GyroAccelDriver::RAW_LEN];
+    if (!_readRawFrame(raw)) {
         return false;
     }
 
@@ -51,6 +69,19 @@ bool SensorManager::_readRawSample(int16_t& raw_ax, int16_t& raw_ay, int16_t& ra
     raw_gx = to_int16(raw[8], raw[9]);
     raw_gy = to_int16(raw[10], raw[11]);
     raw_gz = to_int16(raw[12], raw[13]);
+    return true;
+}
+
+bool SensorManager::_readRawFrame(uint8_t raw[GyroAccelDriver::RAW_LEN]) {
+    uint8_t reg = MPU6050_REG_ACCEL;
+    if (!_bus().writeRaw(MPU6050_ADDR, &reg, 1, true)) {
+        _setFault(SensorFaultCode::I2cRawWriteFailed);
+        return false;
+    }
+    if (!_bus().readRaw(MPU6050_ADDR, raw, GyroAccelDriver::RAW_LEN, false)) {
+        _setFault(SensorFaultCode::I2cRawReadFailed);
+        return false;
+    }
     return true;
 }
 
@@ -82,7 +113,7 @@ const char* SensorManager::getFaultText() const {
 bool SensorManager::runBootCalibration() {
     if (!_imuAvailable) return false;
 
-    Serial.println("[SENSOR] Boot kalibrasyonu basliyor (uçak sabit olmali)...");
+    Logger::log("[SENSOR] Boot kalibrasyonu basliyor (ucak sabit olmali)...");
     float sumGx = 0.0f, sumGy = 0.0f, sumGz = 0.0f;
     float sumAx = 0.0f, sumAy = 0.0f, sumAz = 0.0f;
     int validSamples = 0;
@@ -104,7 +135,7 @@ bool SensorManager::runBootCalibration() {
     }
 
     if (validSamples < BOOT_CAL_SAMPLES / 2) {
-        Serial.println("[SENSOR] Boot kalibrasyonu yetersiz ornek!");
+        Logger::log("[SENSOR] Boot kalibrasyonu yetersiz ornek!");
         return false;
     }
 
@@ -121,10 +152,13 @@ bool SensorManager::runBootCalibration() {
         true
     };
 
-    Serial.printf("[SENSOR] Gyro bias: %.3f, %.3f, %.3f deg/s\n",
-                  _gyroBiasX, _gyroBiasY, _gyroBiasZ);
-    Serial.printf("[SENSOR] Accel bias: %.4f, %.4f, %.4f g\n",
-                  _accelBiasX, _accelBiasY, _accelBiasZ);
+    char line[96];
+    snprintf(line, sizeof(line), "[SENSOR] Gyro bias: %.3f, %.3f, %.3f deg/s",
+             _gyroBiasX, _gyroBiasY, _gyroBiasZ);
+    Logger::log(line);
+    snprintf(line, sizeof(line), "[SENSOR] Accel bias: %.4f, %.4f, %.4f g",
+             _accelBiasX, _accelBiasY, _accelBiasZ);
+    Logger::log(line);
     return true;
 }
 
@@ -172,7 +206,7 @@ void SensorManager::init() {
     _buf[1].health = SensorHealth::WarmingUp;
     _gyroAccelDriver.resetFilters();
 
-    i2cBus.init(PIN_SDA, PIN_SCL, 400000);
+    _bus().init(PIN_SDA, PIN_SCL, 400000);
 
     uint8_t whoami = 0;
     if (!_readWhoAmI(whoami) || whoami != MPU6050_WHOAMI_VAL) {
@@ -180,14 +214,16 @@ void SensorManager::init() {
         if (whoami != MPU6050_WHOAMI_VAL) {
             _setFault(SensorFaultCode::WhoamiMismatch);
         }
-        Serial.printf("[SENSOR] MPU6050 WHOAMI hatasi: 0x%02X (beklenen 0x%02X)\n",
-                      whoami, MPU6050_WHOAMI_VAL);
+        char line[80];
+        snprintf(line, sizeof(line), "[SENSOR] MPU6050 WHOAMI hatasi: 0x%02X (beklenen 0x%02X)",
+                 whoami, MPU6050_WHOAMI_VAL);
+        Logger::log(line);
     } else {
         _imuAvailable = true;
     }
 
     if (!_imuAvailable) {
-        Serial.println("[SENSOR] MPU6050 devre disi birakildi.");
+        Logger::log("[SENSOR] MPU6050 devre disi birakildi.");
         _buf[0].valid = false;
         _buf[0].health = SensorHealth::Invalid;
         _buf[1].valid = false;
@@ -206,54 +242,69 @@ void SensorManager::init() {
     // DLPF: 21Hz bant genişliği
     _mpu_write_reg(MPU6050_REG_DLPF, 0x04);
 
-    Serial.println("[SENSOR] MPU6050 (ham I2C+DMA) hazir.");
+    Logger::log("[SENSOR] MPU6050 (ham I2C+DMA) hazir.");
 
-    if (!_dmaBus.configureMpu(i2cBus)) {
+    RP2350I2C* rpBus = _rpBus();
+    _dmaFastPath = rpBus && _dmaBus.configureMpu(*rpBus);
+    if (!_dmaFastPath) {
         _setFault(SensorFaultCode::DmaChannelClaimFailed);
-        _imuAvailable = false;
-        Serial.println("[SENSOR] MPU6050 DMA kanali alinamadi.");
-        _buf[0].valid = false;
-        _buf[0].health = SensorHealth::Invalid;
-        _buf[1].valid = false;
-        _buf[1].health = SensorHealth::Invalid;
-        return;
+        Logger::log("[SENSOR] MPU6050 DMA kullanilamiyor, HAL I2C fallback aktif.");
     }
 
     #ifdef USE_GY87
-        if (!_dmaBus.configureAuxRx(i2cBus)) {
+        if (!_dmaFastPath || !_dmaBus.configureAuxRx(*rpBus)) {
             _setFault(SensorFaultCode::DmaChannelClaimFailed);
-            Serial.println("[SENSOR] Yardimci I2C DMA kanali alinamadi.");
+            Logger::log("[SENSOR] Yardimci I2C DMA kanali alinamadi.");
             _hasMag = false;
             _hasBaro = false;
         } else {
-            _auxBus.configure(_dmaBus, i2cBus, _baroDriver, _hasMag, _hasBaro, _faultCode);
-            if (!_hasMag) Serial.println("[SENSOR] HMC5883L bulunamadi!");
-            else          Serial.println("[SENSOR] HMC5883L hazir.");
+            _auxBus.configure(_dmaBus, *rpBus, _baroDriver, _hasMag, _hasBaro, _faultCode);
+            if (!_hasMag) Logger::log("[SENSOR] HMC5883L bulunamadi!");
+            else          Logger::log("[SENSOR] HMC5883L hazir.");
 
-            if (!_hasBaro) Serial.println("[SENSOR] BMP085 bulunamadi!");
-            else           Serial.println("[SENSOR] BMP085 hazir.");
+            if (!_hasBaro) Logger::log("[SENSOR] BMP085 bulunamadi!");
+            else           Logger::log("[SENSOR] BMP085 hazir.");
         }
     #endif
 
     // İlk DMA okumayı başlat
-    _mpu_start_dma_read();
+    if (_dmaFastPath) {
+        _mpu_start_dma_read();
+    }
 }
 
 void SensorManager::_mpu_start_dma_read() {
-    if (!_dmaBus.hasMpuChannels()) {
+    RP2350I2C* rpBus = _rpBus();
+    if (!_dmaFastPath || !rpBus || !_dmaBus.hasMpuChannels()) {
         _setFault(SensorFaultCode::DmaChannelClaimFailed);
         return;
     }
 
-    _dmaBus.startMpuRead(i2cBus, MPU6050_ADDR, _reg_addr, micros());
+    _dmaBus.startMpuRead(*rpBus, MPU6050_ADDR, _reg_addr, micros());
 }
 
 bool SensorManager::_mpu_dma_ready() {
-    return _dmaBus.isMpuReady();
+    return _dmaFastPath && _dmaBus.isMpuReady();
 }
 
 void SensorManager::update() {
     if (!_imuAvailable) {
+        return;
+    }
+
+    if (!_dmaFastPath) {
+        uint8_t raw[GyroAccelDriver::RAW_LEN];
+        if (!_readRawFrame(raw)) {
+            return;
+        }
+        uint8_t writeIdx = 1 - _writeIdx;
+        SensorBuffer& buf = _buf[writeIdx];
+        _gyroAccelDriver.parseRawSample(raw, _imuCalibration, buf, micros());
+        buf.baroValid = false;
+        buf.pressureHpa = 0.0f;
+        mutex_enter_blocking(&_mutex);
+        _writeIdx = writeIdx;
+        mutex_exit(&_mutex);
         return;
     }
 
@@ -285,7 +336,9 @@ void SensorManager::update() {
     buf.pressureHpa = 0.0f;
 
     #ifdef USE_GY87
-        _auxBus.update(_dmaBus, i2cBus, _magDriver, _baroDriver, buf, _faultCode);
+        if (RP2350I2C* rpBus = _rpBus()) {
+            _auxBus.update(_dmaBus, *rpBus, _magDriver, _baroDriver, buf, _faultCode);
+        }
     #endif
 
     mutex_enter_blocking(&_mutex);

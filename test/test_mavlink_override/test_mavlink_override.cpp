@@ -51,6 +51,7 @@ void test_mavlink_override_uses_provided_channels() {
     handler.setFlightDataProvider(provideFlightData);
     handler.setRCOverrideHandler(applyOverride);
     handler.setClearRCOverrideHandler(clearOverride);
+    handler.setRCOverrideEnabled(true);
 
     handler.handleRCOverrideForTest(1600, 1400, 1200, 1700);
 
@@ -66,6 +67,7 @@ void test_mavlink_override_ignores_channels_using_latest_data() {
     MavlinkHandler handler;
     handler.setFlightDataProvider(provideFlightData);
     handler.setRCOverrideHandler(applyOverride);
+    handler.setRCOverrideEnabled(true);
 
     handler.handleRCOverrideForTest(UINT16_MAX, 1400, UINT16_MAX, 1700);
 
@@ -80,6 +82,7 @@ void test_mavlink_override_all_ignored_clears_override() {
     MavlinkHandler handler;
     handler.setRCOverrideHandler(applyOverride);
     handler.setClearRCOverrideHandler(clearOverride);
+    handler.setRCOverrideEnabled(true);
 
     handler.handleRCOverrideForTest(UINT16_MAX, UINT16_MAX, UINT16_MAX, UINT16_MAX);
 
@@ -87,10 +90,35 @@ void test_mavlink_override_all_ignored_clears_override() {
     TEST_ASSERT_TRUE(clearCalled);
 }
 
+void test_mavlink_override_rejects_wrong_target_system() {
+    MavlinkHandler handler;
+    handler.setRCOverrideHandler(applyOverride);
+    handler.setClearRCOverrideHandler(clearOverride);
+    handler.setRCOverrideEnabled(true);
+
+    handler.handleRCOverrideMessageForTest(42, MAV_COMPONENT_ID, 1600, 1400, 1200, 1700);
+
+    TEST_ASSERT_FALSE(overrideCalled);
+    TEST_ASSERT_FALSE(clearCalled);
+}
+
+void test_mavlink_override_rejects_when_disabled() {
+    MavlinkHandler handler;
+    handler.setRCOverrideHandler(applyOverride);
+    handler.setClearRCOverrideHandler(clearOverride);
+
+    handler.handleRCOverrideMessageForTest(MAV_SYSTEM_ID, MAV_COMPONENT_ID, 1600, 1400, 1200, 1700);
+
+    TEST_ASSERT_FALSE(overrideCalled);
+    TEST_ASSERT_FALSE(clearCalled);
+}
+
 int main() {
     UNITY_BEGIN();
     RUN_TEST(test_mavlink_override_uses_provided_channels);
     RUN_TEST(test_mavlink_override_ignores_channels_using_latest_data);
     RUN_TEST(test_mavlink_override_all_ignored_clears_override);
+    RUN_TEST(test_mavlink_override_rejects_wrong_target_system);
+    RUN_TEST(test_mavlink_override_rejects_when_disabled);
     return UNITY_END();
 }

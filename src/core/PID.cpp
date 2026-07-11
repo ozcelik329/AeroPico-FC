@@ -8,10 +8,12 @@ PID::PID(float p, float i, float d, float minOutput, float maxOutput, float iLim
       ki(i),
       kd(d),
       prev_error(0.0f),
+      prev_measurement(0.0f),
       integral(0.0f),
       outputMin(minOutput),
       outputMax(maxOutput),
-      integralLimit(iLimit) {}
+      integralLimit(iLimit),
+      hasPrevMeasurement(false) {}
 
 float __not_in_flash_func(PID::compute)(float setpoint, float measured_value, float dt) {
     if (dt <= 0.0f || dt > 1.0f) {
@@ -21,7 +23,10 @@ float __not_in_flash_func(PID::compute)(float setpoint, float measured_value, fl
     float error = setpoint - measured_value;
 
     float P = kp * error;
-    float D = kd * ((error - prev_error) / dt);
+    float D = 0.0f;
+    if (hasPrevMeasurement) {
+        D = -kd * ((measured_value - prev_measurement) / dt);
+    }
 
     float candidateIntegral = integral + error * dt;
     candidateIntegral = constrain(candidateIntegral, -integralLimit, integralLimit);
@@ -35,6 +40,8 @@ float __not_in_flash_func(PID::compute)(float setpoint, float measured_value, fl
     }
 
     prev_error = error;
+    prev_measurement = measured_value;
+    hasPrevMeasurement = true;
 
     output = P + (ki * integral) + D;
     return constrain(output, outputMin, outputMax);
@@ -43,6 +50,8 @@ float __not_in_flash_func(PID::compute)(float setpoint, float measured_value, fl
 void PID::reset() {
     integral   = 0.0f;
     prev_error = 0.0f;
+    prev_measurement = 0.0f;
+    hasPrevMeasurement = false;
 }
 
 void PID::setGains(float p, float i, float d) {

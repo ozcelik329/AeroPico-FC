@@ -18,6 +18,8 @@ class ControlPipeline {
     void init();
     void update(const ControlPipelineInput& input);
     bool isArmed() const { return _modeController.isArmed(); }
+    bool isFailsafe() const { return _modeController.isFailsafe(); }
+    FlightState flightState() const { return _modeController.state(); }
 
   private:
     FlightModeController _modeController;
