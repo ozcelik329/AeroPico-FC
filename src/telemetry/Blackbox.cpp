@@ -1,5 +1,7 @@
 #include "Blackbox.h"
 
+#include <string.h>
+
 Blackbox blackbox;
 
 void Blackbox::init() {
