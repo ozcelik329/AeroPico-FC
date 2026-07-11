@@ -119,15 +119,7 @@ bool SensorManager::runBootCalibration() {
     if (!_imuAvailable) return false;
 
     Logger::log("[SENSOR] Boot kalibrasyonu basliyor (ucak sabit olmali)...");
-    float sumGx = 0.0f, sumGy = 0.0f, sumGz = 0.0f;
-    float sumAx = 0.0f, sumAy = 0.0f, sumAz = 0.0f;
-    float sumTemp = 0.0f;
-    float sumTemp2 = 0.0f;
-    float sumGyroMag = 0.0f;
-    float sumTempGyroMag = 0.0f;
-    float minTemp = 1000.0f;
-    float maxTemp = -1000.0f;
-    int validSamples = 0;
+    _calibration.reset();
 
     for (int i = 0; i < BOOT_CAL_SAMPLES; i++) {
         int16_t rax, ray, raz, rgx, rgy, rgz, rtemp;
@@ -135,53 +127,23 @@ bool SensorManager::runBootCalibration() {
             delay(2);
             continue;
         }
-        const float gx = rgx * GyroAccelDriver::GYRO_SCALE;
-        const float gy = rgy * GyroAccelDriver::GYRO_SCALE;
-        const float gz = rgz * GyroAccelDriver::GYRO_SCALE;
-        const float tempC = (float)rtemp / 340.0f + 36.53f;
-        const float gyroMag = sqrtf(gx * gx + gy * gy + gz * gz);
-        sumGx += gx;
-        sumGy += gy;
-        sumGz += gz;
-        sumAx += rax * GyroAccelDriver::ACCEL_SCALE;
-        sumAy += ray * GyroAccelDriver::ACCEL_SCALE;
-        sumAz += raz * GyroAccelDriver::ACCEL_SCALE;
-        sumTemp += tempC;
-        sumTemp2 += tempC * tempC;
-        sumGyroMag += gyroMag;
-        sumTempGyroMag += tempC * gyroMag;
-        if (tempC < minTemp) minTemp = tempC;
-        if (tempC > maxTemp) maxTemp = tempC;
-        validSamples++;
+        _calibration.observeMpuRaw({rax, ray, raz, rgx, rgy, rgz, rtemp});
         delay(2);
     }
 
-    if (validSamples < BOOT_CAL_SAMPLES / 2) {
+    const SensorCalibrationResult result = _calibration.finish(BOOT_CAL_SAMPLES / 2);
+    if (!result.valid) {
         Logger::log("[SENSOR] Boot kalibrasyonu yetersiz ornek!");
         return false;
     }
 
-    _gyroBiasX = sumGx / validSamples;
-    _gyroBiasY = sumGy / validSamples;
-    _gyroBiasZ = sumGz / validSamples;
-    _accelBiasX = sumAx / validSamples;
-    _accelBiasY = sumAy / validSamples;
-    // Z ekseninde ~1g yerçekimi kalır; düz uçak varsayımı
-    _accelBiasZ = (sumAz / validSamples) - 1.0f;
-    constexpr float DEFAULT_GYRO_TEMP_COEFF = 0.004f;
-    const float denom = validSamples * sumTemp2 - sumTemp * sumTemp;
-    const float tempSpan = maxTemp - minTemp;
-    float measuredTempCoeff = DEFAULT_GYRO_TEMP_COEFF;
-    if (tempSpan >= 0.10f && fabsf(denom) > 1.0e-6f) {
-        measuredTempCoeff = fabsf((validSamples * sumTempGyroMag - sumTemp * sumGyroMag) / denom);
-        measuredTempCoeff = constrain(measuredTempCoeff, 0.0f, 0.05f);
-    }
-    _imuCalibration = {
-        _gyroBiasX, _gyroBiasY, _gyroBiasZ,
-        _accelBiasX, _accelBiasY, _accelBiasZ,
-        measuredTempCoeff,
-        true
-    };
+    _imuCalibration = result.imu;
+    _gyroBiasX = _imuCalibration.gyroBiasX;
+    _gyroBiasY = _imuCalibration.gyroBiasY;
+    _gyroBiasZ = _imuCalibration.gyroBiasZ;
+    _accelBiasX = _imuCalibration.accelBiasX;
+    _accelBiasY = _imuCalibration.accelBiasY;
+    _accelBiasZ = _imuCalibration.accelBiasZ;
 
     char line[96];
     snprintf(line, sizeof(line), "[SENSOR] Gyro bias: %.3f, %.3f, %.3f deg/s",
@@ -191,7 +153,7 @@ bool SensorManager::runBootCalibration() {
              _accelBiasX, _accelBiasY, _accelBiasZ);
     Logger::log(line);
     snprintf(line, sizeof(line), "[SENSOR] Gyro temp coeff: %.5f deg/s/C (span %.2f C)",
-             measuredTempCoeff, tempSpan);
+             _imuCalibration.gyroTempCoeff, result.tempSpanC);
     Logger::log(line);
     return true;
 }

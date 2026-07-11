@@ -10,6 +10,8 @@ Bu klasor yalnizca aktif ve bakimi suren proje dokumanlarini tutar.
 
 ## Test ve Operasyon
 
+- `AeroPico_FC_Kullanma_Kilavuzu.md`: Hic bilmeyen kullanici icin kurulum, yukleme, kalibrasyon, HIL ve ucus hazirlik kilavuzu.
+- `AeroPico_FC_Gelistirici_Kullanma_Kilavuzu.md`: Hic bilmeyen gelistirici icin araclar, testler, CI, GitHub CLI ve gelistirme akisi.
 - `Bench_Test_Checklist.md`: Donanim masasi dogrulama listesi.
 - `First_Flight_Checklist.md`: Ilk ucus oncesi ve sonrasi kontrol listesi.
 

@@ -6,6 +6,7 @@
 #include "pico/platform.h"
 #include "IDrivers.h"
 #include "sensors/SensorHealthMonitor.h"
+#include "sensors/SensorCalibration.h"
 #include "sensors/SensorDmaBus.h"
 #include "sensors/SensorAuxBus.h"
 #include "sensors/baro/BaroDriver.h"
@@ -82,6 +83,7 @@ class SensorManager : public IImuDriver, public IMagDriver, public IBaroDriver, 
     MagDriver _magDriver;
     BaroDriver _baroDriver;
     SensorHealthMonitor _healthMonitor;
+    SensorCalibration _calibration;
     IHALI2C* _i2cBus = nullptr;
     RP2350I2C* _rp2350Bus = nullptr;
     bool _dmaFastPath = false;
