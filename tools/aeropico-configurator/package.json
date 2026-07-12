@@ -1,0 +1,15 @@
+{
+  "name": "aeropico-configurator",
+  "version": "0.1.0",
+  "description": "AeroPico first setup and configuration utility.",
+  "main": "src/main.js",
+  "private": true,
+  "type": "commonjs",
+  "scripts": {
+    "start": "electron .",
+    "check": "node --check src/main.js && node --check src/preload.js && node --check src/renderer/mavlink.js && node --check src/renderer/app.js"
+  },
+  "devDependencies": {
+    "electron": "^31.0.0"
+  }
+}
