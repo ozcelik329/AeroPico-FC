@@ -1,8 +1,8 @@
 #include <unity.h>
 
-#include "core/RCPipeline.h"
+#include "core/rc/RCPipeline.h"
 
-#include "../../src/core/RCPipeline.cpp"
+#include "../../src/core/rc/RCPipeline.cpp"
 
 class FakeRxDriver : public IRxDriver {
   public:
@@ -26,6 +26,7 @@ void test_rc_pipeline_reads_receiver_channels() {
     rx.channels[RC_PITCH_CHANNEL] = 1400;
     rx.channels[RC_THROTTLE_CHANNEL] = 1200;
     rx.channels[RC_YAW_CHANNEL] = 1700;
+    rx.channels[RC_MODE_CHANNEL] = 1000;
 
     RCPipeline pipeline;
     pipeline.init(&rx);
@@ -41,6 +42,7 @@ void test_rc_pipeline_reads_receiver_channels() {
     TEST_ASSERT_EQUAL_UINT16(1400, state.elevator);
     TEST_ASSERT_EQUAL_UINT16(1200, state.throttle);
     TEST_ASSERT_EQUAL_UINT16(1700, state.rudder);
+    TEST_ASSERT_EQUAL((int)ControlMode::Manual, (int)state.controlMode);
 }
 
 void test_rc_pipeline_uses_failsafe_values_when_rx_invalid() {
@@ -59,6 +61,7 @@ void test_rc_pipeline_uses_failsafe_values_when_rx_invalid() {
     TEST_ASSERT_EQUAL_UINT16(PWM_NEUTRAL, state.elevator);
     TEST_ASSERT_EQUAL_UINT16(PWM_MIN, state.throttle);
     TEST_ASSERT_EQUAL_UINT16(PWM_NEUTRAL, state.rudder);
+    TEST_ASSERT_EQUAL((int)ControlMode::Manual, (int)state.controlMode);
 }
 
 void test_rc_pipeline_override_times_out() {
@@ -91,7 +94,9 @@ void test_rc_pipeline_applies_runtime_channel_mapping() {
 
     RCPipeline pipeline;
     pipeline.init(&rx);
-    pipeline.applyMapping({3, 2, 1, 0});
+    rx.channels[4] = 1000;
+    rx.channels[5] = 1800;
+    pipeline.applyMapping({3, 2, 1, 0, 5});
 
     setMockMillis(120);
     RcInputState state = pipeline.update();
@@ -100,11 +105,12 @@ void test_rc_pipeline_applies_runtime_channel_mapping() {
     TEST_ASSERT_EQUAL_UINT16(1300, state.elevator);
     TEST_ASSERT_EQUAL_UINT16(1200, state.throttle);
     TEST_ASSERT_EQUAL_UINT16(1100, state.rudder);
+    TEST_ASSERT_EQUAL((int)ControlMode::Stabilize, (int)state.controlMode);
 }
 
 void test_rc_pipeline_clamps_runtime_channel_mapping() {
     RCPipeline pipeline;
-    pipeline.applyMapping({9, 8, 7, 6});
+    pipeline.applyMapping({9, 8, 7, 6, 10});
 
     RcMapping mapping = pipeline.getMapping();
 
@@ -112,6 +118,21 @@ void test_rc_pipeline_clamps_runtime_channel_mapping() {
     TEST_ASSERT_EQUAL_UINT8(7, mapping.pitchChannel);
     TEST_ASSERT_EQUAL_UINT8(7, mapping.throttleChannel);
     TEST_ASSERT_EQUAL_UINT8(6, mapping.yawChannel);
+    TEST_ASSERT_EQUAL_UINT8(7, mapping.modeChannel);
+}
+
+void test_rc_pipeline_uses_mode_channel_for_control_mode() {
+    FakeRxDriver rx;
+    RCPipeline pipeline;
+    pipeline.init(&rx);
+
+    rx.channels[RC_MODE_CHANNEL] = RC_MODE_STABILIZE_THRESHOLD - 1;
+    RcInputState manual = pipeline.update();
+    TEST_ASSERT_EQUAL((int)ControlMode::Manual, (int)manual.controlMode);
+
+    rx.channels[RC_MODE_CHANNEL] = RC_MODE_STABILIZE_THRESHOLD;
+    RcInputState stabilize = pipeline.update();
+    TEST_ASSERT_EQUAL((int)ControlMode::Stabilize, (int)stabilize.controlMode);
 }
 
 int main() {
@@ -121,5 +142,6 @@ int main() {
     RUN_TEST(test_rc_pipeline_override_times_out);
     RUN_TEST(test_rc_pipeline_applies_runtime_channel_mapping);
     RUN_TEST(test_rc_pipeline_clamps_runtime_channel_mapping);
+    RUN_TEST(test_rc_pipeline_uses_mode_channel_for_control_mode);
     return UNITY_END();
 }

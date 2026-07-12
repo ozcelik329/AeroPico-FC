@@ -2,11 +2,11 @@
 #define SENSOR_PIPELINE_H
 
 #include <Arduino.h>
-#include "../drivers/IDrivers.h"
-#include "../types.h"
-#include "../estimators/BaroAltitudeEstimator.h"
-#include "../estimators/BaroVerticalKalman.h"
-#include "../estimators/ComplementaryEstimator.h"
+#include "../../drivers/IDrivers.h"
+#include "../../types.h"
+#include "../../estimators/BaroAltitudeEstimator.h"
+#include "../../estimators/BaroVerticalKalman.h"
+#include "../../estimators/ComplementaryEstimator.h"
 #include "SensorFusion.h"
 
 class SensorPipeline {

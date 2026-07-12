@@ -1,8 +1,8 @@
 #include <unity.h>
 
-#include "core/BatteryMonitor.h"
+#include "core/safety/BatteryMonitor.h"
 
-#include "../../src/core/BatteryMonitor.cpp"
+#include "../../src/core/safety/BatteryMonitor.cpp"
 
 static bool provideGoodVoltage(float& voltage) {
     voltage = 11.8f;

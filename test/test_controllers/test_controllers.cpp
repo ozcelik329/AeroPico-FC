@@ -1,8 +1,8 @@
 #include <unity.h>
 
-#include "core/FlightModeController.h"
+#include "core/control/FlightModeController.h"
 
-#include "../../src/core/FlightModeController.cpp"
+#include "../../src/core/control/FlightModeController.cpp"
 
 void test_flight_mode_controller_starts_disarmed() {
     FlightModeController m;

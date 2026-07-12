@@ -22,7 +22,7 @@ Bu liste ilk enerji verme, firmware degisikligi ve ucus oncesi masa testleri ici
 - Sensor kablosu/hatasi simule edildiginde stale/invalid durum blackbox veya telemetry'de gorunuyor mu?
 - Median filtre aktifken ham verideki tekil sicramalar attitude hesabina belirgin yansimiyor mu?
 - Mag/baro yardimci RX+TX DMA okumalarinda timeout veya kanal tahsis hatasi raporlanmiyor mu?
-- Baro basinci azaltilinca EKF-lite relative altitude ve vertical-speed degerleri beklenen yonde degisiyor mu?
+- Baro basinci azaltilinca `BaroVerticalKalman` relative altitude ve vertical-speed degerleri beklenen yonde degisiyor mu?
 
 ## 3. RC ve Failsafe
 

@@ -1,6 +1,8 @@
 # Estimators
 
-Bu klasor ileride complementary filter, altitude estimator ve EKF benzeri durum tahmini kodlari icin ayrilmistir.
+Bu klasor complementary filter, barometrik altitude estimator ve `BaroVerticalKalman` gibi durum tahmini kodlari icin ayrilmistir.
+
+`BaroVerticalKalman` tek aktif dikey Kalman implementasyonudur. Bu bir tam-durum EKF degildir; yalnizca irtifa ve dikey hiz icin 2-durumlu Kalman filtresidir.
 
 Kurallar:
 

@@ -3,3 +3,6 @@
 .vscode/
 output/
 tmp/
+node_modules/
+tools/temp_folder/
+tools/aeropico-configurator.zip

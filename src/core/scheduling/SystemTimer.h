@@ -2,8 +2,8 @@
 #define SYSTEM_TIMER_H
 #include <Arduino.h>
 #include "def.h"
-#include "../types.h"
-#include "FixedWingMixer.h"
+#include "../../types.h"
+#include "../control/FixedWingMixer.h"
 
 class SystemTimer {
 public:

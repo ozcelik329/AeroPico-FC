@@ -1,8 +1,8 @@
 #include <unity.h>
 
-#include "core/PreflightHealth.h"
+#include "core/safety/PreflightHealth.h"
 
-#include "../../src/core/PreflightHealth.cpp"
+#include "../../src/core/safety/PreflightHealth.cpp"
 
 void test_preflight_allows_arm_when_required_checks_pass() {
     PreflightHealth health;

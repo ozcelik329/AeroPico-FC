@@ -1,9 +1,9 @@
 #include <unity.h>
 #include <string.h>
 
-#include "core/SensorPreflightEvaluator.h"
+#include "core/sensors/SensorPreflightEvaluator.h"
 
-#include "../../src/core/SensorPreflightEvaluator.cpp"
+#include "../../src/core/sensors/SensorPreflightEvaluator.cpp"
 
 static SensorBuffer healthySample() {
     SensorBuffer sample = {};

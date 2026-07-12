@@ -2,8 +2,8 @@
 #define FLIGHT_CONTROL_TASK_H
 
 #include "../../types.h"
-#include "../FixedWingMixer.h"
-#include "../SystemTimer.h"
+#include "FixedWingMixer.h"
+#include "../scheduling/SystemTimer.h"
 
 class FlightControlTask {
   public:

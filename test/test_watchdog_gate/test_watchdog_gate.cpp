@@ -1,8 +1,8 @@
 #include <unity.h>
 
-#include "core/WatchdogGate.h"
+#include "core/safety/WatchdogGate.h"
 
-#include "../../src/core/WatchdogGate.cpp"
+#include "../../src/core/safety/WatchdogGate.cpp"
 
 void test_watchdog_gate_feeds_when_flight_loop_is_healthy() {
     WatchdogDecision decision = WatchdogGate::evaluate(

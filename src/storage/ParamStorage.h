@@ -25,6 +25,7 @@ class IParamStorage {
 class ParamStorage {
   public:
     static ParamStorageBlob makeBlob(const float* values, size_t count);
+    static bool hasValidEnvelope(const ParamStorageBlob& blob);
     static bool isValid(const ParamStorageBlob& blob, size_t expectedCount);
     static uint32_t checksum(const ParamStorageBlob& blob);
 };

@@ -22,6 +22,7 @@ static uint8_t appliedRcRoll;
 static uint8_t appliedRcPitch;
 static uint8_t appliedRcThrottle;
 static uint8_t appliedRcYaw;
+static uint8_t appliedRcMode;
 static uint8_t appliedMavAtt;
 static uint8_t appliedMavRc;
 static uint8_t appliedMavSys;
@@ -54,12 +55,13 @@ static void applyFailsafeTimeout(uint32_t timeoutMs) {
     appliedFailsafeTimeoutMs = timeoutMs;
 }
 
-static void applyRcMapping(uint8_t roll, uint8_t pitch, uint8_t throttle, uint8_t yaw) {
+static void applyRcMapping(uint8_t roll, uint8_t pitch, uint8_t throttle, uint8_t yaw, uint8_t mode) {
     rcMappingApplied = true;
     appliedRcRoll = roll;
     appliedRcPitch = pitch;
     appliedRcThrottle = throttle;
     appliedRcYaw = yaw;
+    appliedRcMode = mode;
 }
 
 static void applyMavlinkRates(uint8_t attitudeHz, uint8_t rcHz, uint8_t sysStatusHz) {
@@ -90,7 +92,7 @@ void setUp() {
     appliedAngleP = 0.0f;
     appliedRateD = 0.0f;
     appliedFailsafeTimeoutMs = 0;
-    appliedRcRoll = appliedRcPitch = appliedRcThrottle = appliedRcYaw = 0;
+    appliedRcRoll = appliedRcPitch = appliedRcThrottle = appliedRcYaw = appliedRcMode = 0;
     appliedMavAtt = appliedMavRc = appliedMavSys = 0;
     appliedBlackboxHz = 0;
     appliedPreflightQuality = 0;
@@ -152,6 +154,26 @@ void test_param_manager_marks_dirty_and_saves_on_command() {
     TEST_ASSERT_FLOAT_WITHIN(0.001f, 4.0f, loaded.getAngleP());
 }
 
+void test_param_manager_loads_older_blob_and_keeps_new_defaults() {
+    MemoryParamStorage storage;
+    float values[PARAM_PERSISTED_COUNT] = {};
+    for (uint8_t i = 0; i < PARAM_PERSISTED_COUNT; i++) {
+        values[i] = 1.0f;
+    }
+    values[PARAM_IDX_MAV_ATT_HZ] = 22.0f;
+    values[PARAM_IDX_PREF_Q_MIN] = 73.0f;
+
+    ParamStorageBlob olderBlob = ParamStorage::makeBlob(values, PARAM_PERSISTED_COUNT - 1);
+    TEST_ASSERT_TRUE(storage.save(olderBlob));
+    paramManager.setStorage(&storage);
+
+    TEST_ASSERT_TRUE(paramManager.loadPersistent());
+    TEST_ASSERT_TRUE(paramManager.isDirty());
+    TEST_ASSERT_EQUAL_UINT8(22, paramManager.getMavlinkAttitudeHz());
+    TEST_ASSERT_EQUAL_UINT8(73, paramManager.getPreflightMinQuality());
+    TEST_ASSERT_EQUAL_UINT8(RC_MODE_CHANNEL, paramManager.getRcModeChannel());
+}
+
 void test_param_manager_rejects_save_while_armed() {
     MemoryParamStorage storage;
     paramManager.setStorage(&storage);
@@ -179,6 +201,10 @@ void test_param_manager_applies_rc_mapping_callback() {
     TEST_ASSERT_TRUE(rcMappingApplied);
     TEST_ASSERT_EQUAL_UINT8(3, appliedRcRoll);
     TEST_ASSERT_EQUAL_UINT8(RC_PITCH_CHANNEL, appliedRcPitch);
+    TEST_ASSERT_EQUAL_UINT8(RC_MODE_CHANNEL, appliedRcMode);
+
+    TEST_ASSERT_TRUE(paramManager.setParamByName("RC_MODE_CH", 5.0f));
+    TEST_ASSERT_EQUAL_UINT8(5, appliedRcMode);
 }
 
 void test_param_manager_applies_stream_and_log_callbacks() {
@@ -231,6 +257,7 @@ int main() {
     RUN_TEST(test_param_manager_applies_mixer_callback);
     RUN_TEST(test_param_manager_applies_failsafe_timeout_callback);
     RUN_TEST(test_param_manager_marks_dirty_and_saves_on_command);
+    RUN_TEST(test_param_manager_loads_older_blob_and_keeps_new_defaults);
     RUN_TEST(test_param_manager_rejects_save_while_armed);
     RUN_TEST(test_param_manager_rejects_runtime_change_while_armed);
     RUN_TEST(test_param_manager_applies_rc_mapping_callback);

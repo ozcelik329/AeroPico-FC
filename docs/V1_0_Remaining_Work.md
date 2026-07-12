@@ -229,10 +229,10 @@ Kabul kriterleri:
 
 ### [x] V1-13 Ucus sinifi estimator guclendirmesi
 
-EKF-lite; covariance propagation, gyro bias estimation, innovation gating,
+`BaroVerticalKalman`; covariance propagation, gyro bias estimation, innovation gating,
 sensor confidence ve reset/recovery davranisiyla gelistirilecek. Bu madde
 navigation veya otonom ucus eklemeyecek.
-EKF-lite; innovation gate, covariance sinirlari, NaN/Inf guard, tekrarli
+`BaroVerticalKalman`; innovation gate, covariance sinirlari, NaN/Inf guard, tekrarli
 measurement reject sonrasi stale health, missing-baro prediction ve
 complementary fallback ile host testlidir. Bu V1.0 icin altitude/attitude
 stabilizasyon altyapisini kapatir; tam navigation EKF V1.5/V2.0 kapsamindadir.

@@ -2,7 +2,7 @@
 #define NAVIGATION_CONTROLLER_H
 
 #include <Arduino.h>
-#include "../drivers/RX.h"
+#include "../../drivers/RX.h"
 
 class NavigationController {
   public:

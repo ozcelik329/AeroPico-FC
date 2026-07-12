@@ -16,10 +16,10 @@ class HardwareSbusBackend : public ISbusBackend {
 #if SBUS_UART_INDEX == 0
         // Serial1 (UART0) -> GP1 (RX), transistör ile invert edilmiş SBUS
         Serial1.setRX(PIN_SBUS_RX);
-        Serial1.begin(100000, SERIAL_8E2);
+        Serial1.begin(SBUS_UART_BAUD, SBUS_UART_CONFIG);
 #elif SBUS_UART_INDEX == 1
         Serial2.setRX(PIN_SBUS_RX);
-        Serial2.begin(100000, SERIAL_8E2);
+        Serial2.begin(SBUS_UART_BAUD, SBUS_UART_CONFIG);
 #endif
         sbus_rx.Begin();
     }

@@ -2,15 +2,16 @@
 #define RC_PIPELINE_H
 
 #include <Arduino.h>
-#include "../drivers/IDrivers.h"
-#include "../types.h"
-#include "../config.h"
+#include "../../drivers/IDrivers.h"
+#include "../../types.h"
+#include "../../config.h"
 
 struct RcMapping {
     uint8_t rollChannel;
     uint8_t pitchChannel;
     uint8_t throttleChannel;
     uint8_t yawChannel;
+    uint8_t modeChannel;
 };
 
 class RCPipeline {
@@ -31,6 +32,7 @@ class RCPipeline {
         PWM_NEUTRAL,
         PWM_MIN,
         PWM_NEUTRAL,
+        ControlMode::Manual,
         true,
         false,
         0
@@ -46,7 +48,8 @@ class RCPipeline {
         RC_ROLL_CHANNEL,
         RC_PITCH_CHANNEL,
         RC_THROTTLE_CHANNEL,
-        RC_YAW_CHANNEL
+        RC_YAW_CHANNEL,
+        RC_MODE_CHANNEL
     };
 
     RcInputState failsafeState(uint32_t nowMs) const;

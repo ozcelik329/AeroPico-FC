@@ -2,7 +2,7 @@
 #define FLIGHT_MODE_CONTROLLER_H
 
 #include <Arduino.h>
-#include "ArmDefs.h"
+#include "../safety/ArmDefs.h"
 
 enum class FlightState : uint8_t {
     Boot = 0,

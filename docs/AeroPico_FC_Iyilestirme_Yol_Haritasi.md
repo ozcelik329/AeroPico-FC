@@ -182,5 +182,5 @@ Hedef: GPS/otonom moda hemen girmeden, ileride EKF ve urun farklilastirmasi icin
 7. ParamManager kalici saklama entegrasyonunu storage katmani uzerinden tasarla.
 8. HIL/fault-injection CI akisina fiziksel smoke test bagla.
 9. Sensor quality skoru ve acik pre-arm nedenlerini genislet.
-10. EKF-lite ve altitude estimator prototipini gelistir.
+10. `BaroVerticalKalman` ve altitude estimator prototipini gelistir.
 11. Inovasyon backlog'unu estimator ve timing sonuclarina gore onceliklendir.

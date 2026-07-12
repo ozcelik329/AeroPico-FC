@@ -2,7 +2,7 @@
 #define FIXED_WING_MIXER_H
 
 #include <Arduino.h>
-#include "../config.h"
+#include "../../config.h"
 
 struct MixerSettings {
     float rollGain;

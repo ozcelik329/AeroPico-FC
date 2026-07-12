@@ -5,13 +5,13 @@
 #include "pico/time.h"
 #include "config.h"
 #include "def.h"
-#include "core/FlightManager.h"
-#include "core/SystemTimer.h"
-#include "core/WatchdogGate.h"
-#include "core/Scheduler.h"
-#include "core/PreflightHealth.h"
-#include "core/SensorPreflightEvaluator.h"
-#include "core/BatteryMonitor.h"
+#include "core/flight/FlightManager.h"
+#include "core/scheduling/SystemTimer.h"
+#include "core/safety/WatchdogGate.h"
+#include "core/scheduling/Scheduler.h"
+#include "core/safety/PreflightHealth.h"
+#include "core/sensors/SensorPreflightEvaluator.h"
+#include "core/safety/BatteryMonitor.h"
 #include "core/events/SystemEventBus.h"
 #include "storage/CalibrationStorage.h"
 #include "storage/ParamStorage.h"
@@ -29,9 +29,11 @@
 FlightManager flightManager;
 
 #include "drivers/Sensors.h"
+#include "drivers/gps/GpsManager.h"
 #include "drivers/RX.h"
 SensorManager sensorManager;
 RXManager rxManager;
+static GpsManager gpsManager;
 
 static constexpr uint32_t CORE1_STALE_THRESHOLD_US = 20000;
 static constexpr uint32_t WATCHDOG_BLOCK_LOG_PERIOD_MS = 500;
@@ -112,8 +114,8 @@ static void applyFailsafeTimeout(uint32_t timeoutMs) {
     rxManager.setFailsafeTimeoutMs(timeoutMs);
 }
 
-static void applyRcMapping(uint8_t roll, uint8_t pitch, uint8_t throttle, uint8_t yaw) {
-    flightManager.applyRcMapping({roll, pitch, throttle, yaw});
+static void applyRcMapping(uint8_t roll, uint8_t pitch, uint8_t throttle, uint8_t yaw, uint8_t mode) {
+    flightManager.applyRcMapping({roll, pitch, throttle, yaw, mode});
 }
 
 static void applyMavlinkRates(uint8_t attitudeHz, uint8_t rcHz, uint8_t sysStatusHz) {
@@ -350,7 +352,8 @@ void setup() {
 #endif
     flightManager.init(&sensorManager, &rxManager);
 
-    bool imuOk = sensorManager.isImuAvailable();
+    SensorCapabilityStatus sensorCapabilities = sensorManager.capabilities();
+    bool imuOk = sensorCapabilities.imuAvailable;
     if (imuOk) {
         char whoamiText[16];
         snprintf(whoamiText, sizeof(whoamiText), "WHOAMI=0x%02X", sensorManager.getLastWhoAmI());
@@ -381,12 +384,17 @@ void setup() {
     }
 
 #ifdef USE_GY87
-    if (sensorManager.hasBaro()) BootLogger::ok("BMP085");
+    sensorCapabilities = sensorManager.capabilities();
+    if (sensorCapabilities.baroAvailable) BootLogger::ok("BMP085");
     else BootLogger::fail("BMP085", "Barometre bulunamadi");
 
-    if (sensorManager.hasMag()) BootLogger::ok("HMC5883L");
+    if (sensorCapabilities.magAvailable) BootLogger::ok("HMC5883L");
     else BootLogger::fail("HMC5883L", "Manyetometre bulunamadi");
 #endif
+
+    gpsManager.init(nullptr, GPS_MODULE_ENABLED, GPS_UART_BAUD);
+    if (GPS_MODULE_ENABLED) BootLogger::warn("GPS", "UART baglantisi bekleniyor");
+    else BootLogger::warn("GPS", "Kapali; takili degilse navigation devreye girmez");
 
     BootLogger::ok("RC Receiver (SBUS/UART0)");
 
@@ -419,7 +427,8 @@ void setup() {
         paramManager.getRcRollChannel(),
         paramManager.getRcPitchChannel(),
         paramManager.getRcThrottleChannel(),
-        paramManager.getRcYawChannel()
+        paramManager.getRcYawChannel(),
+        paramManager.getRcModeChannel()
     );
     applyMavlinkRates(
         paramManager.getMavlinkAttitudeHz(),
@@ -430,8 +439,11 @@ void setup() {
     applyPreflightQuality(paramManager.getPreflightMinQuality());
 #endif
 
-    bool baroOk = sensorManager.hasBaro();
-    bool magOk  = sensorManager.hasMag();
+    sensorCapabilities = sensorManager.capabilities();
+    SensorCapabilityStatus gpsCapabilities = gpsManager.capabilities();
+    const uint16_t functionMask = sensorCapabilities.functionMask | gpsCapabilities.functionMask;
+    bool baroOk = hasSensorCapability(functionMask, SENSOR_CAP_BARO);
+    bool magOk  = hasSensorCapability(functionMask, SENSOR_CAP_MAG);
     bool dmaOk  = sensorManager.isDmaOk();
     bool rxOk   = true;
 

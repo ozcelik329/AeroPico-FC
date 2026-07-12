@@ -268,6 +268,8 @@ Bu modul:
 
 Bu siniri koru: kalibrasyon matematigi tekrar `Sensors.cpp` icine gomulmemeli.
 
+Boot kesfinde IMU/MAG/BARO/GPS varligi `SensorCapabilityStatus.functionMask` ile raporlanir. Yeni bir QMC/HMC/BMP/MS56xx gibi esdeger sensor eklendiginde ust katman sensor modelini degil, yalnizca `SENSOR_CAP_MAG` veya `SENSOR_CAP_BARO` fonksiyon bitini gormelidir.
+
 ## 10. Battery Monitor ve Voltaj Bolucu
 
 Batarya izleme yolu su dosyalardan olusur:

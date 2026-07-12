@@ -1,8 +1,8 @@
 #include <unity.h>
 
-#include "core/StatePublisher.h"
+#include "core/flight/StatePublisher.h"
 
-#include "../../src/core/StatePublisher.cpp"
+#include "../../src/core/flight/StatePublisher.cpp"
 
 static VehicleState vehicleState() {
     VehicleState vehicle = {};
@@ -30,6 +30,7 @@ static RcInputState rcState() {
     rc.elevator = 1520;
     rc.throttle = 1300;
     rc.rudder = 1490;
+    rc.controlMode = ControlMode::Manual;
     rc.failsafe = false;
     rc.overrideActive = false;
     rc.timestampMs = 12;
@@ -48,6 +49,7 @@ void test_state_publisher_builds_flight_data() {
     TEST_ASSERT_EQUAL_UINT8(92, data.sensorQualityScore);
     TEST_ASSERT_EQUAL_UINT32(1200, data.sensorAgeUs);
     TEST_ASSERT_TRUE(data.estimatorValid);
+    TEST_ASSERT_EQUAL((int)ControlMode::Manual, (int)data.controlMode);
     TEST_ASSERT_FLOAT_WITHIN(0.001f, 42.0f, data.altitudeM);
     TEST_ASSERT_FLOAT_WITHIN(0.001f, 1.5f, data.verticalSpeedMps);
 }

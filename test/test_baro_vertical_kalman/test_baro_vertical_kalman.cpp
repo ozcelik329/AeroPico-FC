@@ -22,7 +22,7 @@ static EstimatorInput makeEstimatorInputWithAccel(uint32_t timestamp, float vert
     return input;
 }
 
-void test_ekf_lite_initializes_from_first_baro_sample() {
+void test_baro_vertical_kalman_initializes_from_first_baro_sample() {
     BaroVerticalKalman estimator;
     estimator.init();
 
@@ -34,7 +34,7 @@ void test_ekf_lite_initializes_from_first_baro_sample() {
     TEST_ASSERT_FLOAT_WITHIN(0.001f, 4.0f, state.rollDeg);
 }
 
-void test_ekf_lite_tracks_linear_climb_without_large_lag() {
+void test_baro_vertical_kalman_tracks_linear_climb_without_large_lag() {
     BaroVerticalKalman estimator;
     estimator.init({0.08f, 0.6f, 1.2f, 20.0f});
 
@@ -48,7 +48,7 @@ void test_ekf_lite_tracks_linear_climb_without_large_lag() {
     TEST_ASSERT_TRUE(state.verticalSpeedMps > 0.5f);
 }
 
-void test_ekf_lite_uses_vertical_acceleration_in_prediction() {
+void test_baro_vertical_kalman_uses_vertical_acceleration_in_prediction() {
     BaroVerticalKalman estimator;
     estimator.init({0.08f, 0.6f, 1.2f, 20.0f, 1.0f});
 
@@ -60,7 +60,7 @@ void test_ekf_lite_uses_vertical_acceleration_in_prediction() {
     TEST_ASSERT_TRUE(state.altitudeM > 100.5f);
 }
 
-void test_ekf_lite_rejects_large_baro_spike() {
+void test_baro_vertical_kalman_rejects_large_baro_spike() {
     BaroVerticalKalman estimator;
     estimator.init({0.08f, 0.35f, 1.0f, 8.0f});
 
@@ -73,7 +73,7 @@ void test_ekf_lite_rejects_large_baro_spike() {
     TEST_ASSERT_TRUE(state.altitudeM < 70.0f);
 }
 
-void test_ekf_lite_marks_stale_after_repeated_rejections() {
+void test_baro_vertical_kalman_marks_stale_after_repeated_rejections() {
     BaroVerticalKalman estimator;
     estimator.init({0.08f, 0.35f, 1.0f, 8.0f});
 
@@ -88,7 +88,7 @@ void test_ekf_lite_marks_stale_after_repeated_rejections() {
     TEST_ASSERT_EQUAL_INT((int)SensorHealth::Stale, (int)state.health);
 }
 
-void test_ekf_lite_exposes_covariance_bounds() {
+void test_baro_vertical_kalman_exposes_covariance_bounds() {
     BaroVerticalKalman estimator;
     estimator.init({0.08f, 0.35f, 1.0f, 8.0f});
 
@@ -101,7 +101,7 @@ void test_ekf_lite_exposes_covariance_bounds() {
     TEST_ASSERT_TRUE(estimator.getVelocityVariance() < 100000.1f);
 }
 
-void test_ekf_lite_handles_missing_baro_by_prediction() {
+void test_baro_vertical_kalman_handles_missing_baro_by_prediction() {
     BaroVerticalKalman estimator;
     estimator.init({0.08f, 0.6f, 1.2f, 20.0f});
 
@@ -113,7 +113,7 @@ void test_ekf_lite_handles_missing_baro_by_prediction() {
     TEST_ASSERT_TRUE(state.altitudeM >= 100.0f);
 }
 
-void test_ekf_lite_marks_invalid_when_sensor_health_is_bad() {
+void test_baro_vertical_kalman_marks_invalid_when_sensor_health_is_bad() {
     BaroVerticalKalman estimator;
     estimator.init();
 
@@ -123,7 +123,7 @@ void test_ekf_lite_marks_invalid_when_sensor_health_is_bad() {
     TEST_ASSERT_EQUAL_INT((int)SensorHealth::Stale, (int)state.health);
 }
 
-void test_ekf_lite_rejects_nan_baro_sample() {
+void test_baro_vertical_kalman_rejects_nan_baro_sample() {
     BaroVerticalKalman estimator;
     estimator.init();
 
@@ -133,7 +133,7 @@ void test_ekf_lite_rejects_nan_baro_sample() {
     TEST_ASSERT_FALSE(estimator.getState().valid);
 }
 
-void test_ekf_lite_rejects_nan_attitude() {
+void test_baro_vertical_kalman_rejects_nan_attitude() {
     BaroVerticalKalman estimator;
     estimator.init();
     EstimatorInput input = makeEstimatorInput(1000000);
@@ -147,15 +147,15 @@ void test_ekf_lite_rejects_nan_attitude() {
 
 int main() {
     UNITY_BEGIN();
-    RUN_TEST(test_ekf_lite_initializes_from_first_baro_sample);
-    RUN_TEST(test_ekf_lite_tracks_linear_climb_without_large_lag);
-    RUN_TEST(test_ekf_lite_uses_vertical_acceleration_in_prediction);
-    RUN_TEST(test_ekf_lite_rejects_large_baro_spike);
-    RUN_TEST(test_ekf_lite_marks_stale_after_repeated_rejections);
-    RUN_TEST(test_ekf_lite_exposes_covariance_bounds);
-    RUN_TEST(test_ekf_lite_handles_missing_baro_by_prediction);
-    RUN_TEST(test_ekf_lite_marks_invalid_when_sensor_health_is_bad);
-    RUN_TEST(test_ekf_lite_rejects_nan_baro_sample);
-    RUN_TEST(test_ekf_lite_rejects_nan_attitude);
+    RUN_TEST(test_baro_vertical_kalman_initializes_from_first_baro_sample);
+    RUN_TEST(test_baro_vertical_kalman_tracks_linear_climb_without_large_lag);
+    RUN_TEST(test_baro_vertical_kalman_uses_vertical_acceleration_in_prediction);
+    RUN_TEST(test_baro_vertical_kalman_rejects_large_baro_spike);
+    RUN_TEST(test_baro_vertical_kalman_marks_stale_after_repeated_rejections);
+    RUN_TEST(test_baro_vertical_kalman_exposes_covariance_bounds);
+    RUN_TEST(test_baro_vertical_kalman_handles_missing_baro_by_prediction);
+    RUN_TEST(test_baro_vertical_kalman_marks_invalid_when_sensor_health_is_bad);
+    RUN_TEST(test_baro_vertical_kalman_rejects_nan_baro_sample);
+    RUN_TEST(test_baro_vertical_kalman_rejects_nan_attitude);
     return UNITY_END();
 }

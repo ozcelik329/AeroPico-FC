@@ -2,16 +2,16 @@
 #define FLIGHT_MANAGER_H
 
 #include <Arduino.h>
-#include "../drivers/IDrivers.h"
-#include "data/SystemBlackboard.h"
-#include "events/SystemEventBus.h"
-#include "RCPipeline.h"
-#include "SensorPipeline.h"
-#include "FailsafeManager.h"
+#include "../../drivers/IDrivers.h"
+#include "../data/SystemBlackboard.h"
+#include "../events/SystemEventBus.h"
+#include "../rc/RCPipeline.h"
+#include "../sensors/SensorPipeline.h"
+#include "../safety/FailsafeManager.h"
 #include "StatePublisher.h"
-#include "control/ControlPipeline.h"
+#include "../control/ControlPipeline.h"
 
-#include "ArmDefs.h"
+#include "../safety/ArmDefs.h"
 
 class FlightManager {
   public:

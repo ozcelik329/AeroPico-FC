@@ -47,6 +47,7 @@ class SensorManager : public IImuDriver, public IMagDriver, public IBaroDriver, 
 
     bool isImuAvailable() const override;
     bool isDmaOk() const override;
+    SensorCapabilityStatus capabilities() const;
     SensorFaultCode getFaultCode() const;
     const char* getFaultText() const;
     uint8_t getLastWhoAmI() const { return _lastWhoAmI; }

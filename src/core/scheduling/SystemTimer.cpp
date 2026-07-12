@@ -1,5 +1,5 @@
 #include "SystemTimer.h"
-#include "control/FlightControlTask.h"
+#include "../control/FlightControlTask.h"
 
 volatile bool SystemManager::is_running = false;
 volatile uint32_t SystemManager::core1HeartbeatUs = 0;

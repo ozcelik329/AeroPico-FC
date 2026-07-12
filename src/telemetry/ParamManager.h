@@ -8,12 +8,12 @@
 #include <common/mavlink.h>
 #include "../drivers/PioUart.h"
 #include "../config.h"
-#include "../core/FixedWingMixer.h"
+#include "../core/control/FixedWingMixer.h"
 #include "../storage/ParamStorage.h"
 
 // Desteklenen parametreler
-#define PARAM_PERSISTED_COUNT 28
-#define PARAM_COUNT 29
+#define PARAM_PERSISTED_COUNT 29
+#define PARAM_COUNT 30
 
 enum ParamIndex : uint8_t {
     PARAM_IDX_ANGLE_P = 0,
@@ -44,6 +44,7 @@ enum ParamIndex : uint8_t {
     PARAM_IDX_MAV_SYS_HZ,
     PARAM_IDX_BB_LOG_HZ,
     PARAM_IDX_PREF_Q_MIN,
+    PARAM_IDX_RC_MODE_CH,
     PARAM_IDX_SAVE
 };
 
@@ -60,7 +61,7 @@ class ParamManager {
                                           float rateP, float rateI, float rateD);
     using MixerSettingsApplyHandler = void (*)(const MixerSettings& settings);
     using FailsafeTimeoutApplyHandler = void (*)(uint32_t timeoutMs);
-    using RcMappingApplyHandler = void (*)(uint8_t roll, uint8_t pitch, uint8_t throttle, uint8_t yaw);
+    using RcMappingApplyHandler = void (*)(uint8_t roll, uint8_t pitch, uint8_t throttle, uint8_t yaw, uint8_t mode);
     using MavlinkRatesApplyHandler = void (*)(uint8_t attitudeHz, uint8_t rcHz, uint8_t sysStatusHz);
     using BlackboxRateApplyHandler = void (*)(uint8_t logHz);
     using PreflightQualityApplyHandler = void (*)(uint8_t minQuality);
@@ -109,6 +110,7 @@ class ParamManager {
     uint8_t getRcPitchChannel() const { return (uint8_t)_params[PARAM_IDX_RC_PITCH_CH].value; }
     uint8_t getRcThrottleChannel() const { return (uint8_t)_params[PARAM_IDX_RC_THR_CH].value; }
     uint8_t getRcYawChannel() const { return (uint8_t)_params[PARAM_IDX_RC_YAW_CH].value; }
+    uint8_t getRcModeChannel() const { return (uint8_t)_params[PARAM_IDX_RC_MODE_CH].value; }
     uint8_t getMavlinkAttitudeHz() const { return (uint8_t)_params[PARAM_IDX_MAV_ATT_HZ].value; }
     uint8_t getMavlinkRcHz() const { return (uint8_t)_params[PARAM_IDX_MAV_RC_HZ].value; }
     uint8_t getMavlinkSysStatusHz() const { return (uint8_t)_params[PARAM_IDX_MAV_SYS_HZ].value; }
@@ -145,6 +147,7 @@ class ParamManager {
         {"MAV_SYS_HZ", 2.0f, 1.0f, 10.0f},
         {"BB_LOG_HZ", 5.0f, 1.0f, 50.0f},
         {"PREF_Q_MIN", 60.0f, 1.0f, 100.0f},
+        {"RC_MODE_CH", RC_MODE_CHANNEL, 0.0f, 7.0f},
         {"PARAM_SAVE", 0.0f, 0.0f, 1.0f},
     };
     PidGainsApplyHandler _pidGainsApplyHandler = nullptr;

@@ -1,7 +1,7 @@
 #ifndef FAILSAFE_MANAGER_H
 #define FAILSAFE_MANAGER_H
 
-#include "../types.h"
+#include "../../types.h"
 
 enum FailsafeReason : uint16_t {
     FailsafeNone = 0,

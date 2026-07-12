@@ -27,6 +27,25 @@ enum class SensorFaultCode : uint8_t {
     BaroReadFailed
 };
 
+enum SensorCapabilityBits : uint16_t {
+    SENSOR_CAP_IMU  = 1u << 0,
+    SENSOR_CAP_MAG  = 1u << 1,
+    SENSOR_CAP_BARO = 1u << 2,
+    SENSOR_CAP_GPS  = 1u << 3
+};
+
+struct SensorCapabilityStatus {
+    uint16_t functionMask;
+    bool imuAvailable;
+    bool magAvailable;
+    bool baroAvailable;
+    bool gpsAvailable;
+};
+
+static inline bool hasSensorCapability(uint16_t mask, SensorCapabilityBits bit) {
+    return (mask & (uint16_t)bit) != 0;
+}
+
 enum class ControlMode : uint8_t {
     Manual = 0,
     Stabilize = 1
@@ -128,6 +147,7 @@ struct RcInputState {
     uint16_t elevator;
     uint16_t throttle;
     uint16_t rudder;
+    ControlMode controlMode;
     bool failsafe;
     bool overrideActive;
     uint32_t timestampMs;

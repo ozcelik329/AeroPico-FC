@@ -1,8 +1,8 @@
 #include <unity.h>
 
-#include "core/FixedWingMixer.h"
+#include "core/control/FixedWingMixer.h"
 
-#include "../../src/core/FixedWingMixer.cpp"
+#include "../../src/core/control/FixedWingMixer.cpp"
 
 void test_mixer_neutral_outputs_stay_neutral() {
     FixedWingMixer mixer;

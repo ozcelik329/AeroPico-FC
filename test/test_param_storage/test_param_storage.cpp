@@ -31,6 +31,13 @@ void test_param_storage_rejects_count_mismatch() {
     TEST_ASSERT_FALSE(ParamStorage::isValid(blob, 4));
 }
 
+void test_param_storage_accepts_valid_envelope_with_different_count() {
+    ParamStorageBlob blob = makeBlob();
+
+    TEST_ASSERT_TRUE(ParamStorage::hasValidEnvelope(blob));
+    TEST_ASSERT_FALSE(ParamStorage::isValid(blob, 4));
+}
+
 void test_param_storage_rejects_checksum_mismatch() {
     ParamStorageBlob blob = makeBlob();
     blob.values[1] = 99.0f;
@@ -54,6 +61,7 @@ int main() {
     RUN_TEST(test_param_storage_rejects_bad_magic);
     RUN_TEST(test_param_storage_rejects_version_mismatch);
     RUN_TEST(test_param_storage_rejects_count_mismatch);
+    RUN_TEST(test_param_storage_accepts_valid_envelope_with_different_count);
     RUN_TEST(test_param_storage_rejects_checksum_mismatch);
     RUN_TEST(test_memory_param_storage_round_trip);
     return UNITY_END();

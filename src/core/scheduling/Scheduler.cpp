@@ -1,5 +1,14 @@
 #include "Scheduler.h"
+#include "../../utils/FastMath.h"
+
 #include <string.h>
+
+namespace {
+static uint16_t saturatingAdd(uint16_t value, uint32_t increment) {
+    const uint32_t sum = (uint32_t)value + increment;
+    return sum > UINT16_MAX ? UINT16_MAX : (uint16_t)sum;
+}
+}
 
 void Scheduler::reset() {
     for (size_t i = 0; i < MAX_TASKS; ++i) {
@@ -35,18 +44,21 @@ bool Scheduler::addTask(const char* name, uint16_t rateHz, SchedulerCallback cal
 void Scheduler::tick(uint32_t nowUs) {
     for (size_t i = 0; i < _taskCount; ++i) {
         ScheduledTask& task = _tasks[i];
-        if (!task.enabled) {
+        if (AEROPICO_UNLIKELY(!task.enabled)) {
             continue;
         }
 
         const uint32_t elapsedUs = (uint32_t)(nowUs - task.lastRunUs);
-        if (elapsedUs < task.periodUs) {
+        if (AEROPICO_LIKELY(elapsedUs < task.periodUs)) {
             continue;
         }
 
         const uint32_t latencyUs = task.lastRunUs == 0 ? 0 : elapsedUs - task.periodUs;
         if (latencyUs > task.maxReleaseLatencyUs) {
             task.maxReleaseLatencyUs = latencyUs;
+        }
+        if (latencyUs >= task.periodUs) {
+            task.deadlineMisses = saturatingAdd(task.deadlineMisses, latencyUs / task.periodUs);
         }
         task.lastRunUs = nowUs;
         task.runCount++;
@@ -57,7 +69,7 @@ void Scheduler::tick(uint32_t nowUs) {
             task.maxRuntimeUs = runtimeUs;
         }
         if (runtimeUs > task.periodUs) {
-            task.deadlineMisses++;
+            task.deadlineMisses = saturatingAdd(task.deadlineMisses, 1U);
         }
     }
 }

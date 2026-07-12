@@ -1,8 +1,8 @@
 #ifndef STATE_PUBLISHER_H
 #define STATE_PUBLISHER_H
 
-#include "../types.h"
-#include "FailsafeManager.h"
+#include "../../types.h"
+#include "../safety/FailsafeManager.h"
 
 class StatePublisher {
   public:

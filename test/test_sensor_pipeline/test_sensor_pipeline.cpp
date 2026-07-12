@@ -1,12 +1,12 @@
 #include <unity.h>
 
-#include "core/SensorPipeline.h"
+#include "core/sensors/SensorPipeline.h"
 
 #include "../../src/estimators/BaroAltitudeEstimator.cpp"
 #include "../../src/estimators/BaroVerticalKalman.cpp"
 #include "../../src/estimators/ComplementaryEstimator.cpp"
-#include "../../src/core/SensorFusion.cpp"
-#include "../../src/core/SensorPipeline.cpp"
+#include "../../src/core/sensors/SensorFusion.cpp"
+#include "../../src/core/sensors/SensorPipeline.cpp"
 
 class FakeImuDriver : public IImuDriver {
   public:
@@ -44,7 +44,7 @@ class FakeImuDriver : public IImuDriver {
     SensorBuffer _sample = {};
 };
 
-void test_sensor_pipeline_publishes_ekf_lite_altitude() {
+void test_sensor_pipeline_publishes_baro_vertical_kalman_altitude() {
     FakeImuDriver driver;
     SensorPipeline pipeline;
 
@@ -79,7 +79,7 @@ void test_sensor_pipeline_keeps_estimator_prediction_without_baro() {
 
 int main() {
     UNITY_BEGIN();
-    RUN_TEST(test_sensor_pipeline_publishes_ekf_lite_altitude);
+    RUN_TEST(test_sensor_pipeline_publishes_baro_vertical_kalman_altitude);
     RUN_TEST(test_sensor_pipeline_keeps_estimator_prediction_without_baro);
     return UNITY_END();
 }

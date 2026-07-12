@@ -56,6 +56,25 @@ Not: GY-87 kartinda 5V pull-up varsa kullanma. Pull-up direncleri 3.3V'a bagli o
 | GND | GND |
 | Alici besleme | BEC 5V |
 
+Varsayilan SBUS ayari `100000` baud ve `SERIAL_8E2` formatidir. Bu degerler `src/config.h` icindeki `SBUS_UART_BAUD` ve `SBUS_UART_CONFIG` makrolarindan degistirilir.
+
+Varsayilan RC kanal eslemesi:
+
+```text
+CH1: Roll / aileron
+CH2: Pitch / elevator
+CH3: Throttle
+CH4: Yaw / rudder
+CH5: Flight mode
+```
+
+Flight mode kanali:
+
+- `CH5 < 1500 us`: MANUAL
+- `CH5 >= 1500 us`: STABILIZE
+
+Istersen bu kanal daha sonra MAVLink parametresi `RC_MODE_CH` ile 6. kanal veya baska bir kanala alinabilir.
+
 ### Servo / ESC Sinyalleri
 
 Servo ve ESC sinyal kablolari proje pin haritasina gore baglanir. Besleme icin ESC/BEC 5V kullanilir; sinyal GND mutlaka Pico GND ile ortak olur.

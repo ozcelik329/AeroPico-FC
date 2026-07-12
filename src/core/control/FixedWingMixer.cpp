@@ -1,5 +1,5 @@
 #include "FixedWingMixer.h"
-#include "../utils/FastMath.h"
+#include "../../utils/FastMath.h"
 #include <math.h>
 
 FixedWingMixer::FixedWingMixer() {

@@ -2,9 +2,9 @@
 #define TIMING_MONITOR_H
 
 #include <Arduino.h>
-#include "../types.h"
-#include "../hal/HAL_GPIO.h"
-#include "../hal/HAL_Timer.h"
+#include "../../types.h"
+#include "../../hal/HAL_GPIO.h"
+#include "../../hal/HAL_Timer.h"
 
 class TimingMonitor {
   public:

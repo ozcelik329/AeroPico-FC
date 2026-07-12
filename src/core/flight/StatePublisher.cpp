@@ -22,7 +22,7 @@ FlightData StatePublisher::buildFlightData(const VehicleState& vehicle,
     data.throttle = rc.throttle;
     data.rudder = rc.rudder;
     data.failsafe = failsafe.active;
-    data.controlMode = ControlMode::Stabilize;
+    data.controlMode = rc.controlMode;
     data.estimatorValid = vehicle.estimatorValid;
     return data;
 }

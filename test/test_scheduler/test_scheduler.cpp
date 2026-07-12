@@ -1,8 +1,8 @@
 #include <unity.h>
 
-#include "core/Scheduler.h"
+#include "core/scheduling/Scheduler.h"
 
-#include "../../src/core/Scheduler.cpp"
+#include "../../src/core/scheduling/Scheduler.cpp"
 
 static int controlRuns;
 static int telemetryRuns;
@@ -48,6 +48,21 @@ void test_scheduler_tracks_release_latency() {
     TEST_ASSERT_EQUAL_UINT32(2, task->runCount);
 }
 
+void test_scheduler_counts_missed_releases_without_catchup_loop() {
+    Scheduler scheduler;
+    scheduler.reset();
+    TEST_ASSERT_TRUE(scheduler.addTask("control", 500, runControl));
+
+    scheduler.tick(2000);
+    scheduler.tick(8500);
+
+    const ScheduledTask* task = scheduler.getTask(0);
+    TEST_ASSERT_NOT_NULL(task);
+    TEST_ASSERT_EQUAL_UINT32(2, task->runCount);
+    TEST_ASSERT_EQUAL_UINT16(2, task->deadlineMisses);
+    TEST_ASSERT_EQUAL_UINT32(4500, task->maxReleaseLatencyUs);
+}
+
 void test_scheduler_can_disable_task() {
     Scheduler scheduler;
     scheduler.reset();
@@ -77,5 +92,6 @@ int main() {
     RUN_TEST(test_scheduler_can_disable_task);
     RUN_TEST(test_scheduler_rejects_invalid_tasks);
     RUN_TEST(test_scheduler_tracks_release_latency);
+    RUN_TEST(test_scheduler_counts_missed_releases_without_catchup_loop);
     return UNITY_END();
 }

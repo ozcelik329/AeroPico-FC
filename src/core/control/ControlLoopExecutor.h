@@ -4,8 +4,8 @@
 #include <Arduino.h>
 #include "../../hal/HAL_PWM.h"
 #include "../../types.h"
-#include "../PID.h"
-#include "../FixedWingMixer.h"
+#include "PID.h"
+#include "FixedWingMixer.h"
 
 class FlightManager;
 

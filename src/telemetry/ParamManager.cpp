@@ -56,7 +56,8 @@ bool ParamManager::_isMixerParam(uint8_t index) const {
 }
 
 bool ParamManager::_isRcMappingParam(uint8_t index) const {
-    return index >= PARAM_IDX_RC_ROLL_CH && index <= PARAM_IDX_RC_YAW_CH;
+    return (index >= PARAM_IDX_RC_ROLL_CH && index <= PARAM_IDX_RC_YAW_CH) ||
+           index == PARAM_IDX_RC_MODE_CH;
 }
 
 bool ParamManager::_isMavlinkRateParam(uint8_t index) const {
@@ -90,7 +91,8 @@ void ParamManager::_applyParam(uint8_t index) {
             getRcRollChannel(),
             getRcPitchChannel(),
             getRcThrottleChannel(),
-            getRcYawChannel()
+            getRcYawChannel(),
+            getRcModeChannel()
         );
     }
     if (_isMavlinkRateParam(index) && _mavlinkRatesApplyHandler) {
@@ -112,15 +114,18 @@ bool ParamManager::loadPersistent() {
     if (!_storage) return false;
 
     ParamStorageBlob blob = {};
-    if (!_storage->load(blob) || !ParamStorage::isValid(blob, PARAM_PERSISTED_COUNT)) {
+    if (!_storage->load(blob) || !ParamStorage::hasValidEnvelope(blob)) {
+        return false;
+    }
+    if (blob.count > PARAM_PERSISTED_COUNT) {
         return false;
     }
 
-    for (uint8_t i = 0; i < PARAM_PERSISTED_COUNT; i++) {
+    for (uint8_t i = 0; i < blob.count; i++) {
         _params[i].value = constrain(blob.values[i], _params[i].minVal, _params[i].maxVal);
         _applyParam(i);
     }
-    _dirty = false;
+    _dirty = blob.count != PARAM_PERSISTED_COUNT;
     _params[PARAM_IDX_SAVE].value = 0.0f;
     Serial.println("[PARAMS] Kalici parametreler yuklendi.");
     return true;

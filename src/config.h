@@ -9,8 +9,12 @@
 // --- UART Pin Atamaları ---
 #define SBUS_UART_INDEX  0   // 0: Serial1/UART0, 1: Serial2/UART1
 #define PIN_SBUS_RX     1   // UART0 RX — SBUS alıcı (transistör ile invert)
+#define SBUS_UART_BAUD  100000
+#define SBUS_UART_CONFIG SERIAL_8E2
 #define PIN_GPS_TX      8
 #define PIN_GPS_RX      9
+#define GPS_MODULE_ENABLED 0
+#define GPS_UART_BAUD 9600
 
 // --- I2C Pin Atamaları ---
 #define PIN_SDA         4
@@ -24,6 +28,8 @@
 // --- PIO UART — ESP32-CAM MAVLink ---
 #define PIN_ESP_TX      12
 #define PIN_ESP_RX      13
+#define ESP32_CAM_LINK_ENABLED 0
+#define ESP32_CAM_UART_BAUD 57600
 
 // --- PWM Servo Çıkışları ---
 #define PIN_AILERON     16
@@ -57,6 +63,8 @@
 #define RC_PITCH_CHANNEL    1
 #define RC_THROTTLE_CHANNEL 2
 #define RC_YAW_CHANNEL      3
+#define RC_MODE_CHANNEL     4
+#define RC_MODE_STABILIZE_THRESHOLD 1500
 
 // Açı ve Rate PID Parametreleri
 #define ANGLE_P_GAIN 2.0

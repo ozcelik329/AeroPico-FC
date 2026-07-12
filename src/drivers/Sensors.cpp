@@ -93,6 +93,18 @@ bool SensorManager::_readRawFrame(uint8_t raw[GyroAccelDriver::RAW_LEN]) {
 bool SensorManager::isImuAvailable() const { return _imuAvailable; }
 bool SensorManager::isDmaOk() const { return _dmaBus.hasMpuChannels(); }
 
+SensorCapabilityStatus SensorManager::capabilities() const {
+    SensorCapabilityStatus status = {};
+    status.imuAvailable = _imuAvailable;
+    status.magAvailable = hasMag();
+    status.baroAvailable = hasBaro();
+    status.gpsAvailable = false;
+    if (status.imuAvailable) status.functionMask |= SENSOR_CAP_IMU;
+    if (status.magAvailable) status.functionMask |= SENSOR_CAP_MAG;
+    if (status.baroAvailable) status.functionMask |= SENSOR_CAP_BARO;
+    return status;
+}
+
 SensorFaultCode SensorManager::getFaultCode() const {
     return _faultCode;
 }

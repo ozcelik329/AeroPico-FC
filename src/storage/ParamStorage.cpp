@@ -50,12 +50,17 @@ uint32_t ParamStorage::checksum(const ParamStorageBlob& blob) {
     return sum;
 }
 
-bool ParamStorage::isValid(const ParamStorageBlob& blob, size_t expectedCount) {
+bool ParamStorage::hasValidEnvelope(const ParamStorageBlob& blob) {
     if (blob.magic != PARAM_STORAGE_MAGIC) return false;
     if (blob.version != PARAM_STORAGE_VERSION) return false;
-    if (blob.count != expectedCount) return false;
     if (blob.count > PARAM_STORAGE_MAX_VALUES) return false;
     if (blob.checksum != checksum(blob)) return false;
+    return true;
+}
+
+bool ParamStorage::isValid(const ParamStorageBlob& blob, size_t expectedCount) {
+    if (!hasValidEnvelope(blob)) return false;
+    if (blob.count != expectedCount) return false;
     return true;
 }
 
@@ -84,12 +89,12 @@ bool RPFlashParamStorage::load(ParamStorageBlob& blob) {
     constexpr uint32_t FLASH_TARGET_OFFSET = PICO_FLASH_SIZE_BYTES - (2 * FLASH_SECTOR_SIZE);
     const auto* stored = reinterpret_cast<const ParamStorageBlob*>(XIP_BASE + FLASH_TARGET_OFFSET);
     blob = *stored;
-    return ParamStorage::isValid(blob, blob.count);
+    return ParamStorage::hasValidEnvelope(blob);
 #endif
 }
 
 bool RPFlashParamStorage::save(const ParamStorageBlob& blob) {
-    if (!ParamStorage::isValid(blob, blob.count)) {
+    if (!ParamStorage::hasValidEnvelope(blob)) {
         return false;
     }
 

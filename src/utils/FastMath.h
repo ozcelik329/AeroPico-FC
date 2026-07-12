@@ -6,9 +6,11 @@
 #if defined(__GNUC__)
 #define AEROPICO_ALWAYS_INLINE inline __attribute__((always_inline))
 #define AEROPICO_LIKELY(x) __builtin_expect(!!(x), 1)
+#define AEROPICO_UNLIKELY(x) __builtin_expect(!!(x), 0)
 #else
 #define AEROPICO_ALWAYS_INLINE inline
 #define AEROPICO_LIKELY(x) (x)
+#define AEROPICO_UNLIKELY(x) (x)
 #endif
 
 namespace AeroPicoFastMath {

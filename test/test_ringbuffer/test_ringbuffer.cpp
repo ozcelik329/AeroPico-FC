@@ -1,6 +1,6 @@
 #include <unity.h>
 
-#include "core/ThreadSafeRingBuffer.h"
+#include "core/state/ThreadSafeRingBuffer.h"
 
 struct Sample {
     int value;

@@ -2,9 +2,9 @@
 #define CONTROL_PIPELINE_H
 
 #include "../../types.h"
-#include "../FlightModeController.h"
-#include "../NavigationController.h"
-#include "../AltitudeController.h"
+#include "FlightModeController.h"
+#include "NavigationController.h"
+#include "AltitudeController.h"
 
 struct ControlPipelineInput {
     RcInputState rc;

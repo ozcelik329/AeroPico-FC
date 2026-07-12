@@ -1,9 +1,9 @@
 #include <math.h>
 #include <unity.h>
 
-#include "core/SensorFusion.h"
+#include "core/sensors/SensorFusion.h"
 
-#include "../../src/core/SensorFusion.cpp"
+#include "../../src/core/sensors/SensorFusion.cpp"
 
 void test_sensor_fusion_starts_level() {
     SensorFusion fusion;

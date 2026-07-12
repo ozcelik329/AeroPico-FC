@@ -1,8 +1,8 @@
 #include <unity.h>
 
-#include "core/FailsafeManager.h"
+#include "core/safety/FailsafeManager.h"
 
-#include "../../src/core/FailsafeManager.cpp"
+#include "../../src/core/safety/FailsafeManager.cpp"
 
 static FlightData healthyData() {
     FlightData data = {};

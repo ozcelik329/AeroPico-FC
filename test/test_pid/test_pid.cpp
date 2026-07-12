@@ -1,8 +1,8 @@
 #include <unity.h>
 
-#include "core/PID.h"
+#include "core/control/PID.h"
 
-#include "../../src/core/PID.cpp"
+#include "../../src/core/control/PID.cpp"
 
 void test_pid_clamps_output() {
     PID pid(10.0f, 0.0f, 0.0f, -50.0f, 50.0f);

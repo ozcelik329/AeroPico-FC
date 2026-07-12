@@ -1,6 +1,6 @@
 #include <unity.h>
 
-#include "core/BatteryMonitor.h"
+#include "core/safety/BatteryMonitor.h"
 #include "estimators/BaroVerticalKalman.h"
 
 static bool provideLinkedVoltage(float& voltage) {

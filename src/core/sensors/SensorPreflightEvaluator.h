@@ -2,7 +2,7 @@
 #define SENSOR_PREFLIGHT_EVALUATOR_H
 
 #include <Arduino.h>
-#include "../types.h"
+#include "../../types.h"
 
 enum class SensorPreflightReason : uint8_t {
     Ok = 0,
