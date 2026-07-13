@@ -19,6 +19,7 @@
 #include "utils/BootLogger.h"
 #include "telemetry/MavlinkHandler.h"
 #include "telemetry/Blackbox.h"
+#include "app/AppTasks.h"
 #if BATTERY_ADC_ENABLED
 #include "hal/rp2350/RP2350_ADC.h"
 #endif
@@ -57,9 +58,6 @@ static constexpr uint32_t CONTROL_LOOP_HZ = 1000000UL / FLIGHT_LOOP_PERIOD_US;
 static uint32_t lastBlackboxDroppedRecords = 0;
 static bool batteryWarningLatched = false;
 static bool latestBatteryCritical = false;
-static constexpr uint16_t SENSOR_TASK_STACK_WORDS = 1536;
-static constexpr uint16_t FLIGHT_TASK_STACK_WORDS = 2048;
-static constexpr uint16_t TELEMETRY_TASK_STACK_WORDS = 1536;
 static TaskHandle_t sensorTaskHandle = nullptr;
 static TaskHandle_t flightTaskHandle = nullptr;
 static TaskHandle_t telemetryTaskHandle = nullptr;
@@ -408,6 +406,7 @@ void setup() {
     mavlink.setRCOverrideHandler(applyRCOverride);
     mavlink.setClearRCOverrideHandler(clearRCOverride);
     mavlink.setRCOverrideEnabled(true);
+    mavlink.setRCOverrideAllowedWhileArmed(false);
     mavlink.init();
     blackbox.init();
 
@@ -465,33 +464,10 @@ void setup() {
     );
     BootLogger::printReadyMessage();
 
-    static StaticTask_t sensorTaskTcb;
-    static StaticTask_t flightTaskTcb;
-    static StaticTask_t telemetryTaskTcb;
-    static StackType_t sensorTaskStack[SENSOR_TASK_STACK_WORDS];
-    static StackType_t flightTaskStack[FLIGHT_TASK_STACK_WORDS];
-    static StackType_t telemetryTaskStack[TELEMETRY_TASK_STACK_WORDS];
-
-    sensorTaskHandle = xTaskCreateStaticAffinitySet(
-        taskSensor, "SensorTask",
-        SENSOR_TASK_STACK_WORDS, NULL, 2,
-        sensorTaskStack, &sensorTaskTcb,
-        (1 << 0)
-    );
-
-    flightTaskHandle = xTaskCreateStaticAffinitySet(
-        taskFlight, "FlightTask",
-        FLIGHT_TASK_STACK_WORDS, NULL, 3,
-        flightTaskStack, &flightTaskTcb,
-        (1 << 1)
-    );
-
-    telemetryTaskHandle = xTaskCreateStaticAffinitySet(
-        taskTelemetry, "TelemetryTask",
-        TELEMETRY_TASK_STACK_WORDS, NULL, 1,
-        telemetryTaskStack, &telemetryTaskTcb,
-        (1 << 0)
-    );
+    const AppTaskHandles taskHandles = AppTasks::create(taskSensor, taskFlight, taskTelemetry);
+    sensorTaskHandle = taskHandles.sensor;
+    flightTaskHandle = taskHandles.flight;
+    telemetryTaskHandle = taskHandles.telemetry;
 
     vTaskStartScheduler();
 }

@@ -17,10 +17,15 @@ static uint16_t overrideThrottle;
 static uint16_t overrideRudder;
 static bool overrideCalled;
 static bool clearCalled;
+static bool armedState;
 
 static bool provideFlightData(FlightData& out) {
     out = latestData;
     return true;
+}
+
+static bool provideArmState() {
+    return armedState;
 }
 
 static void applyOverride(uint16_t aileron, uint16_t elevator, uint16_t throttle, uint16_t rudder) {
@@ -44,6 +49,7 @@ void setUp() {
     overrideAileron = overrideElevator = overrideThrottle = overrideRudder = 0;
     overrideCalled = false;
     clearCalled = false;
+    armedState = false;
 }
 
 void test_mavlink_override_uses_provided_channels() {
@@ -113,6 +119,34 @@ void test_mavlink_override_rejects_when_disabled() {
     TEST_ASSERT_FALSE(clearCalled);
 }
 
+void test_mavlink_override_rejects_when_armed_by_default() {
+    MavlinkHandler handler;
+    armedState = true;
+    handler.setArmStateProvider(provideArmState);
+    handler.setRCOverrideHandler(applyOverride);
+    handler.setClearRCOverrideHandler(clearOverride);
+    handler.setRCOverrideEnabled(true);
+
+    handler.handleRCOverrideMessageForTest(MAV_SYSTEM_ID, MAV_COMPONENT_ID, 1600, 1400, 1200, 1700);
+
+    TEST_ASSERT_FALSE(overrideCalled);
+    TEST_ASSERT_FALSE(clearCalled);
+}
+
+void test_mavlink_override_can_be_explicitly_allowed_while_armed() {
+    MavlinkHandler handler;
+    armedState = true;
+    handler.setArmStateProvider(provideArmState);
+    handler.setRCOverrideHandler(applyOverride);
+    handler.setRCOverrideEnabled(true);
+    handler.setRCOverrideAllowedWhileArmed(true);
+
+    handler.handleRCOverrideMessageForTest(MAV_SYSTEM_ID, MAV_COMPONENT_ID, 1600, 1400, 1200, 1700);
+
+    TEST_ASSERT_TRUE(overrideCalled);
+    TEST_ASSERT_EQUAL_UINT16(1200, overrideThrottle);
+}
+
 int main() {
     UNITY_BEGIN();
     RUN_TEST(test_mavlink_override_uses_provided_channels);
@@ -120,5 +154,7 @@ int main() {
     RUN_TEST(test_mavlink_override_all_ignored_clears_override);
     RUN_TEST(test_mavlink_override_rejects_wrong_target_system);
     RUN_TEST(test_mavlink_override_rejects_when_disabled);
+    RUN_TEST(test_mavlink_override_rejects_when_armed_by_default);
+    RUN_TEST(test_mavlink_override_can_be_explicitly_allowed_while_armed);
     return UNITY_END();
 }

@@ -30,6 +30,10 @@ void MavlinkHandler::setRCOverrideEnabled(bool enabled) {
     _rcOverrideEnabled = enabled;
 }
 
+void MavlinkHandler::setRCOverrideAllowedWhileArmed(bool allowed) {
+    _rcOverrideAllowedWhileArmed = allowed;
+}
+
 static uint16_t hzToPeriodMs(uint8_t hz, uint8_t minHz, uint8_t maxHz) {
     if (hz < minHz) hz = minHz;
     if (hz > maxHz) hz = maxHz;
@@ -121,6 +125,10 @@ void MavlinkHandler::_handleMessage(mavlink_message_t& msg) {
             }
             if (!_rcOverrideEnabled) {
                 sendStatusText("RC override rejected", MAV_SEVERITY_WARNING);
+                break;
+            }
+            if (!_rcOverrideAllowedWhileArmed && _armStateProvider && _armStateProvider()) {
+                sendStatusText("RC override rejected while armed", MAV_SEVERITY_WARNING);
                 break;
             }
             _applyRCOverrideRaw(rc.chan1_raw, rc.chan2_raw, rc.chan3_raw, rc.chan4_raw);

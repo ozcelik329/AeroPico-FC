@@ -47,14 +47,16 @@ Bu liste ilk enerji verme, firmware degisikligi ve ucus oncesi masa testleri ici
 - Runtime MAVLink stream hizlari ve blackbox log hizi ayarlanan frekanslara uyuyor mu?
 - SYS_STATUS sensor health bitleri sensor durumuyla uyumlu mu?
 - RC override verildiginde kanallar degisiyor mu?
+- Armed durumda RC override varsayilan olarak reddediliyor mu?
 - RC override kesilince timeout ile temizleniyor mu?
 - Bir parametre degistirildikten sonra `PARAM_SAVE=1` gonderilip reboot sonrasi deger korunuyor mu?
+- Armed durumda parametre yazma ve `PARAM_SAVE` reddediliyor mu?
 - Blackbox satirinda `sensorHealth` alani gorunuyor mu?
 
 ## 6. Zamanlama ve Watchdog
 
 - Core 1 heartbeat taze kaliyor mu?
-- Core0 scheduler frekanslari beklenen seviyede mi: sensor/state 200Hz, RC 50Hz, preflight 20Hz, watchdog gate 100Hz?
+- Core0 scheduler frekanslari beklenen seviyede mi: sensor/state 200Hz, RC 150Hz, preflight 20Hz, watchdog gate 100Hz?
 - Core1 control loop 500Hz civarinda ve timing budget icinde mi?
 - Timing max/average/jitter ve deadline-miss sayaclari uzun sureli bench kosusunda incelendi mi?
 - Uzun sureli bench calismasinda watchdog reset yok mu?
@@ -75,5 +77,6 @@ Bu liste ilk enerji verme, firmware degisikligi ve ucus oncesi masa testleri ici
 - Kart:
 - Sensor paketi:
 - RC alici:
+- HIL artefakt dosyasi: `docs/HIL_Bench_Artifact_Template.md` kopyasi dolduruldu mu?
 - Sonuc: Gecti / Kaldi
 - Notlar:
