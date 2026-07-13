@@ -17,3 +17,11 @@ void ControlPipeline::update(const ControlPipelineInput& input) {
     _navController.update(input.rc.aileron, input.rc.elevator, input.failsafe);
     _altController.update(0.0f, input.rc.throttle, input.failsafe);
 }
+
+bool ControlPipeline::requestArm(bool preflightOk, bool failsafe, uint16_t throttle, const char** reason) {
+    return _modeController.requestArm(preflightOk, failsafe, throttle, reason);
+}
+
+bool ControlPipeline::requestDisarm(bool force, uint16_t throttle, const char** reason) {
+    return _modeController.requestDisarm(force, throttle, reason);
+}

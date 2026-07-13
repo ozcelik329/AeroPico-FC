@@ -4,6 +4,7 @@
 #include "drivers/sensors/gyro/GyroAccelDriver.h"
 #include "drivers/sensors/mag/MagDriver.h"
 
+#include "../../src/drivers/sensors/baro/Bmp085Backend.cpp"
 #include "../../src/drivers/sensors/baro/BaroDriver.cpp"
 #include "../../src/drivers/sensors/gyro/GyroAccelDriver.cpp"
 #include "../../src/drivers/sensors/mag/MagDriver.cpp"

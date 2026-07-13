@@ -141,6 +141,44 @@ void FlightManager::setPreflightArmAllowed(bool allowed) {
     _preflightArmAllowed = allowed;
 }
 
+bool FlightManager::requestArmFromMavlink(bool arm, bool force, char* reason, size_t reasonLen) {
+    const char* localReason = "";
+    bool accepted = false;
+    const bool faulted = _timingExceeded || _batteryCritical || _actuatorFault;
+    const bool failsafe = _rcState.failsafe || faulted;
+
+    if (arm && faulted) {
+        localReason = _batteryCritical ? "battery critical" :
+                      _actuatorFault ? "actuator fault" :
+                      "timing budget exceeded";
+        accepted = false;
+    } else if (arm) {
+        accepted = _controlPipeline.requestArm(
+            _preflightArmAllowed,
+            failsafe,
+            _rcState.throttle,
+            &localReason
+        );
+    } else {
+        accepted = _controlPipeline.requestDisarm(force, _rcState.throttle, &localReason);
+    }
+
+    __atomic_store_n(&_armedShared, _controlPipeline.isArmed() ? 1u : 0u, __ATOMIC_RELEASE);
+    if (reason && reasonLen > 0) {
+        reason[0] = '\0';
+        if (localReason) {
+            strncpy(reason, localReason, reasonLen - 1);
+            reason[reasonLen - 1] = '\0';
+        }
+    }
+    systemEventBus.publish({
+        accepted ? SystemEventType::ArmStateChanged : SystemEventType::ArmDenied,
+        _vehicleState.timestampUs,
+        _controlPipeline.isArmed() ? 1u : 0u
+    });
+    return accepted;
+}
+
 void FlightManager::setSystemFaults(bool timingExceeded, bool batteryCritical, bool actuatorFault) {
     _timingExceeded = timingExceeded;
     _batteryCritical = batteryCritical;

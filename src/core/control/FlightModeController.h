@@ -20,6 +20,8 @@ class FlightModeController {
     void update(uint16_t throttle, uint16_t rudder);
     void update(uint16_t throttle, uint16_t rudder, bool failsafe);
     void update(uint16_t throttle, uint16_t rudder, bool failsafe, bool preflightOk);
+    bool requestArm(bool preflightOk, bool failsafe, uint16_t throttle, const char** reason);
+    bool requestDisarm(bool force, uint16_t throttle, const char** reason);
     bool isArmed() const { return _state == FlightState::ArmedManual; }
     bool isFailsafe() const { return _state == FlightState::Failsafe; }
     FlightState state() const { return _state; }

@@ -85,6 +85,10 @@ static bool provideArmState() {
     return flightManager.isArmed();
 }
 
+static bool handleMavlinkArmCommand(bool arm, bool force, char* reason, size_t reasonLen) {
+    return flightManager.requestArmFromMavlink(arm, force, reason, reasonLen);
+}
+
 #if BATTERY_ADC_ENABLED
 static bool provideBatteryVoltage(float& voltage) {
     return batteryAdc.readVoltage(BATTERY_ADC_CHANNEL, BATTERY_VOLTAGE_DIVIDER_RATIO, voltage);
@@ -403,6 +407,7 @@ void setup() {
 
     mavlink.setFlightDataProvider(provideFlightData);
     mavlink.setArmStateProvider(provideArmState);
+    mavlink.setArmCommandHandler(handleMavlinkArmCommand);
     mavlink.setRCOverrideHandler(applyRCOverride);
     mavlink.setClearRCOverrideHandler(clearRCOverride);
     mavlink.setRCOverrideEnabled(true);

@@ -31,6 +31,9 @@
 #define ESP32_CAM_LINK_ENABLED 0
 #define ESP32_CAM_UART_BAUD 57600
 
+// --- MAVLink bench / GCS transport ---
+#define MAVLINK_USB_ENABLED 1
+
 // --- PWM Servo Çıkışları ---
 #define PIN_AILERON     16
 #define PIN_ELEVATOR    17

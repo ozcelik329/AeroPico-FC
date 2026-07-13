@@ -1,5 +1,6 @@
 #include "ParamManager.h"
 #include "MavlinkHandler.h"
+#include "MavlinkTransport.h"
 
 #ifdef MAVLINK_PARAMS_ENABLED
 
@@ -246,7 +247,7 @@ void ParamManager::sendParam(uint8_t index) {
     );
 
     uint16_t len = mavlink_msg_to_send_buffer(buf, &msg);
-    espUart.write(buf, len);
+    mavlinkTransport.writePacket(buf, len);
 }
 
 void ParamManager::_handleParamRequestList(const mavlink_message_t& msg) {
@@ -278,7 +279,7 @@ void ParamManager::_handleParamSet(const mavlink_message_t& msg) {
 void ParamManager::_sendPacket(mavlink_message_t& msg) {
     uint8_t buf[MAVLINK_MAX_PACKET_LEN];
     uint16_t len = mavlink_msg_to_send_buffer(buf, &msg);
-    espUart.write(buf, len);
+    mavlinkTransport.writePacket(buf, len);
 }
 
 #endif  // MAVLINK_PARAMS_ENABLED

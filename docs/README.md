@@ -25,10 +25,13 @@ Bu klasor yalnizca aktif ve bakimi suren proje dokumanlarini tutar.
   fiziksel dogrulama isleri.
 - `External_Review_Findings_2026-07-09.md`: Harici PDF incelemesindeki
   P0/P1/P2 bulgularinin kod dogrulamasi ve kapanis takibi.
+- `AeroPico_FC_v1_0_RCI_Release_Notes.md`: v1.0.0-rc1 yazilim kapsami,
+  GCS uyumlulugu ve fiziksel dogrulama ayrimi.
 
 ## Devre Disi Hazirliklar
 
 - GPS altyapisi `src/drivers/gps/` altinda NMEA GGA parser ve UART manager olarak hazir tutulur; `GPS_MODULE_ENABLED=0` oldugu icin V1.0 manuel/stabilize akisini etkilemez.
 - ESP32-CAM altyapisi `src/drivers/camera/` altinda link health izleme olarak hazir tutulur; `ESP32_CAM_LINK_ENABLED=0` oldugu icin varsayilan firmware'de kamera baglantisi baslatilmaz.
+- Opsiyonel ESP32 WiFi MAVLink koprusu iskeleti `Esp32Cam/` altindadir. v1.0 RCI icin ilk GCS test yolu Pico USB Serial MAVLink'tir.
 
 Eski faz snapshot'lari, tarihli brainstorm dosyalari ve guncel markdown raporunun eski PDF/DOCX export'lari tutulmaz.

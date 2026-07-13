@@ -35,6 +35,11 @@ struct {
     void println(int) {}
     void println(unsigned long) {}
     void printf(const char*, ...) {}
+    size_t write(const uint8_t*, size_t len) { bytesWritten += len; return len; }
+    size_t write(uint8_t) { bytesWritten++; return 1; }
+    int available() { return 0; }
+    int read() { return -1; }
+    size_t bytesWritten = 0;
 } Serial;
 
 #define __not_in_flash_func(x) x

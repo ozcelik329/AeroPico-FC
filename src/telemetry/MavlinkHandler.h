@@ -3,12 +3,11 @@
 
 #include <Arduino.h>
 #include <common/mavlink.h>
-#include "../drivers/PioUart.h"
 #include "../types.h"
+#include "MavlinkTransport.h"
 
 #define MAV_SYSTEM_ID    1
 #define MAV_COMPONENT_ID MAV_COMP_ID_AUTOPILOT1
-#define MAV_SERIAL       espUart
 
 // Stream frekansları (ms)
 #define STREAM_HEARTBEAT_MS        1000  // 1 Hz
@@ -20,6 +19,7 @@ class MavlinkHandler {
   public:
     using FlightDataProvider = bool (*)(FlightData& out);
     using ArmStateProvider = bool (*)();
+    using ArmCommandHandler = bool (*)(bool arm, bool force, char* reason, size_t reasonLen);
     using RCOverrideHandler = void (*)(uint16_t aileron, uint16_t elevator, uint16_t throttle, uint16_t rudder);
     using ClearRCOverrideHandler = void (*)();
 
@@ -27,6 +27,7 @@ class MavlinkHandler {
     void update();
     void setFlightDataProvider(FlightDataProvider provider);
     void setArmStateProvider(ArmStateProvider provider);
+    void setArmCommandHandler(ArmCommandHandler handler);
     void setRCOverrideHandler(RCOverrideHandler handler);
     void setClearRCOverrideHandler(ClearRCOverrideHandler handler);
     void setRCOverrideEnabled(bool enabled);
@@ -39,6 +40,10 @@ class MavlinkHandler {
     void sendRCChannels(uint16_t ch1, uint16_t ch2,
                         uint16_t ch3, uint16_t ch4);
     void sendSysStatus(bool armed, bool failsafe, SensorHealth sensorHealth);
+    void sendVfrHud(const FlightData& data);
+    void sendGpsRawIntNoGps();
+    void sendMissionCountZero(uint8_t targetSystem, uint8_t targetComponent);
+    void sendCommandAck(uint16_t command, uint8_t result);
     void sendStatusText(const char* text, uint8_t severity = MAV_SEVERITY_WARNING);
 
     bool isESP32Alive() const;
@@ -47,12 +52,16 @@ class MavlinkHandler {
     void handleRCOverrideForTest(uint16_t ch1, uint16_t ch2, uint16_t ch3, uint16_t ch4);
     void handleRCOverrideMessageForTest(uint8_t targetSystem, uint8_t targetComponent,
                                         uint16_t ch1, uint16_t ch2, uint16_t ch3, uint16_t ch4);
+    void handleMessageForTest(mavlink_message_t& msg) { _handleMessage(msg); }
 #endif
 
   private:
     void _parse(uint8_t byte);
     void _handleMessage(mavlink_message_t& msg);
     void _applyRCOverrideRaw(uint16_t ch1, uint16_t ch2, uint16_t ch3, uint16_t ch4);
+    void _handleCommandLong(const mavlink_message_t& msg);
+    bool _targetsThisVehicle(uint8_t targetSystem, uint8_t targetComponent) const;
+    void _sendMessage(mavlink_message_t& msg);
 
     mavlink_message_t _msg;
     mavlink_status_t  _status;
@@ -61,6 +70,7 @@ class MavlinkHandler {
     bool     _esp32Alive          = false;
     FlightDataProvider _flightDataProvider = nullptr;
     ArmStateProvider _armStateProvider = nullptr;
+    ArmCommandHandler _armCommandHandler = nullptr;
     RCOverrideHandler _rcOverrideHandler = nullptr;
     ClearRCOverrideHandler _clearRCOverrideHandler = nullptr;
     bool _rcOverrideEnabled = false;

@@ -17,6 +17,8 @@ class ControlPipeline {
   public:
     void init();
     void update(const ControlPipelineInput& input);
+    bool requestArm(bool preflightOk, bool failsafe, uint16_t throttle, const char** reason);
+    bool requestDisarm(bool force, uint16_t throttle, const char** reason);
     bool isArmed() const { return _modeController.isArmed(); }
     bool isFailsafe() const { return _modeController.isFailsafe(); }
     FlightState flightState() const { return _modeController.state(); }

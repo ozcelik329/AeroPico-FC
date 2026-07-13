@@ -1,4 +1,5 @@
 #include "SensorAuxBus.h"
+#include "SensorBackendRegistry.h"
 
 #ifdef USE_GY87
 
@@ -158,11 +159,14 @@ bool SensorAuxBus::processPendingRead(SensorDmaBus& dmaBus,
 }
 
 bool SensorAuxBus::initMag(RP2350I2C& bus, SensorFaultCode& faultCode) {
+    _magProfile = &SensorBackendRegistry::hmc5883l();
+    const MagDeviceProfile& profile = *_magProfile;
     bool ok = true;
-    ok &= writeReg(bus, HMC5883L_ADDR, HMC5883L_REG_CONFIG_A, 0x70, faultCode);
-    ok &= writeReg(bus, HMC5883L_ADDR, HMC5883L_REG_CONFIG_B, 0xA0, faultCode);
-    ok &= writeReg(bus, HMC5883L_ADDR, HMC5883L_REG_MODE, 0x00, faultCode);
+    ok &= writeReg(bus, profile.address, profile.configAReg, profile.configAValue, faultCode);
+    ok &= writeReg(bus, profile.address, profile.configBReg, profile.configBValue, faultCode);
+    ok &= writeReg(bus, profile.address, profile.modeReg, profile.modeValue, faultCode);
     if (!ok) {
+        _magProfile = nullptr;
         setFaultIfNeeded(faultCode, SensorFaultCode::MagReadFailed);
     }
     return ok;
@@ -172,8 +176,11 @@ bool SensorAuxBus::initBaro(SensorDmaBus& dmaBus,
                             RP2350I2C& bus,
                             BaroDriver& baroDriver,
                             SensorFaultCode& faultCode) {
+    _baroProfile = &SensorBackendRegistry::bmp085();
+    const BaroDeviceProfile& profile = *_baroProfile;
     uint8_t calib[22];
-    if (!readRegsDma(dmaBus, bus, BMP085_ADDR, BMP085_REG_CALIB_START, calib, sizeof(calib), faultCode)) {
+    if (!readRegsDma(dmaBus, bus, profile.address, profile.calibrationReg, calib, profile.calibrationLen, faultCode)) {
+        _baroProfile = nullptr;
         setFaultIfNeeded(faultCode, SensorFaultCode::BaroReadFailed);
         return false;
     }
@@ -188,8 +195,10 @@ void SensorAuxBus::readMag(SensorDmaBus& dmaBus,
                            MagDriver& magDriver,
                            SensorBuffer& buffer,
                            SensorFaultCode& faultCode) {
-    if (!startRegsDma(dmaBus, bus, HMC5883L_ADDR, HMC5883L_REG_DATA_X_MSB,
-                      _hmcDmaBuf, sizeof(_hmcDmaBuf), AUX_MAG, faultCode)) {
+    (void)magDriver;
+    if (!_magProfile ||
+        !startRegsDma(dmaBus, bus, _magProfile->address, _magProfile->dataReg,
+                      _hmcDmaBuf, _magProfile->sampleLen, AUX_MAG, faultCode)) {
         buffer.mx = buffer.my = buffer.mz = 0.0f;
         setFaultIfNeeded(faultCode, SensorFaultCode::MagReadFailed);
     }
@@ -200,19 +209,25 @@ bool SensorAuxBus::readBaro(SensorDmaBus& dmaBus,
                             BaroDriver& baroDriver,
                             SensorBuffer& buffer,
                             SensorFaultCode& faultCode) {
+    (void)baroDriver;
+    if (!_baroProfile) {
+        setFaultIfNeeded(faultCode, SensorFaultCode::BaroReadFailed);
+        return false;
+    }
+    const BaroDeviceProfile& profile = *_baroProfile;
     if (_bmpState == BMP_IDLE) {
-        if (!writeReg(bus, BMP085_ADDR, BMP085_REG_CONTROL, BMP085_CMD_TEMP, faultCode)) {
+        if (!writeReg(bus, profile.address, profile.controlReg, profile.temperatureCommand, faultCode)) {
             setFaultIfNeeded(faultCode, SensorFaultCode::BaroReadFailed);
             return false;
         }
-        _bmpWaitUntilUs = micros() + 5000;
+        _bmpWaitUntilUs = micros() + profile.temperatureWaitUs;
         _bmpState = BMP_TEMP_PENDING;
         return false;
     }
 
     if (_bmpState == BMP_TEMP_PENDING) {
         if ((int32_t)(micros() - _bmpWaitUntilUs) < 0) return false;
-        if (!startRegsDma(dmaBus, bus, BMP085_ADDR, BMP085_REG_RESULT,
+        if (!startRegsDma(dmaBus, bus, profile.address, profile.resultReg,
                           _bmpDmaBuf, 2, AUX_BARO_TEMP, faultCode)) {
             setFaultIfNeeded(faultCode, SensorFaultCode::BaroReadFailed);
             return false;
@@ -221,18 +236,19 @@ bool SensorAuxBus::readBaro(SensorDmaBus& dmaBus,
     }
 
     if (_bmpState == BMP_TEMP_READ) {
-        if (!writeReg(bus, BMP085_ADDR, BMP085_REG_CONTROL, BMP085_CMD_PRESSURE + (3 << 6), faultCode)) {
+        if (!writeReg(bus, profile.address, profile.controlReg,
+                      profile.pressureCommand + (profile.pressureOversampling << 6), faultCode)) {
             setFaultIfNeeded(faultCode, SensorFaultCode::BaroReadFailed);
             return false;
         }
-        _bmpWaitUntilUs = micros() + 26000;
+        _bmpWaitUntilUs = micros() + profile.pressureWaitUs;
         _bmpState = BMP_PRESSURE_PENDING;
         return false;
     }
 
     if (_bmpState == BMP_PRESSURE_PENDING) {
         if ((int32_t)(micros() - _bmpWaitUntilUs) < 0) return false;
-        if (!startRegsDma(dmaBus, bus, BMP085_ADDR, BMP085_REG_RESULT,
+        if (!startRegsDma(dmaBus, bus, profile.address, profile.resultReg,
                           _bmpDmaBuf, 3, AUX_BARO_PRESSURE, faultCode)) {
             setFaultIfNeeded(faultCode, SensorFaultCode::BaroReadFailed);
             return false;

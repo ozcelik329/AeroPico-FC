@@ -6,6 +6,7 @@
 #include "../../types.h"
 #include "../../hal/rp2350/RP2350_I2C.h"
 #include "SensorDmaBus.h"
+#include "SensorDeviceProfile.h"
 #include "baro/BaroDriver.h"
 #include "mag/MagDriver.h"
 
@@ -27,19 +28,6 @@ class SensorAuxBus {
                 SensorFaultCode& faultCode);
 
   private:
-    static constexpr uint8_t HMC5883L_ADDR = 0x1E;
-    static constexpr uint8_t HMC5883L_REG_CONFIG_A = 0x00;
-    static constexpr uint8_t HMC5883L_REG_CONFIG_B = 0x01;
-    static constexpr uint8_t HMC5883L_REG_MODE = 0x02;
-    static constexpr uint8_t HMC5883L_REG_DATA_X_MSB = 0x03;
-
-    static constexpr uint8_t BMP085_ADDR = 0x77;
-    static constexpr uint8_t BMP085_REG_CALIB_START = 0xAA;
-    static constexpr uint8_t BMP085_REG_CONTROL = 0xF4;
-    static constexpr uint8_t BMP085_REG_RESULT = 0xF6;
-    static constexpr uint8_t BMP085_CMD_TEMP = 0x2E;
-    static constexpr uint8_t BMP085_CMD_PRESSURE = 0x34;
-
     enum BmpState : uint8_t {
         BMP_IDLE,
         BMP_TEMP_PENDING,
@@ -57,6 +45,8 @@ class SensorAuxBus {
 
     uint8_t _hmcDmaBuf[6] = {};
     uint8_t _bmpDmaBuf[3] = {};
+    const MagDeviceProfile* _magProfile = nullptr;
+    const BaroDeviceProfile* _baroProfile = nullptr;
     BmpState _bmpState = BMP_IDLE;
     AuxReadKind _auxReadKind = AUX_NONE;
     uint32_t _bmpWaitUntilUs = 0;

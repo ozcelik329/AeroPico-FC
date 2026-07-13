@@ -66,4 +66,44 @@ void FlightModeController::update(uint16_t throttle, uint16_t rudder, bool fails
     }
 }
 
+bool FlightModeController::requestArm(bool preflightOk, bool failsafe, uint16_t throttle, const char** reason) {
+    if (isArmed()) {
+        if (reason) *reason = "already armed";
+        return true;
+    }
+    if (failsafe) {
+        if (reason) *reason = "failsafe active";
+        return false;
+    }
+    if (!preflightOk) {
+        if (reason) *reason = "preflight blocked";
+        transitionTo(FlightState::PreflightBlocked, "mavlink arm denied");
+        return false;
+    }
+    if (throttle >= ARM_THROTTLE_MAX) {
+        if (reason) *reason = "throttle too high";
+        return false;
+    }
+
+    transitionTo(FlightState::ArmedManual, "mavlink arm");
+    if (reason) *reason = "armed";
+    return true;
+}
+
+bool FlightModeController::requestDisarm(bool force, uint16_t throttle, const char** reason) {
+    if (!isArmed()) {
+        if (reason) *reason = "already disarmed";
+        transitionTo(FlightState::ReadyToArm, "mavlink disarm");
+        return true;
+    }
+    if (!force && throttle >= ARM_THROTTLE_MAX) {
+        if (reason) *reason = "throttle too high";
+        return false;
+    }
+
+    transitionTo(FlightState::ReadyToArm, force ? "mavlink force disarm" : "mavlink disarm");
+    if (reason) *reason = "disarmed";
+    return true;
+}
+
 // No global instance — managed by FlightManager

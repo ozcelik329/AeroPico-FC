@@ -6,6 +6,7 @@
 
 #include "telemetry/MavlinkHandler.h"
 
+#include "../../src/telemetry/MavlinkTransport.cpp"
 #include "../../src/telemetry/MavlinkHandler.cpp"
 
 PioUart espUart;

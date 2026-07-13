@@ -34,6 +34,7 @@ class FlightManager {
     uint16_t getThrottle();
     uint16_t getRudder();
     bool isArmed() const { return __atomic_load_n(&_armedShared, __ATOMIC_ACQUIRE) != 0; }
+    bool requestArmFromMavlink(bool arm, bool force, char* reason, size_t reasonLen);
     void setPreflightArmAllowed(bool allowed);
     void setSystemFaults(bool timingExceeded, bool batteryCritical, bool actuatorFault);
 

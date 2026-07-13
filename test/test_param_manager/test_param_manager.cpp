@@ -3,6 +3,7 @@
 #include "telemetry/ParamManager.h"
 
 #include "../../src/storage/ParamStorage.cpp"
+#include "../../src/telemetry/MavlinkTransport.cpp"
 #include "../../src/telemetry/ParamManager.cpp"
 
 PioUart espUart;
