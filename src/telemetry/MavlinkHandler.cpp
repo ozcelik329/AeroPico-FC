@@ -22,6 +22,10 @@ void MavlinkHandler::setArmCommandHandler(ArmCommandHandler handler) {
     _armCommandHandler = handler;
 }
 
+void MavlinkHandler::setServiceCommandHandler(ServiceCommandHandler handler) {
+    _serviceCommandHandler = handler;
+}
+
 void MavlinkHandler::setRCOverrideHandler(RCOverrideHandler handler) {
     _rcOverrideHandler = handler;
 }
@@ -177,6 +181,23 @@ void MavlinkHandler::_handleCommandLong(const mavlink_message_t& msg) {
     mavlink_command_long_t command;
     mavlink_msg_command_long_decode(&msg, &command);
     if (!_targetsThisVehicle(command.target_system, command.target_component)) {
+        return;
+    }
+
+    if (command.command == MAV_CMD_USER_1) {
+        char reason[50] = {};
+        uint8_t result = MAV_RESULT_UNSUPPORTED;
+        if (_serviceCommandHandler) {
+            const uint16_t action = (uint16_t)command.param1;
+            result = _serviceCommandHandler(action, command.param2, command.param3, command.param4,
+                                           reason, sizeof(reason));
+        } else {
+            strncpy(reason, "service command unavailable", sizeof(reason) - 1);
+        }
+        sendCommandAck(command.command, result);
+        if (reason[0] != '\0') {
+            sendStatusText(reason, result == MAV_RESULT_ACCEPTED ? MAV_SEVERITY_INFO : MAV_SEVERITY_WARNING);
+        }
         return;
     }
 

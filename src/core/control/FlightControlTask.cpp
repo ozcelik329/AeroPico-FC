@@ -32,6 +32,9 @@ static uint32_t pendingPidSeq = 0;
 static uint32_t appliedPidSeq = 0;
 static uint32_t pendingMixerSeq = 0;
 static uint32_t appliedMixerSeq = 0;
+static volatile uint32_t servoTestUntilUs = 0;
+static volatile uint16_t servoTestPulseUs = PWM_NEUTRAL;
+static volatile uint8_t servoTestSurface = 0;
 
 static void publishPendingPidGains(const PendingPidGains& gains) {
     uint32_t next = __atomic_load_n(&pendingPidSeq, __ATOMIC_RELAXED) + 1U;
@@ -141,6 +144,18 @@ bool FlightControlTask::outputsReady() {
     return controlLoop.outputsReady();
 }
 
+bool FlightControlTask::requestServoTest(uint8_t surface, uint16_t pulseUs, uint16_t durationMs) {
+    if (!controlLoop.outputsReady()) {
+        return false;
+    }
+    const uint16_t safeDurationMs = constrain(durationMs, (uint16_t)100, (uint16_t)1500);
+    const uint16_t safePulseUs = constrain(pulseUs, (uint16_t)PWM_MIN, (uint16_t)PWM_MAX);
+    __atomic_store_n(&servoTestSurface, surface, __ATOMIC_RELEASE);
+    __atomic_store_n(&servoTestPulseUs, safePulseUs, __ATOMIC_RELEASE);
+    __atomic_store_n(&servoTestUntilUs, micros() + (uint32_t)safeDurationMs * 1000U, __ATOMIC_RELEASE);
+    return true;
+}
+
 void FlightControlTask::applyPidGains(float angleP, float angleI, float angleD,
                                       float rateP, float rateI, float rateD) {
     publishPendingPidGains({angleP, angleI, angleD, rateP, rateI, rateD});
@@ -181,7 +196,15 @@ void FlightControlTask::run() {
         }
 
         if (!flightManager.isArmed()) {
-            controlLoop.writeSafeOutputs();
+            const uint32_t testUntil = __atomic_load_n(&servoTestUntilUs, __ATOMIC_ACQUIRE);
+            if ((int32_t)(testUntil - now) > 0) {
+                controlLoop.writeServoTestOutputs(
+                    __atomic_load_n(&servoTestSurface, __ATOMIC_ACQUIRE),
+                    __atomic_load_n(&servoTestPulseUs, __ATOMIC_ACQUIRE)
+                );
+            } else {
+                controlLoop.writeSafeOutputs();
+            }
             endTiming(SystemTimer::PHASE_TOTAL);
             vTaskDelayUntil(&nextWake, loopPeriodTicks);
             continue;

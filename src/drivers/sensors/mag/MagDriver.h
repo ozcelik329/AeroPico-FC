@@ -2,6 +2,7 @@
 #define MAG_DRIVER_H
 
 #include "../../../types.h"
+#include "Hmc5883lBackend.h"
 
 class MagDriver {
   public:
@@ -13,6 +14,7 @@ class MagDriver {
     void applySample(int16_t rawX, int16_t rawY, int16_t rawZ, SensorBuffer& buffer);
 
   private:
+    Hmc5883lBackend _backend;
     MagCalibration _calibration = {};
     bool _collecting = false;
     float _minX = 0.0f;

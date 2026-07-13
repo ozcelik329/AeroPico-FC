@@ -10,7 +10,7 @@
 
 # ✈️ AeroPico FC : Fixed-Wing Flight Controller
 
-**AeroPico FC** is an open-source flight controller firmware for fixed-wing UAVs, built on the **RP2040 (Raspberry Pi Pico)**. It uses the chip's dual-core architecture to keep sensor fusion and flight control on separate cores — the same separation professional autopilots rely on, now accessible to everyone. 🚀
+**AeroPico FC** is an open-source flight controller firmware for fixed-wing UAVs, built on the **RP2350 / Raspberry Pi Pico 2**. It uses the chip's dual-core architecture to keep sensor fusion and flight control on separate cores — the same separation professional autopilots rely on, now accessible to everyone. 🚀
 
 Whether you are a hobbyist building your first fixed-wing or a developer researching custom autopilot stacks, AeroPico FC gives you a clean, readable codebase you can actually understand and extend. 🛠️
 
@@ -39,6 +39,8 @@ At the same time, the architecture does not cut corners. FreeRTOS task isolation
 * **Watchdog timer** — Hardware watchdog resets the system if the flight loop stalls for more than 2 seconds.
 * **Blackbox logger** — Flight data is streamed over PIO UART to an ESP32-CAM companion, which writes timestamped logs to SD card.
 * **MPU6050 & GY-87 support** — Works with both a basic IMU and a 9-DOF module (with magnetometer and barometer).
+* **Sensor role/backend split** — IMU, magnetometer and barometer roles stay stable while chip-specific backends (`Mpu6050Backend`, `Hmc5883lBackend`, `Bmp085Backend`) hold device math and profiles.
+* **Configurator service commands** — IMU calibration, mag calibration, preflight check, RC monitor, sensor check and safe servo test run through MAVLink ACK-gated service commands.
 * **Configurable** — Pins, PID constants, RC ranges, failsafe thresholds, and loop frequency are all in one place: `config.h`.
 
 ---

@@ -10,6 +10,8 @@
     PARAM_REQUEST_LIST: 21,
     PARAM_VALUE: 22,
     PARAM_SET: 23,
+    COMMAND_LONG: 76,
+    COMMAND_ACK: 77,
     STATUSTEXT: 253
   };
 
@@ -19,6 +21,8 @@
     21: 159,
     22: 220,
     23: 168,
+    76: 152,
+    77: 143,
     253: 83
   };
 
@@ -87,6 +91,23 @@
       writeString(view, 6, 16, name);
       view.setUint8(22, 9);
       return this.frame(MSG.PARAM_SET, payload);
+    }
+
+    commandLong(command, params = [], targetSystem = 1, targetComponent = 1) {
+      const payload = new Uint8Array(33);
+      const view = new DataView(payload.buffer);
+      for (let i = 0; i < 7; i++) {
+        view.setFloat32(i * 4, Number(params[i] || 0), true);
+      }
+      view.setUint16(28, command, true);
+      view.setUint8(30, targetSystem);
+      view.setUint8(31, targetComponent);
+      view.setUint8(32, 0);
+      return this.frame(MSG.COMMAND_LONG, payload);
+    }
+
+    aeroPicoService(action, p2 = 0, p3 = 0, p4 = 0) {
+      return this.commandLong(31010, [action, p2, p3, p4, 0, 0, 0]);
     }
   }
 
@@ -176,6 +197,15 @@
           voltageBatteryMv: view.getUint16(14, true),
           currentBatteryCa: view.getInt16(16, true),
           batteryRemaining: view.getInt8(30)
+        });
+        return;
+      }
+
+      if (msgId === MSG.COMMAND_ACK && payload.length >= 3) {
+        this.onMessage({
+          type: "commandAck",
+          command: view.getUint16(0, true),
+          result: view.getUint8(2)
         });
         return;
       }

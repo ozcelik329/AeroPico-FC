@@ -69,6 +69,36 @@ void ControlLoopExecutor::writeSafeOutputs() {
     writeOutputs(output);
 }
 
+void ControlLoopExecutor::writeServoTestOutputs(uint8_t surface, uint16_t pulseUs) {
+    MixerOutput output;
+    output.throttle = PWM_MIN;
+    output.aileron = PWM_NEUTRAL;
+    output.elevator = PWM_NEUTRAL;
+    output.rudder = PWM_NEUTRAL;
+
+    const uint16_t clampedPulse = constrain(pulseUs, (uint16_t)PWM_MIN, (uint16_t)PWM_MAX);
+    switch (surface) {
+        case 1:
+            output.aileron = clampedPulse;
+            break;
+        case 2:
+            output.elevator = clampedPulse;
+            break;
+        case 3:
+            output.rudder = clampedPulse;
+            break;
+        case 4:
+            output.throttle = clampedPulse;
+            break;
+        default:
+            output.aileron = clampedPulse;
+            output.elevator = clampedPulse;
+            output.rudder = clampedPulse;
+            break;
+    }
+    writeOutputs(output);
+}
+
 ControlCorrections ControlLoopExecutor::computeCorrections(const FlightData& data, float dt) {
     const float rollStick = AeroPicoFastMath::pwmToUnit(data.aileron);
     const float pitchStick = AeroPicoFastMath::pwmToUnit(data.elevator);

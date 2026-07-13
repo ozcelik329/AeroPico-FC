@@ -16,6 +16,7 @@ class FlightControlTask {
     static TimingBudgetStatus getTimingBudgetStatus();
     static void requestTimingWindowReset();
     static bool outputsReady();
+    static bool requestServoTest(uint8_t surface, uint16_t pulseUs, uint16_t durationMs);
     static void applyPidGains(float angleP, float angleI, float angleD,
                               float rateP, float rateI, float rateD);
     static void applyMixerSettings(const MixerSettings& settings);

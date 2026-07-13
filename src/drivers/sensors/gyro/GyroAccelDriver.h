@@ -4,13 +4,14 @@
 #include "../../../config.h"
 #include "../../../filters/RunningMedian.h"
 #include "../../../types.h"
+#include "Mpu6050Backend.h"
 
 class GyroAccelDriver {
   public:
-    static constexpr float ACCEL_SCALE = 1.0f / 4096.0f;
-    static constexpr float GYRO_SCALE = 1.0f / 65.5f;
+    static constexpr float ACCEL_SCALE = Mpu6050Backend::ACCEL_SCALE;
+    static constexpr float GYRO_SCALE = Mpu6050Backend::GYRO_SCALE;
     static constexpr float IIR_ALPHA = 0.15f;
-    static constexpr uint8_t RAW_LEN = 14;
+    static constexpr uint8_t RAW_LEN = Mpu6050Backend::RAW_LEN;
 
     void resetFilters();
     void parseRawSample(const uint8_t raw[RAW_LEN],
@@ -19,6 +20,7 @@ class GyroAccelDriver {
                         uint32_t timestampUs);
 
   private:
+    Mpu6050Backend _backend;
     float _axFiltered = 0.0f;
     float _ayFiltered = 0.0f;
     float _azFiltered = 0.0f;

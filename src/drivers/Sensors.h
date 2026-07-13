@@ -7,6 +7,7 @@
 #include "IDrivers.h"
 #include "sensors/SensorHealthMonitor.h"
 #include "sensors/SensorCalibration.h"
+#include "sensors/SensorBackendRegistry.h"
 #include "sensors/SensorDmaBus.h"
 #include "sensors/SensorAuxBus.h"
 #include "sensors/baro/BaroDriver.h"
@@ -14,16 +15,6 @@
 #include "sensors/mag/MagDriver.h"
 #include "../hal/HAL_I2C.h"
 #include "../hal/rp2350/RP2350_I2C.h"
-
-#define MPU6050_ADDR        0x68
-#define MPU6050_REG_PWR     0x6B
-#define MPU6050_REG_ACCEL   0x3B
-#define MPU6050_REG_GYRO    0x43
-#define MPU6050_REG_GYRO_CFG  0x1B
-#define MPU6050_REG_ACCEL_CFG 0x1C
-#define MPU6050_REG_DLPF    0x1A
-#define MPU6050_REG_WHOAMI  0x75
-#define MPU6050_WHOAMI_VAL  0x68
 
 #define MPU6050_RAW_LEN     SensorDmaBus::MPU_RAW_LEN
 
@@ -74,7 +65,8 @@ class SensorManager : public IImuDriver, public IMagDriver, public IBaroDriver, 
     uint8_t _lastWhoAmI = 0;
     SensorFaultCode _faultCode = SensorFaultCode::None;
 
-    uint8_t _reg_addr = MPU6050_REG_ACCEL;
+    const ImuDeviceProfile* _imuProfile = &SensorBackendRegistry::mpu6050();
+    uint8_t _reg_addr = SensorBackendRegistry::mpu6050().accelReg;
 
     SensorDmaBus _dmaBus;
 #ifdef USE_GY87

@@ -23,6 +23,7 @@ class ControlLoopExecutor {
                        float rateP, float rateI, float rateD);
     void applyMixerSettings(const MixerSettings& settings);
     void writeSafeOutputs();
+    void writeServoTestOutputs(uint8_t surface, uint16_t pulseUs);
     ControlCorrections computeCorrections(const FlightData& data, float dt);
     void mixAndWrite(const FlightData& data, const ControlCorrections& corrections);
     bool outputsReady() const { return _pwm != nullptr && _pwmReady; }

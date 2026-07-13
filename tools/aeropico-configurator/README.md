@@ -14,7 +14,7 @@ metadata dosyalari ve paketlenmis zip arsivleri bilerek repoya alinmaz.
 - PID, mixer, servo, RC ve failsafe parametrelerini yazma
 - Parametreleri `PARAM_SAVE` ile flash'a kaydetme
 - Moduller icin ilk durum ekrani
-- Kalibrasyon ve bench test ekranlari icin arayuz iskeleti
+- Kalibrasyon ve bench test komutlarini MAVLink servis komutu olarak firmware'e gonderme
 - AeroPico varsayilan pin haritasi
 - Servo, RC, failsafe ve telemetry parametreleri icin istemci tarafi aralik
   dogrulamasi
@@ -47,17 +47,28 @@ npm run check
 
 ## Beklenen Firmware Tarafi
 
-Mevcut firmware'de MAVLink `PARAM_REQUEST_LIST`, `PARAM_SET` ve `PARAM_VALUE`
-akisi desteklenir. Configurator ilk surumde bu protokolu kullanir.
+Mevcut firmware'de MAVLink `PARAM_REQUEST_LIST`, `PARAM_SET`, `PARAM_VALUE`
+ve AeroPico servis komutlari desteklenir. Servis komutlari `COMMAND_LONG`
+icindeki `MAV_CMD_USER_1` ile tasinir:
+
+| UI komutu | Firmware aksiyonu |
+| --- | --- |
+| IMU Kalibrasyon | IMU bias kalibrasyonu ve flash kaydi |
+| Mag Kalibrasyon | Ilk basista toplama baslatma, ikinci basista hard-iron kaydetme |
+| RC Range | Simdilik parametre tabanli RC mapping'e yonlendirilir |
+| Servo Yon Testi | Sadece disarmed/safe durumda kisa servo pulse testi |
+| RC Kanal Kontrol | Receiver valid/failsafe durumunu sorgular |
+| Sensor Kontrol | IMU zorunlu, mag/baro opsiyonel capability durumunu sorgular |
+| Preflight Kontrol | Firmware arming kapisindaki ilk red/OK sebebini ister |
 
 Modul var/yok durumu icin ilk surum heartbeat/status text/sys status
-bilgilerinden yararlanir. Daha sonraki firmware adiminda tek bir capability
-mesaji veya `STATUSTEXT` standardi eklenirse ekran daha kesin hale gelir.
+bilgilerinden yararlanir. Firmware her servis sonucunu `COMMAND_ACK` ve
+aciklayici `STATUSTEXT` ile dondurur.
 
 ## Bilinen Sinirlar
 
-- Kalibrasyon ve bench test butonlari su an guvenli UI iskeletidir; firmware
-  tarafinda komut akisi netlestikce MAVLink komutlarina baglanacaktir.
+- RC range kalibrasyonu henuz otomatik kanal min/max ogrenmez; mevcut firmware
+  bunu runtime RC mapping parametreleriyle yonetir.
 - Config denetimi cihazdan gelen parametre/status bilgisinin kalitesine baglidir.
 - Bu arac ucus sirasinda kullanilacak bir GCS degildir.
 

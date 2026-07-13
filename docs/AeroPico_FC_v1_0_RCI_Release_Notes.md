@@ -17,9 +17,16 @@ uzerinden calisacak sekilde hazirlar.
   - `MISSION_REQUEST_LIST` icin `MISSION_COUNT = 0`
 - Arm/disarm komutlari preflight, failsafe, throttle ve sistem fault kapilarindan gecer.
 - Parametre cevaplari artik ortak MAVLink transport yolunu kullanir.
+- AeroPico Configurator servis komutlari firmware'e baglandi:
+  - IMU kalibrasyon
+  - iki asamali mag hard-iron kalibrasyon
+  - sensor/preflight/RC durum sorgusu
+  - disarmed/safe servo test kapisi
 - Sensor rol/backend ayrimi baslatildi:
   - `BaroDriver` rol katmani
   - `Bmp085Backend` cihaz kompanzasyonu
+  - `GyroAccelDriver` + `Mpu6050Backend`
+  - `MagDriver` + `Hmc5883lBackend`
   - `SensorBackendRegistry` ve `SensorDeviceProfile`
   - `SensorAuxBus` cihaz register profilinden calisir.
 - ESP32 WiFi MAVLink bridge iskeleti `Esp32Cam/` altinda hazirdir.

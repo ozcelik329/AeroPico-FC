@@ -76,6 +76,26 @@
     ["rc", "RC", "SBUS alici"]
   ];
 
+  const AEROPICO_SERVICE = Object.freeze({
+    CAL_IMU: 1,
+    CAL_MAG: 2,
+    CAL_RC: 3,
+    SERVO_TEST: 4,
+    RC_MONITOR: 5,
+    SENSOR_CHECK: 6,
+    PREFLIGHT_CHECK: 7
+  });
+
+  const SERVICE_LABELS = Object.freeze({
+    CAL_IMU: "IMU kalibrasyon",
+    CAL_MAG: "Mag kalibrasyon",
+    CAL_RC: "RC kalibrasyon",
+    SERVO_TEST: "Servo test",
+    RC_MONITOR: "RC kanal kontrol",
+    SENSOR_CHECK: "Sensor kontrol",
+    PREFLIGHT_CHECK: "Preflight kontrol"
+  });
+
   const DEFAULT_WIRING = Object.freeze([
     [2, "RC Giriş (SBUS/PPM)"],
     [6, "I2C SDA (IMU/MAG/BARO)"],
@@ -679,6 +699,39 @@
     setParam("PARAM_SAVE", 1);
   }
 
+  function serviceCommandParams(command) {
+    if (command === "SERVO_TEST") {
+      return [AEROPICO_SERVICE[command], 0, 1600, 700];
+    }
+    return [AEROPICO_SERVICE[command], 0, 0, 0];
+  }
+
+  function sendServiceCommand(command) {
+    const action = AEROPICO_SERVICE[command];
+    if (!action) {
+      log(`${command}: desteklenmeyen configurator komutu.`);
+      return;
+    }
+    if (!state.connected || !state.writer) {
+      log(`${SERVICE_LABELS[command] || command}: once baglan.`);
+      return;
+    }
+    const [p1, p2, p3, p4] = serviceCommandParams(command);
+    writeFrame(encoder.aeroPicoService(p1, p2, p3, p4));
+    log(`${SERVICE_LABELS[command] || command} komutu gonderildi.`);
+  }
+
+  function mavResultText(result) {
+    switch (result) {
+      case 0: return "ACCEPTED";
+      case 1: return "TEMPORARILY_REJECTED";
+      case 2: return "DENIED";
+      case 3: return "UNSUPPORTED";
+      case 4: return "FAILED";
+      default: return `RESULT_${result}`;
+    }
+  }
+
   function handleMavlinkMessage(message) {
     if (message.type === "heartbeat") {
       state.lastHeartbeatMs = Date.now();
@@ -707,12 +760,30 @@
       return;
     }
 
+    if (message.type === "commandAck") {
+      if (message.command === 31010) {
+        log(`Servis komutu ACK: ${mavResultText(message.result)}.`);
+      } else {
+        log(`COMMAND_ACK ${message.command}: ${mavResultText(message.result)}.`);
+      }
+      return;
+    }
+
     if (message.type === "statusText") {
       log(`FC: ${message.text}`);
       const text = message.text.toUpperCase();
-      if (text.includes("BMP") || text.includes("BARO")) state.modules.baro = text.includes("HAZIR") ? "ok" : "bad";
-      if (text.includes("HMC") || text.includes("MAG")) state.modules.mag = text.includes("HAZIR") ? "ok" : "bad";
+      if (text.includes("IMU CALIBRATION SAVED") || text.includes("SENSOR_CHECK_OK") || text.includes("PREFLIGHT_OK")) state.modules.imu = "ok";
+      if (text.includes("BMP") || text.includes("BARO")) state.modules.baro = text.includes("HAZIR") || text.includes("OK") ? "ok" : "bad";
+      if (text.includes("HMC") || text.includes("MAG")) state.modules.mag = text.includes("HAZIR") || text.includes("OK") || text.includes("SAVED") || text.includes("STARTED") ? "ok" : "bad";
       if (text.includes("GPS")) state.modules.gps = text.includes("FIX") || text.includes("HAZIR") ? "ok" : "bad";
+      if (text.includes("RC_MONITOR_OK")) state.modules.rc = "ok";
+      if (text.includes("RC_MONITOR_FAIL")) state.modules.rc = "bad";
+      if (text.includes("SENSOR_CHECK_PARTIAL")) {
+        state.modules.imu = "ok";
+        els.preflightText.textContent = "Sensor kontrolu kismi basarili: opsiyonel sensorlerden biri eksik.";
+      }
+      if (text.includes("PREFLIGHT_OK")) els.preflightText.textContent = "Preflight OK: sistem arm icin yazilim tarafinda hazir.";
+      if (text.includes("PREFLIGHT") && !text.includes("OK")) els.preflightText.textContent = message.text;
       renderModules();
       renderConfigAudit();
       renderSummary();
@@ -1032,7 +1103,7 @@
       if (els.importInput.files[0]) importParams(els.importInput.files[0]).catch((error) => log(error.message));
     });
     for (const button of document.querySelectorAll("[data-command]")) {
-      button.addEventListener("click", () => log(`${button.dataset.command}: firmware komut baglantisi sonraki adim.`));
+      button.addEventListener("click", () => sendServiceCommand(button.dataset.command));
     }
     els.themeToggleBtn.addEventListener("click", toggleTheme);
     els.cancelPortPickBtn.addEventListener("click", () => {

@@ -37,6 +37,10 @@ bool SystemTimer::outputsReady() {
     return FlightControlTask::outputsReady();
 }
 
+bool SystemTimer::requestServoTest(uint8_t surface, uint16_t pulseUs, uint16_t durationMs) {
+    return FlightControlTask::requestServoTest(surface, pulseUs, durationMs);
+}
+
 void SystemTimer::applyPidGains(float angleP, float angleI, float angleD,
                                 float rateP, float rateI, float rateD) {
     FlightControlTask::applyPidGains(angleP, angleI, angleD, rateP, rateI, rateD);

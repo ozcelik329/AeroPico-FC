@@ -4,6 +4,7 @@
 #include <Arduino.h>
 #include <common/mavlink.h>
 #include "../types.h"
+#include "AeroPicoMavlinkCommands.h"
 #include "MavlinkTransport.h"
 
 #define MAV_SYSTEM_ID    1
@@ -20,6 +21,8 @@ class MavlinkHandler {
     using FlightDataProvider = bool (*)(FlightData& out);
     using ArmStateProvider = bool (*)();
     using ArmCommandHandler = bool (*)(bool arm, bool force, char* reason, size_t reasonLen);
+    using ServiceCommandHandler = uint8_t (*)(uint16_t action, float p2, float p3, float p4,
+                                              char* reason, size_t reasonLen);
     using RCOverrideHandler = void (*)(uint16_t aileron, uint16_t elevator, uint16_t throttle, uint16_t rudder);
     using ClearRCOverrideHandler = void (*)();
 
@@ -28,6 +31,7 @@ class MavlinkHandler {
     void setFlightDataProvider(FlightDataProvider provider);
     void setArmStateProvider(ArmStateProvider provider);
     void setArmCommandHandler(ArmCommandHandler handler);
+    void setServiceCommandHandler(ServiceCommandHandler handler);
     void setRCOverrideHandler(RCOverrideHandler handler);
     void setClearRCOverrideHandler(ClearRCOverrideHandler handler);
     void setRCOverrideEnabled(bool enabled);
@@ -71,6 +75,7 @@ class MavlinkHandler {
     FlightDataProvider _flightDataProvider = nullptr;
     ArmStateProvider _armStateProvider = nullptr;
     ArmCommandHandler _armCommandHandler = nullptr;
+    ServiceCommandHandler _serviceCommandHandler = nullptr;
     RCOverrideHandler _rcOverrideHandler = nullptr;
     ClearRCOverrideHandler _clearRCOverrideHandler = nullptr;
     bool _rcOverrideEnabled = false;

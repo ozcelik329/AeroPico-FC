@@ -179,6 +179,16 @@ Beklenenler:
 
 ## 6. Kalibrasyon Nasil Yapilir
 
+### Configurator ile komutlu kalibrasyon
+
+1. Pico'yu USB ile bilgisayara bagla.
+2. `tools/aeropico-configurator` uygulamasini ac.
+3. Port secip baglan.
+4. `IMU Kalibrasyon` icin modeli tamamen sabit tut ve komutu gonder.
+5. `Mag Kalibrasyon` icin ilk basista toplama baslar; modeli roll/pitch/yaw eksenlerinde yavasca cevir; ikinci basista offset flash'a kaydedilir.
+6. `Sensor Kontrol` ve `Preflight Kontrol` butonlari firmware'den gercek ACK ve sebep mesaji alir.
+7. `Servo Yon Testi` yalnizca disarmed/safe durumda kabul edilir. Pervane takiliyken kullanma.
+
 ### IMU boot kalibrasyonu
 
 Firmware ilk kez kalibrasyon bulamazsa boot sirasinda otomatik IMU kalibrasyonu yapar.
@@ -209,7 +219,7 @@ Pratikte yapilacak hareket:
 3. Metal masa, vida, hoparlor, motor mıknatısı ve yuksek akim kablolarindan uzak dur.
 4. Kalibrasyon tamamlaninca hard-iron offset flash'a kaydedilmelidir.
 
-Not: Bu akisin kullanici komutu/MAVLink arayuzu gelistirme kapsamindadir. Mevcut kodda driver seviyesinde altyapi hazirdir.
+Not: Bu akis Configurator uzerinden MAVLink servis komutu olarak baslatilir ve sonuc `COMMAND_ACK` + `STATUSTEXT` ile raporlanir.
 
 ## 7. Masa Testleri
 

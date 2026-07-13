@@ -3,6 +3,22 @@
 
 #include <Arduino.h>
 
+struct ImuDeviceProfile {
+    uint8_t address;
+    uint8_t powerReg;
+    uint8_t powerWakeValue;
+    uint8_t accelReg;
+    uint8_t rawSampleLen;
+    uint8_t gyroConfigReg;
+    uint8_t gyroConfigValue;
+    uint8_t accelConfigReg;
+    uint8_t accelConfigValue;
+    uint8_t dlpfReg;
+    uint8_t dlpfValue;
+    uint8_t whoAmIReg;
+    uint8_t whoAmIValue;
+};
+
 struct MagDeviceProfile {
     uint8_t address;
     uint8_t configAReg;

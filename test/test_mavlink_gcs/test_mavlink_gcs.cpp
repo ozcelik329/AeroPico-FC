@@ -16,6 +16,8 @@ static bool armAccepted;
 static bool armCommandCalled;
 static bool armCommandValue;
 static bool armCommandForce;
+static bool serviceCommandCalled;
+static uint16_t serviceAction;
 
 static bool provideArmState() {
     return armedState;
@@ -31,6 +33,20 @@ static bool handleArmCommand(bool arm, bool force, char* reason, size_t reasonLe
     }
     armedState = armAccepted && arm;
     return armAccepted;
+}
+
+static uint8_t handleServiceCommand(uint16_t action, float p2, float p3, float p4,
+                                    char* reason, size_t reasonLen) {
+    (void)p2;
+    (void)p3;
+    (void)p4;
+    serviceCommandCalled = true;
+    serviceAction = action;
+    if (reasonLen > 0) {
+        strncpy(reason, "service ok", reasonLen - 1);
+        reason[reasonLen - 1] = '\0';
+    }
+    return MAV_RESULT_ACCEPTED;
 }
 
 static bool decodeFirstMessage(mavlink_message_t& out) {
@@ -61,6 +77,8 @@ void setUp() {
     armCommandCalled = false;
     armCommandValue = false;
     armCommandForce = false;
+    serviceCommandCalled = false;
+    serviceAction = 0;
 }
 
 void test_heartbeat_reports_safety_armed_bit() {
@@ -142,6 +160,32 @@ void test_unsupported_command_sends_unsupported_ack() {
     TEST_ASSERT_EQUAL_UINT8(MAV_RESULT_UNSUPPORTED, ack.result);
 }
 
+void test_aeropico_service_command_sends_ack_and_statustext() {
+    MavlinkHandler handler;
+    handler.setServiceCommandHandler(handleServiceCommand);
+    mavlink_message_t command;
+    mavlink_msg_command_long_pack(
+        255, 1, &command,
+        MAV_SYSTEM_ID, MAV_COMPONENT_ID,
+        MAV_CMD_USER_1,
+        0,
+        AEROPICO_CMD_SENSOR_CHECK, 0, 0, 0, 0, 0, 0
+    );
+
+    handler.handleMessageForTest(command);
+
+    TEST_ASSERT_TRUE(serviceCommandCalled);
+    TEST_ASSERT_EQUAL_UINT16(AEROPICO_CMD_SENSOR_CHECK, serviceAction);
+    mavlink_message_t ackMessage;
+    TEST_ASSERT_TRUE(decodeMessageById(MAVLINK_MSG_ID_COMMAND_ACK, ackMessage));
+    mavlink_command_ack_t ack;
+    mavlink_msg_command_ack_decode(&ackMessage, &ack);
+    TEST_ASSERT_EQUAL_UINT16(MAV_CMD_USER_1, ack.command);
+    TEST_ASSERT_EQUAL_UINT8(MAV_RESULT_ACCEPTED, ack.result);
+    mavlink_message_t statusText;
+    TEST_ASSERT_TRUE(decodeMessageById(MAVLINK_MSG_ID_STATUSTEXT, statusText));
+}
+
 void test_vfr_hud_reports_altitude_climb_heading_and_throttle() {
     MavlinkHandler handler;
     FlightData data = {};
@@ -203,6 +247,7 @@ int main() {
     RUN_TEST(test_command_long_arm_sends_ack_and_invokes_handler);
     RUN_TEST(test_command_long_disarm_force_flag);
     RUN_TEST(test_unsupported_command_sends_unsupported_ack);
+    RUN_TEST(test_aeropico_service_command_sends_ack_and_statustext);
     RUN_TEST(test_vfr_hud_reports_altitude_climb_heading_and_throttle);
     RUN_TEST(test_gps_raw_int_reports_no_gps);
     RUN_TEST(test_mission_request_list_returns_zero_count);

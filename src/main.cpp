@@ -17,6 +17,7 @@
 #include "storage/ParamStorage.h"
 #include "utils/Logger.h"
 #include "utils/BootLogger.h"
+#include "app/MavlinkServiceCommands.h"
 #include "telemetry/MavlinkHandler.h"
 #include "telemetry/Blackbox.h"
 #include "app/AppTasks.h"
@@ -58,10 +59,14 @@ static constexpr uint32_t CONTROL_LOOP_HZ = 1000000UL / FLIGHT_LOOP_PERIOD_US;
 static uint32_t lastBlackboxDroppedRecords = 0;
 static bool batteryWarningLatched = false;
 static bool latestBatteryCritical = false;
+static bool magCalibrationActive = false;
+static MavlinkServiceCommands mavlinkServiceCommands;
 static TaskHandle_t sensorTaskHandle = nullptr;
 static TaskHandle_t flightTaskHandle = nullptr;
 static TaskHandle_t telemetryTaskHandle = nullptr;
 static RuntimeHealthStatus runtimeHealth = {};
+
+static PreflightResult evaluatePreflight();
 
 static uint16_t clampStackWords(UBaseType_t value) {
     return value > 0xFFFFu ? 0xFFFFu : (uint16_t)value;
@@ -87,6 +92,11 @@ static bool provideArmState() {
 
 static bool handleMavlinkArmCommand(bool arm, bool force, char* reason, size_t reasonLen) {
     return flightManager.requestArmFromMavlink(arm, force, reason, reasonLen);
+}
+
+static uint8_t handleMavlinkServiceCommand(uint16_t action, float p2, float p3, float p4,
+                                           char* reason, size_t reasonLen) {
+    return mavlinkServiceCommands.handle(action, p2, p3, p4, reason, reasonLen);
 }
 
 #if BATTERY_ADC_ENABLED
@@ -405,9 +415,21 @@ void setup() {
 
     BootLogger::ok("RC Receiver (SBUS/UART0)");
 
+    MavlinkServiceContext serviceContext = {};
+    serviceContext.sensors = &sensorManager;
+    serviceContext.receiver = &rxManager;
+    serviceContext.calibrationStorage = &calibrationStorage;
+    serviceContext.magCalibrationActive = &magCalibrationActive;
+    serviceContext.isArmed = provideArmState;
+    serviceContext.evaluatePreflight = evaluatePreflight;
+    serviceContext.requestServoTest = SystemTimer::requestServoTest;
+    serviceContext.lastPreflightResult = &lastPreflightResult;
+    mavlinkServiceCommands.init(serviceContext);
+
     mavlink.setFlightDataProvider(provideFlightData);
     mavlink.setArmStateProvider(provideArmState);
     mavlink.setArmCommandHandler(handleMavlinkArmCommand);
+    mavlink.setServiceCommandHandler(handleMavlinkServiceCommand);
     mavlink.setRCOverrideHandler(applyRCOverride);
     mavlink.setClearRCOverrideHandler(clearRCOverride);
     mavlink.setRCOverrideEnabled(true);
@@ -470,9 +492,7 @@ void setup() {
     BootLogger::printReadyMessage();
 
     const AppTaskHandles taskHandles = AppTasks::create(taskSensor, taskFlight, taskTelemetry);
-    sensorTaskHandle = taskHandles.sensor;
-    flightTaskHandle = taskHandles.flight;
-    telemetryTaskHandle = taskHandles.telemetry;
+    sensorTaskHandle = taskHandles.sensor; flightTaskHandle = taskHandles.flight; telemetryTaskHandle = taskHandles.telemetry;
 
     vTaskStartScheduler();
 }

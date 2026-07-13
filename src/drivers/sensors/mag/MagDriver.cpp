@@ -50,9 +50,10 @@ void MagDriver::setCalibration(const MagCalibration& calibration) {
 }
 
 void MagDriver::applySample(int16_t rawX, int16_t rawY, int16_t rawZ, SensorBuffer& buffer) {
-    float mxScaled = rawX * 0.92f;
-    float myScaled = rawY * 0.92f;
-    float mzScaled = rawZ * 0.92f;
+    float mxScaled = 0.0f;
+    float myScaled = 0.0f;
+    float mzScaled = 0.0f;
+    _backend.scaleRaw(rawX, rawY, rawZ, mxScaled, myScaled, mzScaled);
 
     observeCalibrationSample(mxScaled, myScaled, mzScaled);
     buffer.mx = mxScaled - (_calibration.valid ? _calibration.hardIronX : 0.0f);

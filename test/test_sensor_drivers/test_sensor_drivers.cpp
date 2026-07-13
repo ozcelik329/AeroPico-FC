@@ -2,11 +2,15 @@
 
 #include "drivers/sensors/baro/BaroDriver.h"
 #include "drivers/sensors/gyro/GyroAccelDriver.h"
+#include "drivers/sensors/gyro/Mpu6050Backend.h"
+#include "drivers/sensors/mag/Hmc5883lBackend.h"
 #include "drivers/sensors/mag/MagDriver.h"
 
 #include "../../src/drivers/sensors/baro/Bmp085Backend.cpp"
 #include "../../src/drivers/sensors/baro/BaroDriver.cpp"
+#include "../../src/drivers/sensors/gyro/Mpu6050Backend.cpp"
 #include "../../src/drivers/sensors/gyro/GyroAccelDriver.cpp"
+#include "../../src/drivers/sensors/mag/Hmc5883lBackend.cpp"
 #include "../../src/drivers/sensors/mag/MagDriver.cpp"
 
 static void writeInt16(uint8_t* raw, int index, int16_t value) {
@@ -38,6 +42,22 @@ void test_gyro_accel_driver_parses_raw_sample() {
     TEST_ASSERT_FLOAT_WITHIN(0.001f, 0.007f, buffer.gyroTempCoeff);
 }
 
+void test_mpu6050_backend_parses_device_units() {
+    Mpu6050Backend backend;
+    uint8_t raw[Mpu6050Backend::RAW_LEN] = {};
+    writeInt16(raw, 0, 4096);
+    writeInt16(raw, 8, 131);
+
+    ImuCalibration calibration = {};
+    calibration.valid = true;
+    calibration.gyroTempCoeff = 0.012f;
+    Mpu6050Sample sample = {};
+    TEST_ASSERT_TRUE(backend.parseRaw(raw, calibration, sample));
+    TEST_ASSERT_FLOAT_WITHIN(0.001f, 1.0f, sample.ax);
+    TEST_ASSERT_FLOAT_WITHIN(0.001f, 2.0f, sample.gx);
+    TEST_ASSERT_FLOAT_WITHIN(0.0001f, 0.012f, sample.gyroTempCoeff);
+}
+
 void test_mag_driver_applies_hard_iron_calibration() {
     MagDriver driver;
     MagCalibration calibration;
@@ -67,6 +87,17 @@ void test_mag_driver_collects_hard_iron_calibration() {
     TEST_ASSERT_FLOAT_WITHIN(0.001f, 10.0f, calibration.hardIronX);
     TEST_ASSERT_FLOAT_WITHIN(0.001f, 1.0f, calibration.hardIronY);
     TEST_ASSERT_FLOAT_WITHIN(0.001f, 3.0f, calibration.hardIronZ);
+}
+
+void test_hmc5883l_backend_scales_raw_counts() {
+    Hmc5883lBackend backend;
+    float mx = 0.0f;
+    float my = 0.0f;
+    float mz = 0.0f;
+    backend.scaleRaw(10, -20, 30, mx, my, mz);
+    TEST_ASSERT_FLOAT_WITHIN(0.001f, 9.2f, mx);
+    TEST_ASSERT_FLOAT_WITHIN(0.001f, -18.4f, my);
+    TEST_ASSERT_FLOAT_WITHIN(0.001f, 27.6f, mz);
 }
 
 void test_baro_driver_rejects_pressure_without_calibration() {
@@ -107,8 +138,10 @@ void test_baro_driver_rejects_zero_temperature_denominator() {
 int main() {
     UNITY_BEGIN();
     RUN_TEST(test_gyro_accel_driver_parses_raw_sample);
+    RUN_TEST(test_mpu6050_backend_parses_device_units);
     RUN_TEST(test_mag_driver_applies_hard_iron_calibration);
     RUN_TEST(test_mag_driver_collects_hard_iron_calibration);
+    RUN_TEST(test_hmc5883l_backend_scales_raw_counts);
     RUN_TEST(test_baro_driver_rejects_pressure_without_calibration);
     RUN_TEST(test_baro_driver_computes_pressure_with_calibration);
     RUN_TEST(test_baro_driver_rejects_zero_temperature_denominator);

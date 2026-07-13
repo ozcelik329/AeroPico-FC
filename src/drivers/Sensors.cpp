@@ -34,18 +34,20 @@ void SensorManager::_setFault(SensorFaultCode code) {
 }
 
 void SensorManager::_mpu_write_reg(uint8_t reg, uint8_t val) {
-    if (!_bus().writeRegister(MPU6050_ADDR, reg, val)) {
+    const ImuDeviceProfile& imu = *_imuProfile;
+    if (!_bus().writeRegister(imu.address, reg, val)) {
         _setFault(SensorFaultCode::I2cRawWriteFailed);
     }
 }
 
 bool SensorManager::_readWhoAmI(uint8_t& whoami) {
-    const uint8_t reg = MPU6050_REG_WHOAMI;
-    if (!_bus().writeRaw(MPU6050_ADDR, &reg, 1, true)) {
+    const ImuDeviceProfile& imu = *_imuProfile;
+    const uint8_t reg = imu.whoAmIReg;
+    if (!_bus().writeRaw(imu.address, &reg, 1, true)) {
         _setFault(SensorFaultCode::I2cWhoamiWriteFailed);
         return false;
     }
-    if (!_bus().readRaw(MPU6050_ADDR, &whoami, 1, false)) {
+    if (!_bus().readRaw(imu.address, &whoami, 1, false)) {
         _setFault(SensorFaultCode::I2cWhoamiReadFailed);
         return false;
     }
@@ -78,12 +80,13 @@ bool SensorManager::_readRawSample(int16_t& raw_ax, int16_t& raw_ay, int16_t& ra
 }
 
 bool SensorManager::_readRawFrame(uint8_t raw[GyroAccelDriver::RAW_LEN]) {
-    uint8_t reg = MPU6050_REG_ACCEL;
-    if (!_bus().writeRaw(MPU6050_ADDR, &reg, 1, true)) {
+    const ImuDeviceProfile& imu = *_imuProfile;
+    uint8_t reg = imu.accelReg;
+    if (!_bus().writeRaw(imu.address, &reg, 1, true)) {
         _setFault(SensorFaultCode::I2cRawWriteFailed);
         return false;
     }
-    if (!_bus().readRaw(MPU6050_ADDR, raw, GyroAccelDriver::RAW_LEN, false)) {
+    if (!_bus().readRaw(imu.address, raw, imu.rawSampleLen, false)) {
         _setFault(SensorFaultCode::I2cRawReadFailed);
         return false;
     }
@@ -217,14 +220,15 @@ void SensorManager::init() {
     _bus().init(PIN_SDA, PIN_SCL, 400000);
 
     uint8_t whoami = 0;
-    if (!_readWhoAmI(whoami) || whoami != MPU6050_WHOAMI_VAL) {
+    const ImuDeviceProfile& imu = *_imuProfile;
+    if (!_readWhoAmI(whoami) || whoami != imu.whoAmIValue) {
         _imuAvailable = false;
-        if (whoami != MPU6050_WHOAMI_VAL) {
+        if (whoami != imu.whoAmIValue) {
             _setFault(SensorFaultCode::WhoamiMismatch);
         }
         char line[80];
         snprintf(line, sizeof(line), "[SENSOR] MPU6050 WHOAMI hatasi: 0x%02X (beklenen 0x%02X)",
-                 whoami, MPU6050_WHOAMI_VAL);
+                 whoami, imu.whoAmIValue);
         Logger::log(line);
     } else {
         _imuAvailable = true;
@@ -240,15 +244,15 @@ void SensorManager::init() {
     }
 
     // MPU6050 uyandır
-    _mpu_write_reg(MPU6050_REG_PWR, 0x00);
+    _mpu_write_reg(imu.powerReg, imu.powerWakeValue);
     delay(10);
 
     // ±8g ivme
-    _mpu_write_reg(MPU6050_REG_ACCEL_CFG, 0x10);
+    _mpu_write_reg(imu.accelConfigReg, imu.accelConfigValue);
     // ±500°/s jiroskop
-    _mpu_write_reg(MPU6050_REG_GYRO_CFG, 0x08);
+    _mpu_write_reg(imu.gyroConfigReg, imu.gyroConfigValue);
     // DLPF: 21Hz bant genişliği
-    _mpu_write_reg(MPU6050_REG_DLPF, 0x04);
+    _mpu_write_reg(imu.dlpfReg, imu.dlpfValue);
 
     Logger::log("[SENSOR] MPU6050 (ham I2C+DMA) hazir.");
 
@@ -288,7 +292,8 @@ void SensorManager::_mpu_start_dma_read() {
         return;
     }
 
-    _dmaBus.startMpuRead(*rpBus, MPU6050_ADDR, _reg_addr, micros());
+    const ImuDeviceProfile& imu = *_imuProfile;
+    _dmaBus.startMpuRead(*rpBus, imu.address, _reg_addr, micros());
 }
 
 bool SensorManager::_mpu_dma_ready() {
