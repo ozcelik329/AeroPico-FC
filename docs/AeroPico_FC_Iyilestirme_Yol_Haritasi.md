@@ -37,7 +37,7 @@ Hedef: Boot, RC girisi, kontrol dongusu ve sensor verisi icin once guvenli temel
 | ID | Durum | Gorev | Dosyalar |
 |---|---|---|---|
 | F1-01 | Tamamlandi | FreeRTOS SMP / `multicore_launch_core1()` karisimini tek modele indir | `main.cpp`, `SystemTimer.cpp/h` |
-| F1-02 | Tamamlandi | SBUS GP1 icin UART0/`Serial1` kullan | `RX.cpp`, `config.h` |
+| F1-02 | Tamamlandi | SBUS GP1 icin UART0/`Serial1` kullan | `RX.cpp`, `src/board/Config.h` |
 | F1-03 | Tamamlandi | Boot saglik raporunu `setup()` akisina bagla | `main.cpp`, `BootLogger.*` |
 | F1-04 | Tamamlandi | FreeRTOS stack/malloc hook'larini ekle | `main.cpp`, `platformio.ini` |
 | F1-05 | Tamamlandi | `asin()` clamp ile NaN riskini azalt | `SensorFusion.cpp` |
@@ -47,7 +47,7 @@ Hedef: Boot, RC girisi, kontrol dongusu ve sensor verisi icin once guvenli temel
 | F1-09 | Tamamlandi | I2C/DMA timeout ekle | `Sensors.cpp` |
 | F1-10 | Tamamlandi | `-Ofast` yerine `-O2 -fno-fast-math` kullan | `platformio.ini` |
 | F1-11 | Tamamlandi | Filtreleri `filters/` katmanina ayir | `filters/RunningMedian.h`, `Sensors.h` |
-| F1-12 | Tamamlandi | SBUS pin/UART derleme zamani dogrulamasi ekle | `board/PinValidation.h`, `RX.cpp`, `config.h` |
+| F1-12 | Tamamlandi | SBUS pin/UART derleme zamani dogrulamasi ekle | `board/PinValidation.h`, `RX.cpp`, `src/board/Config.h` |
 | F1-13 | Tamamlandi | Watchdog beslemesini ucus dongusu sagligina bagla | `WatchdogGate.*`, `main.cpp`, `test/test_watchdog_gate/` |
 
 Cikis kriteri:
@@ -82,7 +82,7 @@ Hedef: GCS ile guvenilir iki yonlu kontrol ve parametre akisi kurmak.
 | ID | Durum | Gorev | Dosyalar |
 |---|---|---|---|
 | F3-01 | Tamamlandi | `MavlinkHandler` icindeki global `flightManager` bagimliligini callback arayuzune tasima | `MavlinkHandler.*`, `main.cpp` |
-| F3-02 | Tamamlandi | RC override timeout ekle | `FlightManager.*`, `config.h` |
+| F3-02 | Tamamlandi | RC override timeout ekle | `FlightManager.*`, `src/board/Config.h` |
 | F3-03 | Tamamlandi | ParamManager'i MAVLink yonlendiricisine tam bagla | `ParamManager.*`, `MavlinkHandler.cpp` |
 | F3-04 | Tamamlandi | PID gain parametrelerini runtime callback ile uygulama | `ParamManager.*`, `SystemTimer.cpp`, `main.cpp` |
 | F3-05 | Tamamlandi | MAVLink override unit test / host test altyapisi kur | `test/test_mavlink_override/`, `MavlinkHandler.*` |
@@ -109,7 +109,7 @@ Hedef: Her degisiklikten sonra ayni hatalarin geri gelmesini engellemek.
 | ID | Durum | Gorev | Dosyalar |
 |---|---|---|---|
 | F5-01 | Tamamlandi | Timing budget ihlallerini MAVLink/blackbox'a raporla | `SystemTimer.*`, `Blackbox.*`, `MavlinkHandler.*` |
-| F5-02 | Tamamlandi | `LOOP_TIME_MS` / `LOOP_TIME` isimlerini netlestir | `config.h`, `def.h`, `SystemTimer.h` |
+| F5-02 | Tamamlandi | `LOOP_TIME_MS` / `LOOP_TIME` isimlerini netlestir | `src/board/Config.h`, `def.h`, `SystemTimer.h` |
 | F5-03 | Tamamlandi | Kullanilmayan `RingBuffer.h` ve `SerialCom.*` icin karar ver | `core/`, `telemetry/` |
 | F5-04 | Tamamlandi | GitHub Actions veya yerel CI: `pio test -e native` + `pio run -e pico` | `.github/workflows/ci.yml` |
 | F5-05 | Tamamlandi | Bench test ve ilk ucus checklist dokumanlari ekle | `docs/Bench_Test_Checklist.md`, `docs/First_Flight_Checklist.md` |

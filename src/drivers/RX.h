@@ -2,7 +2,7 @@
 #define RX_H
 
 #include <Arduino.h>
-#include "../config.h"
+#include "board/Config.h"
 #include "IDrivers.h"
 #include "rc/SbusBackend.h"
 

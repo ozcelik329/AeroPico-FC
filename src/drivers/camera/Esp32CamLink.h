@@ -2,7 +2,7 @@
 #define ESP32_CAM_LINK_H
 
 #include <stdint.h>
-#include "../../config.h"
+#include "board/Config.h"
 #include "../../hal/HAL_UART.h"
 
 struct Esp32CamStatus {

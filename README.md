@@ -285,7 +285,7 @@ levels into RP2350 GPIO or ADC pins.
 | Path | Responsibility |
 | --- | --- |
 | `src/main.cpp` | Boot wiring, static FreeRTOS task creation and system composition |
-| `src/config.h` | Board pins, loop rates, defaults and safety constants |
+| `src/board/Config.h` | Board pins, loop rates, defaults and safety constants |
 | `src/core/` | Pipelines, control, safety, scheduling and state publishing |
 | `src/drivers/` | Sensor, RC, GPS, camera/companion and hardware-facing drivers |
 | `src/estimators/` | Complementary attitude and barometric vertical estimators |

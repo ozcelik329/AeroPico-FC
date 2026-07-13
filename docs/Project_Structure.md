@@ -16,7 +16,8 @@ src/
   storage/     Kalibrasyon ve ileride parametre kaliciligi icin saklama arayuzleri
   telemetry/   MAVLink, parametre ve blackbox akislari
   utils/       Loglama ve boot yardimcilari
-  config.h     Kart ve firmware konfigurasyonu
+  board/Config.h
+               Kart ve firmware konfigurasyonu
   def.h        Dusuk seviyeli dongu sabitleri
   types.h      Katmanlar arasi ortak veri tipleri
 ```
@@ -83,7 +84,7 @@ core/
 - Runtime parametreler PID/mixer/trim/reverse/servo/failsafe yaninda RC kanal esleme, MAVLink stream hizlari, blackbox log hizi ve preflight sensor kalite esigini kapsar.
 - `TimingMonitor` max sureye ek olarak sabit-noktali EWMA ortalama, jitter ve deadline-miss sayaci tutar; timing ihlalleri blackbox kaydina eklenir.
 - GitHub Actions tum push/PR'larda firmware build, native test, fault injection, software smoke ve high-severity static analysis calistirir. Fiziksel HIL smoke `workflow_dispatch` ile seri port verilerek manuel tetiklenir.
-- `config.h` simdilik kokte tutulur. Bir sonraki buyuk refactor'da `src/config/` altina bolunebilir, ancak mevcut include zincirini kiracak toplu tasima acele yapilmamalidir.
+- Kart ve firmware konfigurasyonu `src/board/Config.h` altindadir; proje kokunde veya `src/` kokunde genel `config.h` tutulmaz.
 
 ## Hedef Nihai Yapi
 

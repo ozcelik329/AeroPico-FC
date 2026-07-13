@@ -2,7 +2,7 @@
 #define SENSOR_AUX_BUS_H
 
 #include <Arduino.h>
-#include "../../config.h"
+#include "board/Config.h"
 #include "../../types.h"
 #include "../../hal/rp2350/RP2350_I2C.h"
 #include "SensorDmaBus.h"

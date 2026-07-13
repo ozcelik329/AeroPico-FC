@@ -2,7 +2,7 @@
 #include "ControlLoopExecutor.h"
 #include "../flight/FlightManager.h"
 #include "../scheduling/TimingMonitor.h"
-#include "../../config.h"
+#include "board/Config.h"
 #include "../../def.h"
 #include "../../hal/rp2350/RP2350_GPIO.h"
 #include "../../hal/rp2350/RP2350_PWM.h"

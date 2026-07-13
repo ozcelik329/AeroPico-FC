@@ -1,7 +1,7 @@
 #ifndef MPU6050_BACKEND_H
 #define MPU6050_BACKEND_H
 
-#include "../../../config.h"
+#include "board/Config.h"
 #include "../../../types.h"
 
 struct Mpu6050Sample {

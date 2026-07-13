@@ -4,7 +4,7 @@
 #include <Arduino.h>
 #include "../../drivers/IDrivers.h"
 #include "../../types.h"
-#include "../../config.h"
+#include "board/Config.h"
 
 struct RcMapping {
     uint8_t rollChannel;

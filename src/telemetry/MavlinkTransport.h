@@ -2,7 +2,7 @@
 #define MAVLINK_TRANSPORT_H
 
 #include <Arduino.h>
-#include "../config.h"
+#include "board/Config.h"
 #include "../drivers/PioUart.h"
 
 class MavlinkTransport {

@@ -274,7 +274,7 @@ Boot kesfinde IMU/MAG/BARO/GPS varligi `SensorCapabilityStatus.functionMask` ile
 
 Batarya izleme yolu su dosyalardan olusur:
 
-- `src/config.h`: pin, ADC channel, divider ratio ve voltaj esikleri.
+- `src/board/Config.h`: pin, ADC channel, divider ratio ve voltaj esikleri.
 - `src/hal/HAL_ADC.h`: platform bagimsiz ADC arayuzu.
 - `src/hal/rp2350/RP2350_ADC.*`: RP2350 ADC implementasyonu.
 - `src/core/BatteryMonitor.*`: voltaj, low battery, brownout ve hysteresis karar mantigi.

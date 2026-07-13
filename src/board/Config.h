@@ -1,5 +1,5 @@
-#ifndef CONFIG_H
-#define CONFIG_H
+#ifndef BOARD_CONFIG_H
+#define BOARD_CONFIG_H
 
 #include <Arduino.h>
 
@@ -99,4 +99,4 @@
 #define FAILSAFE_ELEVATOR       PWM_NEUTRAL
 #define FAILSAFE_RUDDER         PWM_NEUTRAL
 
-#endif
+#endif  // BOARD_CONFIG_H

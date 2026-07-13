@@ -2,7 +2,7 @@
 #define TYPES_H
 
 #include <Arduino.h>
-#include "config.h"
+#include "board/Config.h"
 // Ortak veri tipleri
 enum class SensorHealth : uint8_t {
     Invalid = 0,

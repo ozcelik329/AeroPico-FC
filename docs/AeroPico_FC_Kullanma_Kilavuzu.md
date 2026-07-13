@@ -56,7 +56,7 @@ Not: GY-87 kartinda 5V pull-up varsa kullanma. Pull-up direncleri 3.3V'a bagli o
 | GND | GND |
 | Alici besleme | BEC 5V |
 
-Varsayilan SBUS ayari `100000` baud ve `SERIAL_8E2` formatidir. Bu degerler `src/config.h` icindeki `SBUS_UART_BAUD` ve `SBUS_UART_CONFIG` makrolarindan degistirilir.
+Varsayilan SBUS ayari `100000` baud ve `SERIAL_8E2` formatidir. Bu degerler `src/board/Config.h` icindeki `SBUS_UART_BAUD` ve `SBUS_UART_CONFIG` makrolarindan degistirilir.
 
 Varsayilan RC kanal eslemesi:
 

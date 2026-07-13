@@ -1,6 +1,6 @@
 #include "ControlLoopExecutor.h"
 #include "../flight/FlightManager.h"
-#include "../../config.h"
+#include "board/Config.h"
 #include "../../utils/FastMath.h"
 
 void ControlLoopExecutor::init(IHALPWM* pwmOutput) {

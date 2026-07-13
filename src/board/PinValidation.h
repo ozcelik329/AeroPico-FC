@@ -1,7 +1,7 @@
 #ifndef PIN_VALIDATION_H
 #define PIN_VALIDATION_H
 
-#include "../config.h"
+#include "board/Config.h"
 
 namespace BoardPins {
 

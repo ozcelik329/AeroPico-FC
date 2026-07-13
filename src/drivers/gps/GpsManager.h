@@ -1,7 +1,7 @@
 #ifndef GPS_MANAGER_H
 #define GPS_MANAGER_H
 
-#include "../../config.h"
+#include "board/Config.h"
 #include "../../hal/HAL_UART.h"
 #include "../../types.h"
 #include "GpsParser.h"

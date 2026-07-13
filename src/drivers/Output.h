@@ -2,7 +2,7 @@
 #define OUTPUT_H
 
 #include <Arduino.h>
-#include "../config.h"
+#include "board/Config.h"
 #include "hardware/pio.h"
 #include "hardware/clocks.h"
 

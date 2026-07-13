@@ -7,7 +7,7 @@
 #include <Arduino.h>
 #include <common/mavlink.h>
 #include "../drivers/PioUart.h"
-#include "../config.h"
+#include "board/Config.h"
 #include "../core/control/FixedWingMixer.h"
 #include "../storage/ParamStorage.h"
 

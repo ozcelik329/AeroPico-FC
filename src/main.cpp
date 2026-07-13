@@ -3,7 +3,7 @@
 #include <task.h>
 #include "hardware/watchdog.h"
 #include "pico/time.h"
-#include "config.h"
+#include "board/Config.h"
 #include "def.h"
 #include "core/flight/FlightManager.h"
 #include "core/scheduling/SystemTimer.h"

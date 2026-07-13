@@ -27,7 +27,7 @@ class PioUart : public IHALUART {
 #include "hardware/clocks.h"
 #include "hardware/irq.h"
 #include "pio_uart.pio.h"
-#include "../config.h"
+#include "board/Config.h"
 
 class PioUart : public IHALUART {
   public:

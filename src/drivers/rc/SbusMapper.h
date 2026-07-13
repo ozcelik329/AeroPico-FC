@@ -2,7 +2,7 @@
 #define SBUS_MAPPER_H
 
 #include <Arduino.h>
-#include "../../config.h"
+#include "board/Config.h"
 
 struct SbusFrameView {
     uint16_t channels[16];

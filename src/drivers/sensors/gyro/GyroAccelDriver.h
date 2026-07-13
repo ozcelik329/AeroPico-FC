@@ -1,7 +1,7 @@
 #ifndef GYRO_ACCEL_DRIVER_H
 #define GYRO_ACCEL_DRIVER_H
 
-#include "../../../config.h"
+#include "board/Config.h"
 #include "../../../filters/RunningMedian.h"
 #include "../../../types.h"
 #include "Mpu6050Backend.h"

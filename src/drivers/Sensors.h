@@ -2,7 +2,7 @@
 #define SENSORS_H
 
 #include <Arduino.h>
-#include "../config.h"
+#include "board/Config.h"
 #include "pico/platform.h"
 #include "IDrivers.h"
 #include "sensors/SensorHealthMonitor.h"
