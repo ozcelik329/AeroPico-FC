@@ -110,42 +110,58 @@ the manual-flight core.
 ## System Architecture
 
 ```mermaid
-graph TD
-    subgraph C0 ["Core 0: Acquisition / IO / Telemetry"]
-        IMU["IMU role\nMPU6050 backend\nRaw I2C + DMA"] --> SBUS["SensorBus / SensorDmaBus"]
-        MAG["Mag role\nHMC5883L backend"] --> AUX["SensorAuxBus\nDeviceProfile driven"]
-        BARO["Baro role\nBMP085 backend"] --> AUX
-        RC["SBUS RC Receiver\nGP1 through inverter"] --> RCP["RCPipeline"]
-        SBUS --> SP["SensorPipeline\nquality + stale checks"]
-        AUX --> SP
-        SP --> EST["Adaptive Madgwick\n+ BaroVerticalKalman"]
-        USB["USB Serial MAVLink"] --> MAV["MavlinkTransport"]
-        PIOU["PIO UART Companion"] --> MAV
+flowchart LR
+    subgraph CORE0 ["Core 0 Acquisition Telemetry"]
+        IMU["IMU backend"]
+        MAG["Mag backend"]
+        BARO["Baro backend"]
+        BUS["Sensor bus and DMA bus"]
+        AUX["Aux sensor bus"]
+        RCIN["SBUS receiver"]
+        RCP["RC pipeline"]
+        SP["Sensor pipeline"]
+        EST["Attitude and altitude estimators"]
+        USB["USB Serial"]
+        PIOU["PIO UART companion"]
+        MAV["MAVLink transport"]
     end
 
-    subgraph BB ["Typed Blackboard / State Exchange"]
+    subgraph STATE ["Typed Blackboard"]
         SENSOR["SensorState"]
         VEHICLE["VehicleState"]
         ACT["ActuatorState"]
         HEALTH["HealthState"]
     end
 
-    subgraph C1 ["Core 1: Deterministic Flight Control"]
-        FMODE["FlightModeManager"] --> CTRL["ControlPipeline"]
-        CTRL --> RATE["Angle + Rate PID"]
+    subgraph CORE1 ["Core 1 Flight Control"]
+        FMODE["Flight mode manager"]
+        CTRL["Control pipeline"]
+        RATE["Angle and rate PID"]
         RATE --> MIX["FixedWingMixer"]
         FAIL["FailsafeManager"] --> MIX
-        MIX --> PWM["PIO PWM Output\nGP16-GP19"]
-        TIM["TimingMonitor\nWCET/budget"]
-        WDG["WatchdogGate\nflight-loop healthy only"]
+        MIX --> PWM["PIO PWM outputs"]
+        TIM["TimingMonitor"]
+        WDG["WatchdogGate"]
     end
 
+    IMU --> BUS
+    BUS --> SP
+    MAG --> AUX
+    BARO --> AUX
+    AUX --> SP
+    RCIN --> RCP
+    SP --> EST
     EST --> SENSOR
     RCP --> VEHICLE
+    USB --> MAV
+    PIOU --> MAV
+    FMODE --> CTRL
     SENSOR --> CTRL
     VEHICLE --> CTRL
+    CTRL --> RATE
     HEALTH --> FAIL
     TIM --> HEALTH
+    WDG --> HEALTH
     PWM --> ACT
     MAV --> HEALTH
     MAV --> SENSOR
@@ -158,15 +174,19 @@ graph TD
         AGCS["Future AeroPico GCS"]
     end
 
-    MAV <--> CFG
-    MAV <--> QGC
-    MAV <--> MP
-    MAV <--> AGCS
+    CFG --> MAV
+    MAV --> CFG
+    QGC --> MAV
+    MAV --> QGC
+    MP --> MAV
+    MAV --> MP
+    AGCS --> MAV
+    MAV --> AGCS
 
     subgraph FUTURE ["Future v1.5 / v2.0"]
         GPS["GPS capability"]
         NAV["Navigation state"]
-        MIS["Mission / RTL / Loiter"]
+        MIS["Mission RTL Loiter"]
     end
 ```
 
