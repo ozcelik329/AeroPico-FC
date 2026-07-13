@@ -1,159 +1,356 @@
 #include "Sensors.h"
+#include "../hal/rp2350/RP2350_I2C.h"
+#include "../utils/Logger.h"
 
-// Pico SDK i2c instance — Wire'ın altındaki donanım
-// Wire → i2c0 (SDA=4, SCL=5 config.h'da tanımlı)
-static i2c_inst_t* _i2c = i2c0;
+static RP2350I2C defaultI2cBus(i2c0);
+
+IHALI2C& SensorManager::_bus() {
+    return _i2cBus ? *_i2cBus : defaultI2cBus;
+}
+
+RP2350I2C* SensorManager::_rpBus() {
+    if (_rp2350Bus) {
+        return _rp2350Bus;
+    }
+    return _i2cBus ? nullptr : &defaultI2cBus;
+}
+
+void SensorManager::setI2CBus(IHALI2C* bus) {
+    _i2cBus = bus;
+    _rp2350Bus = nullptr;
+    _dmaFastPath = false;
+}
+
+void SensorManager::setI2CBus(RP2350I2C* bus) {
+    _i2cBus = bus;
+    _rp2350Bus = bus;
+    _dmaFastPath = false;
+}
+
+void SensorManager::_setFault(SensorFaultCode code) {
+    if (code != SensorFaultCode::None) {
+        _faultCode = code;
+    }
+}
 
 void SensorManager::_mpu_write_reg(uint8_t reg, uint8_t val) {
-    uint8_t buf[2] = {reg, val};
-    i2c_write_blocking(_i2c, MPU6050_ADDR, buf, 2, false);
+    const ImuDeviceProfile& imu = *_imuProfile;
+    if (!_bus().writeRegister(imu.address, reg, val)) {
+        _setFault(SensorFaultCode::I2cRawWriteFailed);
+    }
+}
+
+bool SensorManager::_readWhoAmI(uint8_t& whoami) {
+    const ImuDeviceProfile& imu = *_imuProfile;
+    const uint8_t reg = imu.whoAmIReg;
+    if (!_bus().writeRaw(imu.address, &reg, 1, true)) {
+        _setFault(SensorFaultCode::I2cWhoamiWriteFailed);
+        return false;
+    }
+    if (!_bus().readRaw(imu.address, &whoami, 1, false)) {
+        _setFault(SensorFaultCode::I2cWhoamiReadFailed);
+        return false;
+    }
+    _lastWhoAmI = whoami;
+    return true;
+}
+
+bool SensorManager::_readRawSample(int16_t& raw_ax, int16_t& raw_ay, int16_t& raw_az,
+                                   int16_t& raw_gx, int16_t& raw_gy, int16_t& raw_gz,
+                                   int16_t* raw_temp) {
+    uint8_t raw[GyroAccelDriver::RAW_LEN];
+    if (!_readRawFrame(raw)) {
+        return false;
+    }
+
+    auto to_int16 = [](uint8_t hi, uint8_t lo) -> int16_t {
+        return (int16_t)((hi << 8) | lo);
+    };
+
+    raw_ax = to_int16(raw[0], raw[1]);
+    raw_ay = to_int16(raw[2], raw[3]);
+    raw_az = to_int16(raw[4], raw[5]);
+    if (raw_temp) {
+        *raw_temp = to_int16(raw[6], raw[7]);
+    }
+    raw_gx = to_int16(raw[8], raw[9]);
+    raw_gy = to_int16(raw[10], raw[11]);
+    raw_gz = to_int16(raw[12], raw[13]);
+    return true;
+}
+
+bool SensorManager::_readRawFrame(uint8_t raw[GyroAccelDriver::RAW_LEN]) {
+    const ImuDeviceProfile& imu = *_imuProfile;
+    uint8_t reg = imu.accelReg;
+    if (!_bus().writeRaw(imu.address, &reg, 1, true)) {
+        _setFault(SensorFaultCode::I2cRawWriteFailed);
+        return false;
+    }
+    if (!_bus().readRaw(imu.address, raw, imu.rawSampleLen, false)) {
+        _setFault(SensorFaultCode::I2cRawReadFailed);
+        return false;
+    }
+    return true;
+}
+
+bool SensorManager::isImuAvailable() const { return _imuAvailable; }
+bool SensorManager::isDmaOk() const { return _dmaBus.hasMpuChannels(); }
+
+SensorCapabilityStatus SensorManager::capabilities() const {
+    SensorCapabilityStatus status = {};
+    status.imuAvailable = _imuAvailable;
+    status.magAvailable = hasMag();
+    status.baroAvailable = hasBaro();
+    status.gpsAvailable = false;
+    if (status.imuAvailable) status.functionMask |= SENSOR_CAP_IMU;
+    if (status.magAvailable) status.functionMask |= SENSOR_CAP_MAG;
+    if (status.baroAvailable) status.functionMask |= SENSOR_CAP_BARO;
+    return status;
+}
+
+SensorFaultCode SensorManager::getFaultCode() const {
+    return _faultCode;
+}
+
+const char* SensorManager::getFaultText() const {
+    switch (_faultCode) {
+        case SensorFaultCode::None: return "None";
+        case SensorFaultCode::I2cWhoamiWriteFailed: return "I2C WHOAMI write failed";
+        case SensorFaultCode::I2cWhoamiReadFailed: return "I2C WHOAMI read failed";
+        case SensorFaultCode::WhoamiMismatch: return "MPU6050 WHOAMI mismatch";
+        case SensorFaultCode::I2cRawWriteFailed: return "I2C raw write failed";
+        case SensorFaultCode::I2cRawReadFailed: return "I2C raw read failed";
+        case SensorFaultCode::DmaChannelClaimFailed: return "DMA channel claim failed";
+        case SensorFaultCode::DmaTransferTimeout: return "DMA transfer timeout";
+        case SensorFaultCode::AuxI2cWriteFailed: return "Aux I2C write failed";
+        case SensorFaultCode::AuxDmaTransferTimeout: return "Aux DMA transfer timeout";
+        case SensorFaultCode::MagReadFailed: return "Mag read failed";
+        case SensorFaultCode::BaroReadFailed: return "Baro read failed";
+        default: return "Unknown sensor fault";
+    }
+}
+
+bool SensorManager::runBootCalibration() {
+    if (!_imuAvailable) return false;
+
+    Logger::log("[SENSOR] Boot kalibrasyonu basliyor (ucak sabit olmali)...");
+    _calibration.reset();
+
+    for (int i = 0; i < BOOT_CAL_SAMPLES; i++) {
+        int16_t rax, ray, raz, rgx, rgy, rgz, rtemp;
+        if (!_readRawSample(rax, ray, raz, rgx, rgy, rgz, &rtemp)) {
+            delay(2);
+            continue;
+        }
+        _calibration.observeMpuRaw({rax, ray, raz, rgx, rgy, rgz, rtemp});
+        delay(2);
+    }
+
+    const SensorCalibrationResult result = _calibration.finish(BOOT_CAL_SAMPLES / 2);
+    if (!result.valid) {
+        Logger::log("[SENSOR] Boot kalibrasyonu yetersiz ornek!");
+        return false;
+    }
+
+    _imuCalibration = result.imu;
+    _gyroBiasX = _imuCalibration.gyroBiasX;
+    _gyroBiasY = _imuCalibration.gyroBiasY;
+    _gyroBiasZ = _imuCalibration.gyroBiasZ;
+    _accelBiasX = _imuCalibration.accelBiasX;
+    _accelBiasY = _imuCalibration.accelBiasY;
+    _accelBiasZ = _imuCalibration.accelBiasZ;
+
+    char line[96];
+    snprintf(line, sizeof(line), "[SENSOR] Gyro bias: %.3f, %.3f, %.3f deg/s",
+             _gyroBiasX, _gyroBiasY, _gyroBiasZ);
+    Logger::log(line);
+    snprintf(line, sizeof(line), "[SENSOR] Accel bias: %.4f, %.4f, %.4f g",
+             _accelBiasX, _accelBiasY, _accelBiasZ);
+    Logger::log(line);
+    snprintf(line, sizeof(line), "[SENSOR] Gyro temp coeff: %.5f deg/s/C (span %.2f C)",
+             _imuCalibration.gyroTempCoeff, result.tempSpanC);
+    Logger::log(line);
+    return true;
+}
+
+ImuCalibration SensorManager::getImuCalibration() const {
+    return _imuCalibration;
+}
+
+void SensorManager::setImuCalibration(const ImuCalibration& calibration) {
+    if (!calibration.valid) return;
+    _imuCalibration = calibration;
+    _gyroBiasX = calibration.gyroBiasX;
+    _gyroBiasY = calibration.gyroBiasY;
+    _gyroBiasZ = calibration.gyroBiasZ;
+    _accelBiasX = calibration.accelBiasX;
+    _accelBiasY = calibration.accelBiasY;
+    _accelBiasZ = calibration.accelBiasZ;
+    _gyroAccelDriver.resetFilters();
+}
+
+void SensorManager::beginMagCalibration() {
+    _magDriver.beginCalibration();
+}
+
+bool SensorManager::observeMagCalibrationSample(float mx, float my, float mz) {
+    return _magDriver.observeCalibrationSample(mx, my, mz);
+}
+
+MagCalibration SensorManager::finishMagCalibration() {
+    return _magDriver.finishCalibration();
+}
+
+MagCalibration SensorManager::getMagCalibration() const {
+    return _magDriver.getCalibration();
+}
+
+void SensorManager::setMagCalibration(const MagCalibration& calibration) {
+    _magDriver.setCalibration(calibration);
 }
 
 void SensorManager::init() {
     mutex_init(&_mutex);
     _buf[0] = {};
     _buf[1] = {};
+    _buf[0].health = SensorHealth::WarmingUp;
+    _buf[1].health = SensorHealth::WarmingUp;
+    _gyroAccelDriver.resetFilters();
 
-    // I2C başlat — Wire yerine doğrudan SDK
-    i2c_init(_i2c, 400000);
-    gpio_set_function(PIN_SDA, GPIO_FUNC_I2C);
-    gpio_set_function(PIN_SCL, GPIO_FUNC_I2C);
-    gpio_pull_up(PIN_SDA);
-    gpio_pull_up(PIN_SCL);
+    _bus().init(PIN_SDA, PIN_SCL, 400000);
+
+    uint8_t whoami = 0;
+    const ImuDeviceProfile& imu = *_imuProfile;
+    if (!_readWhoAmI(whoami) || whoami != imu.whoAmIValue) {
+        _imuAvailable = false;
+        if (whoami != imu.whoAmIValue) {
+            _setFault(SensorFaultCode::WhoamiMismatch);
+        }
+        char line[80];
+        snprintf(line, sizeof(line), "[SENSOR] MPU6050 WHOAMI hatasi: 0x%02X (beklenen 0x%02X)",
+                 whoami, imu.whoAmIValue);
+        Logger::log(line);
+    } else {
+        _imuAvailable = true;
+    }
+
+    if (!_imuAvailable) {
+        Logger::log("[SENSOR] MPU6050 devre disi birakildi.");
+        _buf[0].valid = false;
+        _buf[0].health = SensorHealth::Invalid;
+        _buf[1].valid = false;
+        _buf[1].health = SensorHealth::Invalid;
+        return;
+    }
 
     // MPU6050 uyandır
-    _mpu_write_reg(MPU6050_REG_PWR, 0x00);
+    _mpu_write_reg(imu.powerReg, imu.powerWakeValue);
     delay(10);
 
     // ±8g ivme
-    _mpu_write_reg(MPU6050_REG_ACCEL_CFG, 0x10);
+    _mpu_write_reg(imu.accelConfigReg, imu.accelConfigValue);
     // ±500°/s jiroskop
-    _mpu_write_reg(MPU6050_REG_GYRO_CFG, 0x08);
+    _mpu_write_reg(imu.gyroConfigReg, imu.gyroConfigValue);
     // DLPF: 21Hz bant genişliği
-    _mpu_write_reg(MPU6050_REG_DLPF, 0x04);
+    _mpu_write_reg(imu.dlpfReg, imu.dlpfValue);
 
-    Serial.println("[SENSOR] MPU6050 (ham I2C+DMA) hazir.");
+    Logger::log("[SENSOR] MPU6050 (ham I2C+DMA) hazir.");
 
-    // DMA kanalı al
-    _dma_chan = dma_claim_unused_channel(true);
-
-    dma_channel_config cfg = dma_channel_get_default_config(_dma_chan);
-    channel_config_set_transfer_data_size(&cfg, DMA_SIZE_8);
-    channel_config_set_read_increment(&cfg, false);   // I2C RX FIFO sabit adres
-    channel_config_set_write_increment(&cfg, true);   // buffer'a sırayla yaz
-    channel_config_set_dreq(&cfg, i2c_get_dreq(_i2c, false)); // I2C RX dreq
-
-    dma_channel_configure(
-        _dma_chan,
-        &cfg,
-        _dma_buf,                          // hedef: RAM buffer
-        &i2c_get_hw(_i2c)->data_cmd,       // kaynak: I2C RX FIFO
-        MPU6050_RAW_LEN,
-        false  // henüz başlatma
-    );
+    RP2350I2C* rpBus = _rpBus();
+    _dmaFastPath = rpBus && _dmaBus.configureMpu(*rpBus);
+    if (!_dmaFastPath) {
+        _setFault(SensorFaultCode::DmaChannelClaimFailed);
+        Logger::log("[SENSOR] MPU6050 DMA kullanilamiyor, HAL I2C fallback aktif.");
+    }
 
     #ifdef USE_GY87
-        // HMC5883L ve BMP085 Wire üzerinden — DMA değil
-        Wire.begin();
-        hasMag = mag.begin();
-        if (!hasMag) Serial.println("[SENSOR] HMC5883L bulunamadi!");
-        else         Serial.println("[SENSOR] HMC5883L hazir.");
+        if (!_dmaFastPath || !_dmaBus.configureAuxRx(*rpBus)) {
+            _setFault(SensorFaultCode::DmaChannelClaimFailed);
+            Logger::log("[SENSOR] Yardimci I2C DMA kanali alinamadi.");
+            _hasMag = false;
+            _hasBaro = false;
+        } else {
+            _auxBus.configure(_dmaBus, *rpBus, _baroDriver, _hasMag, _hasBaro, _faultCode);
+            if (!_hasMag) Logger::log("[SENSOR] HMC5883L bulunamadi!");
+            else          Logger::log("[SENSOR] HMC5883L hazir.");
 
-        hasBaro = bmp.begin();
-        if (!hasBaro) Serial.println("[SENSOR] BMP085 bulunamadi!");
-        else          Serial.println("[SENSOR] BMP085 hazir.");
+            if (!_hasBaro) Logger::log("[SENSOR] BMP085 bulunamadi!");
+            else           Logger::log("[SENSOR] BMP085 hazir.");
+        }
     #endif
 
     // İlk DMA okumayı başlat
-    _mpu_start_dma_read();
+    if (_dmaFastPath) {
+        _mpu_start_dma_read();
+    }
 }
 
 void SensorManager::_mpu_start_dma_read() {
-    // Register adresini yaz, sonra okuma isteği gönder
-    i2c_write_blocking(_i2c, MPU6050_ADDR, &_reg_addr, 1, true); // repeated start
-
-    // DMA'yı yeniden tetikle
-    dma_channel_set_write_addr(_dma_chan, _dma_buf, false);
-    dma_channel_set_trans_count(_dma_chan, MPU6050_RAW_LEN, false);
-
-    // I2C'ye okuma isteği gönder (DMA alacak)
-    for (int i = 0; i < MPU6050_RAW_LEN; i++) {
-        bool last = (i == MPU6050_RAW_LEN - 1);
-        i2c_get_hw(_i2c)->data_cmd = I2C_IC_DATA_CMD_CMD_BITS | (last ? I2C_IC_DATA_CMD_STOP_BITS : 0);
+    RP2350I2C* rpBus = _rpBus();
+    if (!_dmaFastPath || !rpBus || !_dmaBus.hasMpuChannels()) {
+        _setFault(SensorFaultCode::DmaChannelClaimFailed);
+        return;
     }
 
-    dma_channel_start(_dma_chan);
+    const ImuDeviceProfile& imu = *_imuProfile;
+    _dmaBus.startMpuRead(*rpBus, imu.address, _reg_addr, micros());
 }
 
 bool SensorManager::_mpu_dma_ready() {
-    return !dma_channel_is_busy(_dma_chan);
-}
-
-void __not_in_flash_func(SensorManager::_mpu_parse)(SensorBuffer& buf) {
-    auto to_int16 = [](uint8_t hi, uint8_t lo) -> int16_t {
-        return (int16_t)((hi << 8) | lo);
-    };
-
-    int16_t raw_ax = to_int16(_dma_buf[0],  _dma_buf[1]);
-    int16_t raw_ay = to_int16(_dma_buf[2],  _dma_buf[3]);
-    int16_t raw_az = to_int16(_dma_buf[4],  _dma_buf[5]);
-    int16_t raw_t  = to_int16(_dma_buf[6],  _dma_buf[7]);  // sıcaklık
-    int16_t raw_gx = to_int16(_dma_buf[8],  _dma_buf[9]);
-    int16_t raw_gy = to_int16(_dma_buf[10], _dma_buf[11]);
-    int16_t raw_gz = to_int16(_dma_buf[12], _dma_buf[13]);
-
-    // Ham ivme
-    float ax_raw = raw_ax * ACCEL_SCALE;
-    float ay_raw = raw_ay * ACCEL_SCALE;
-    float az_raw = raw_az * ACCEL_SCALE;
-
-    // IIR Low-Pass Filter: y[n] = alpha * x[n] + (1 - alpha) * y[n-1]
-    _ax_f = IIR_ALPHA * ax_raw + (1.0f - IIR_ALPHA) * _ax_f;
-    _ay_f = IIR_ALPHA * ay_raw + (1.0f - IIR_ALPHA) * _ay_f;
-    _az_f = IIR_ALPHA * az_raw + (1.0f - IIR_ALPHA) * _az_f;
-
-    buf.ax = _ax_f;
-    buf.ay = _ay_f;
-    buf.az = _az_f;
-
-    // Jiroskop filtrelenmez — Madgwick zaten entegrasyon yapıyor
-    buf.gx = raw_gx * GYRO_SCALE;
-    buf.gy = raw_gy * GYRO_SCALE;
-    buf.gz = raw_gz * GYRO_SCALE;
-
-    // Sıcaklık: MPU6050 datasheet formülü
-    buf.tempC = (float)raw_t / 340.0f + 36.53f;
-
-    buf.timestamp = micros();
-    buf.valid = true;
+    return _dmaFastPath && _dmaBus.isMpuReady();
 }
 
 void SensorManager::update() {
+    if (!_imuAvailable) {
+        return;
+    }
+
+    if (!_dmaFastPath) {
+        uint8_t raw[GyroAccelDriver::RAW_LEN];
+        if (!_readRawFrame(raw)) {
+            return;
+        }
+        uint8_t writeIdx = 1 - _writeIdx;
+        SensorBuffer& buf = _buf[writeIdx];
+        _gyroAccelDriver.parseRawSample(raw, _imuCalibration, buf, micros());
+        buf.baroValid = false;
+        buf.pressureHpa = 0.0f;
+        mutex_enter_blocking(&_mutex);
+        _writeIdx = writeIdx;
+        mutex_exit(&_mutex);
+        return;
+    }
+
     // DMA tamamlandıysa parse et, yeni okuma başlat
-    if (!_mpu_dma_ready()) return;  // henüz hazır değil, bekle
+    if (!_mpu_dma_ready()) {
+        const uint32_t nowUs = micros();
+        if (_dmaBus.mpuTimedOut(nowUs, I2C_DMA_TIMEOUT_US)) {
+            _dmaBus.abortMpu();
+            _setFault(SensorFaultCode::DmaTransferTimeout);
+
+            uint8_t writeIdx = 1 - _writeIdx;
+            _buf[writeIdx].valid = false;
+            _buf[writeIdx].health = SensorHealth::Timeout;
+            _buf[writeIdx].timestamp = nowUs;
+            mutex_enter_blocking(&_mutex);
+            _writeIdx = writeIdx;
+            mutex_exit(&_mutex);
+
+            _mpu_start_dma_read();
+        }
+        return;
+    }
 
     uint8_t writeIdx = 1 - _writeIdx;
     SensorBuffer& buf = _buf[writeIdx];
 
-    _mpu_parse(buf);
+    _gyroAccelDriver.parseRawSample(_dmaBus.mpuBuffer(), _imuCalibration, buf, micros());
+    buf.baroValid = false;
+    buf.pressureHpa = 0.0f;
 
     #ifdef USE_GY87
-        if (hasMag) {
-            sensors_event_t mag_event;
-            mag.getEvent(&mag_event);
-            buf.mx = mag_event.magnetic.x;
-            buf.my = mag_event.magnetic.y;
-            buf.mz = mag_event.magnetic.z;
-        } else {
-            buf.mx = buf.my = buf.mz = 0.0f;
-        }
-
-        if (hasBaro) {
-            sensors_event_t bmp_event;
-            bmp.getEvent(&bmp_event);
-            buf.pressure = bmp_event.pressure;
-        } else {
-            buf.pressure = 1013.25f;
+        if (RP2350I2C* rpBus = _rpBus()) {
+            _auxBus.update(_dmaBus, *rpBus, _magDriver, _baroDriver, buf, _faultCode);
         }
     #endif
 
@@ -169,5 +366,28 @@ SensorBuffer SensorManager::getLatest() {
     mutex_enter_blocking(&_mutex);
     SensorBuffer copy = _buf[_writeIdx];
     mutex_exit(&_mutex);
+
+    SensorQuality quality = _healthMonitor.evaluateQuality(
+        _imuAvailable,
+        copy.valid,
+        copy.timestamp,
+        micros(),
+        SENSOR_STALE_TIMEOUT_US
+    );
+    copy.health = quality.health;
+    copy.qualityScore = quality.score;
+    copy.sampleAgeUs = quality.ageUs;
+    if (copy.health != SensorHealth::Ok) {
+        copy.valid = false;
+    }
+
     return copy;
 }
+
+#ifdef USE_GY87
+bool SensorManager::hasMag() const { return _hasMag; }
+bool SensorManager::hasBaro() const { return _hasBaro; }
+#else
+bool SensorManager::hasMag() const { return false; }
+bool SensorManager::hasBaro() const { return false; }
+#endif

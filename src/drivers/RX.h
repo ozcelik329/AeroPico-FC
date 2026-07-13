@@ -3,22 +3,28 @@
 
 #include <Arduino.h>
 #include "../config.h"
-#include "sbus.h"
+#include "IDrivers.h"
+#include "rc/SbusBackend.h"
 
-class RXManager {
+class RXManager : public IRxDriver {
   public:
-    void init();
-    void update();
-    bool isValid() const;
-    bool isFailsafe() const;       // Failsafe aktif mi?
-    uint32_t lastValidMs() const;  // Son geçerli sinyal zamanı
-    uint16_t getChannel(int ch) const;
+    explicit RXManager(ISbusBackend* backend = nullptr) : _backend(backend) {}
+    void setBackend(ISbusBackend* backend);
+    void init() override;
+    void update() override;
+    bool isValid() const override;
+    bool isFailsafe() const override;       // Failsafe aktif mi?
+    uint32_t lastValidMs() const override;  // Son geçerli sinyal zamanı
+    uint16_t getChannel(int ch) const override;
+    void setFailsafeTimeoutMs(uint32_t timeoutMs);
 
   private:
-    uint16_t channels[16];
+    uint16_t channels[16] = {};
     bool valid         = false;
     bool _failsafe     = false;
     uint32_t _lastValidTime = 0;
+    uint32_t _failsafeTimeoutMs = FAILSAFE_TIMEOUT_MS;
+    ISbusBackend* _backend = nullptr;
 };
 
 #endif

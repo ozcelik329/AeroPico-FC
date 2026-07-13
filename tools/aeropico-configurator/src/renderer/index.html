@@ -1,0 +1,362 @@
+<!doctype html>
+<html lang="tr">
+
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy"
+    content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self';">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AeroPico Configurator</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <img class="brand-logo" src="../../assets/aeropico-logo.png" alt="AeroPico">
+        <div>
+          <h1>AeroPico Configurator</h1>
+          <p>RP2350 fixed-wing setup</p>
+        </div>
+        <button id="themeToggleBtn" class="icon-btn theme-toggle" title="Tema değiştir" aria-label="Tema değiştir">
+          <svg class="theme-icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="4" />
+            <path
+              d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
+          </svg>
+          <svg class="theme-icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" />
+          </svg>
+        </button>
+      </div>
+
+      <nav class="section-nav panel" id="tabs" aria-label="Ayar bölümleri"></nav>
+
+      <section class="panel connection-panel">
+        <div class="panel-title">
+          <span>Bağlantı</span>
+          <span id="linkStatus" class="status-pill muted">Kapalı</span>
+        </div>
+        <div class="button-row">
+          <button id="connectBtn" class="primary">
+            <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <path d="M6 3v7a6 6 0 0 0 6 6 6 6 0 0 0 6-6V3" />
+              <line x1="4" y1="21" x2="20" y2="21" />
+            </svg>
+            USB Bağlan
+          </button>
+          <button id="disconnectBtn" disabled>Kes</button>
+        </div>
+
+        <div class="port-info" id="portInfo">
+          <div class="port-info-row">
+            <span class="port-info-label">Port</span>
+            <span class="port-info-value muted" id="portName">—</span>
+          </div>
+          <div class="port-info-row">
+            <span class="port-info-label">VID:PID</span>
+            <span class="port-info-value muted" id="portIds">—</span>
+          </div>
+          <div class="port-info-row">
+            <span class="port-info-label">Baud</span>
+            <span class="port-info-value muted" id="portBaudActive">—</span>
+          </div>
+        </div>
+
+        <label class="field">
+          <span>Baud Rate</span>
+          <select id="baudSelect">
+            <option value="1200">1 200</option>
+            <option value="2400">2 400</option>
+            <option value="4800">4 800</option>
+            <option value="9600">9 600</option>
+            <option value="19200">19 200</option>
+            <option value="38400">38 400</option>
+            <option value="57600">57 600</option>
+            <option value="74880">74 880</option>
+            <option value="115200">115 200</option>
+            <option value="128000">128 000</option>
+            <option value="230400">230 400</option>
+            <option value="250000">250 000</option>
+            <option value="460800">460 800</option>
+            <option value="500000">500 000</option>
+            <option value="921600">921 600</option>
+            <option value="1000000">1 000 000</option>
+            <option value="custom">Özel…</option>
+          </select>
+        </label>
+        <label class="field hidden" id="customBaudField">
+          <span>Özel Baud Rate</span>
+          <input type="number" id="customBaudInput" min="50" max="4000000" step="1" placeholder="ör. 576000">
+        </label>
+
+        <div class="connection-command-row">
+          <button id="readParamsBtn" disabled>Parametreleri Oku</button>
+          <button id="saveParamsBtn" disabled>Flash'a Kaydet</button>
+        </div>
+      </section>
+    </aside>
+
+    <main class="workspace">
+      <header class="topbar">
+        <div class="topbar-left">
+          <div class="page-title">
+            <span class="eyebrow">AeroPico Setup</span>
+            <h2 id="sectionTitle">Flight Tuning</h2>
+          </div>
+        </div>
+        <div class="topbar-actions">
+          <button id="pinMapperBtn">
+            <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <rect x="3" y="7" width="18" height="13" rx="2" />
+              <path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+              <circle cx="9" cy="13" r="1.5" />
+              <circle cx="15" cy="13" r="1.5" />
+            </svg>
+            Pin Mapper
+          </button>
+          <button id="exportBtn">
+            <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="7 10 12 15 17 10" />
+              <line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
+            JSON Dışarı Al
+          </button>
+          <button id="importBtn">
+            <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="17 8 12 3 7 8" />
+              <line x1="12" y1="3" x2="12" y2="15" />
+            </svg>
+            JSON İçeri Al
+          </button>
+          <input id="importInput" type="file" accept="application/json" hidden>
+        </div>
+      </header>
+
+      <section class="status-strip" aria-label="Sistem özeti">
+        <div class="status-tile">
+          <span class="status-tile-label">Link</span>
+          <strong id="linkSummary">Kapalı</strong>
+        </div>
+        <div class="status-tile">
+          <span class="status-tile-label">Parametre</span>
+          <strong id="paramSummary">0 okunmuş</strong>
+        </div>
+        <div class="status-tile">
+          <span class="status-tile-label">Modül</span>
+          <strong id="moduleSummaryTop">Bekliyor</strong>
+        </div>
+        <div class="status-tile">
+          <span class="status-tile-label">Heartbeat</span>
+          <strong id="heartbeatSummary">Yok</strong>
+        </div>
+        <div class="status-tile">
+          <span class="status-tile-label">Arm</span>
+          <strong id="armSummary">Bilinmiyor</strong>
+        </div>
+      </section>
+
+      <section class="settings-grid" id="settingsGrid"></section>
+
+      <section class="terminal-panel" aria-label="Teşhis terminali">
+        <div class="terminal-header">
+          <div class="terminal-tabs" role="tablist" aria-label="Terminal görünümü">
+            <button id="terminalPreflightBtn" class="terminal-tab active" type="button">Preflight</button>
+            <button id="terminalLogBtn" class="terminal-tab" type="button">Olay Kaydı</button>
+          </div>
+          <button id="clearLogBtn" class="small">Temizle</button>
+        </div>
+        <div class="terminal-body">
+          <div id="preflightPane" class="terminal-pane active">
+            <div id="preflightText" class="terminal-preflight">Cihazdan durum bekleniyor.</div>
+          </div>
+          <div id="logPane" class="terminal-pane">
+            <div id="log" class="log"></div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <aside class="rightbar">
+      <section class="panel system-panel">
+        <div class="panel-title">
+          <span>Modüller</span>
+          <span id="moduleSummary" class="status-pill muted">Bekliyor</span>
+        </div>
+        <div class="module-grid" id="moduleGrid"></div>
+      </section>
+
+      <section class="panel collapsible" data-collapsible>
+        <button class="panel-title collapse-trigger" type="button">
+          <span>Kalibrasyon</span>
+          <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="6 9 12 15 18 9" />
+          </svg>
+        </button>
+        <div class="collapse-body">
+          <button data-command="CAL_IMU">
+            <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <rect x="4" y="4" width="16" height="16" rx="2" />
+              <line x1="12" y1="4" x2="12" y2="20" />
+              <line x1="4" y1="12" x2="20" y2="12" />
+            </svg>
+            IMU Kalibrasyon
+          </button>
+          <button data-command="CAL_MAG">
+            <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" />
+            </svg>
+            Mag Kalibrasyon
+          </button>
+          <button data-command="CAL_RC">
+            <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
+              <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
+            </svg>
+            RC Mapping Kontrol
+          </button>
+          <p class="hint">Komutlar MAVLink servis kapısından geçer; firmware güvenli değilse reddeder.</p>
+        </div>
+      </section>
+
+      <section class="panel collapsible" data-collapsible>
+        <button class="panel-title collapse-trigger" type="button">
+          <span>Bench Test</span>
+          <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="6 9 12 15 18 9" />
+          </svg>
+        </button>
+        <div class="collapse-body">
+          <button data-command="SERVO_TEST">
+            <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+            </svg>
+            Servo Yön Testi
+          </button>
+          <button data-command="RC_MONITOR">
+            <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
+            </svg>
+            RC Kanal Kontrol
+          </button>
+          <button data-command="SENSOR_CHECK">
+            <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
+              <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+            </svg>
+            Sensor Kontrol
+          </button>
+          <button data-command="PREFLIGHT_CHECK">
+            <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+              <path d="M9 12l2 2 4-5" />
+            </svg>
+            Preflight Kontrol
+          </button>
+          <p class="hint">Pervane mutlaka sökülü olmalıdır.</p>
+        </div>
+      </section>
+
+      <section class="panel collapsible" data-collapsible>
+        <button class="panel-title collapse-trigger" type="button">
+          <span>Config Denetimi</span>
+          <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="6 9 12 15 18 9" />
+          </svg>
+        </button>
+        <div class="collapse-body">
+          <div id="configAudit" class="config-audit"></div>
+        </div>
+      </section>
+
+      <section class="panel command-panel">
+        <div class="panel-title">
+          <span>Komut Durumu</span>
+          <span id="commandSummary" class="status-pill muted">Bekliyor</span>
+        </div>
+        <div id="commandStatusList" class="command-status-list"></div>
+      </section>
+
+    </aside>
+  </div>
+
+  <!-- Pin mapper modal: Raspberry Pi Pico 2 pinout -->
+  <div class="modal-overlay hidden" id="portPickerModal">
+    <div class="modal modal-port-picker">
+      <div class="modal-header">
+        <h3>Port Seç</h3>
+        <button class="icon-btn modal-close" data-close-modal="portPickerModal" aria-label="Kapat">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+            stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body port-picker-body">
+        <p class="hint">Bağlanmak istediğin USB serial portunu seç. Pico 2 genelde VID 0x2E8A olarak görünür.</p>
+        <div id="portPickerList" class="port-picker-list"></div>
+        <div class="port-picker-actions">
+          <button id="cancelPortPickBtn" type="button">Vazgeç</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay hidden" id="pinMapperModal">
+    <div class="modal modal-pinmapper">
+      <div class="modal-header">
+        <h3>Pin Mapper — Raspberry Pi Pico 2</h3>
+        <button class="icon-btn modal-close" data-close-modal="pinMapperModal" aria-label="Kapat">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+            stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body pinmapper-body">
+        <div class="pinmapper-board" id="pinBoard"></div>
+        <div class="pinmapper-side">
+          <div class="pin-detail" id="pinDetail">
+            <p class="hint">Atama yapmak için diyagramdan bir pin seçin.</p>
+          </div>
+          <div class="pin-assignments">
+            <div class="pin-assignments-title">
+              <span>Atanan Pinler</span>
+              <button id="applyDefaultPinsBtn" class="small" type="button">AeroPico Varsayılan</button>
+            </div>
+            <div id="pinAssignmentList" class="pin-assignment-list">
+              <p class="hint">Henüz atama yok.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="./mavlink.js"></script>
+  <script src="./app.js"></script>
+</body>
+
+</html>

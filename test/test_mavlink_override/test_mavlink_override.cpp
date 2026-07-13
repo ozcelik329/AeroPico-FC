@@ -1,0 +1,161 @@
+#include <unity.h>
+
+#ifdef MAVLINK_PARAMS_ENABLED
+#undef MAVLINK_PARAMS_ENABLED
+#endif
+
+#include "telemetry/MavlinkHandler.h"
+
+#include "../../src/telemetry/MavlinkTransport.cpp"
+#include "../../src/telemetry/MavlinkHandler.cpp"
+
+PioUart espUart;
+
+static FlightData latestData;
+static uint16_t overrideAileron;
+static uint16_t overrideElevator;
+static uint16_t overrideThrottle;
+static uint16_t overrideRudder;
+static bool overrideCalled;
+static bool clearCalled;
+static bool armedState;
+
+static bool provideFlightData(FlightData& out) {
+    out = latestData;
+    return true;
+}
+
+static bool provideArmState() {
+    return armedState;
+}
+
+static void applyOverride(uint16_t aileron, uint16_t elevator, uint16_t throttle, uint16_t rudder) {
+    overrideCalled = true;
+    overrideAileron = aileron;
+    overrideElevator = elevator;
+    overrideThrottle = throttle;
+    overrideRudder = rudder;
+}
+
+static void clearOverride() {
+    clearCalled = true;
+}
+
+void setUp() {
+    latestData = {};
+    latestData.aileron = 1501;
+    latestData.elevator = 1502;
+    latestData.throttle = 1100;
+    latestData.rudder = 1503;
+    overrideAileron = overrideElevator = overrideThrottle = overrideRudder = 0;
+    overrideCalled = false;
+    clearCalled = false;
+    armedState = false;
+}
+
+void test_mavlink_override_uses_provided_channels() {
+    MavlinkHandler handler;
+    handler.setFlightDataProvider(provideFlightData);
+    handler.setRCOverrideHandler(applyOverride);
+    handler.setClearRCOverrideHandler(clearOverride);
+    handler.setRCOverrideEnabled(true);
+
+    handler.handleRCOverrideForTest(1600, 1400, 1200, 1700);
+
+    TEST_ASSERT_TRUE(overrideCalled);
+    TEST_ASSERT_FALSE(clearCalled);
+    TEST_ASSERT_EQUAL_UINT16(1600, overrideAileron);
+    TEST_ASSERT_EQUAL_UINT16(1400, overrideElevator);
+    TEST_ASSERT_EQUAL_UINT16(1200, overrideThrottle);
+    TEST_ASSERT_EQUAL_UINT16(1700, overrideRudder);
+}
+
+void test_mavlink_override_ignores_channels_using_latest_data() {
+    MavlinkHandler handler;
+    handler.setFlightDataProvider(provideFlightData);
+    handler.setRCOverrideHandler(applyOverride);
+    handler.setRCOverrideEnabled(true);
+
+    handler.handleRCOverrideForTest(UINT16_MAX, 1400, UINT16_MAX, 1700);
+
+    TEST_ASSERT_TRUE(overrideCalled);
+    TEST_ASSERT_EQUAL_UINT16(1501, overrideAileron);
+    TEST_ASSERT_EQUAL_UINT16(1400, overrideElevator);
+    TEST_ASSERT_EQUAL_UINT16(1100, overrideThrottle);
+    TEST_ASSERT_EQUAL_UINT16(1700, overrideRudder);
+}
+
+void test_mavlink_override_all_ignored_clears_override() {
+    MavlinkHandler handler;
+    handler.setRCOverrideHandler(applyOverride);
+    handler.setClearRCOverrideHandler(clearOverride);
+    handler.setRCOverrideEnabled(true);
+
+    handler.handleRCOverrideForTest(UINT16_MAX, UINT16_MAX, UINT16_MAX, UINT16_MAX);
+
+    TEST_ASSERT_FALSE(overrideCalled);
+    TEST_ASSERT_TRUE(clearCalled);
+}
+
+void test_mavlink_override_rejects_wrong_target_system() {
+    MavlinkHandler handler;
+    handler.setRCOverrideHandler(applyOverride);
+    handler.setClearRCOverrideHandler(clearOverride);
+    handler.setRCOverrideEnabled(true);
+
+    handler.handleRCOverrideMessageForTest(42, MAV_COMPONENT_ID, 1600, 1400, 1200, 1700);
+
+    TEST_ASSERT_FALSE(overrideCalled);
+    TEST_ASSERT_FALSE(clearCalled);
+}
+
+void test_mavlink_override_rejects_when_disabled() {
+    MavlinkHandler handler;
+    handler.setRCOverrideHandler(applyOverride);
+    handler.setClearRCOverrideHandler(clearOverride);
+
+    handler.handleRCOverrideMessageForTest(MAV_SYSTEM_ID, MAV_COMPONENT_ID, 1600, 1400, 1200, 1700);
+
+    TEST_ASSERT_FALSE(overrideCalled);
+    TEST_ASSERT_FALSE(clearCalled);
+}
+
+void test_mavlink_override_rejects_when_armed_by_default() {
+    MavlinkHandler handler;
+    armedState = true;
+    handler.setArmStateProvider(provideArmState);
+    handler.setRCOverrideHandler(applyOverride);
+    handler.setClearRCOverrideHandler(clearOverride);
+    handler.setRCOverrideEnabled(true);
+
+    handler.handleRCOverrideMessageForTest(MAV_SYSTEM_ID, MAV_COMPONENT_ID, 1600, 1400, 1200, 1700);
+
+    TEST_ASSERT_FALSE(overrideCalled);
+    TEST_ASSERT_FALSE(clearCalled);
+}
+
+void test_mavlink_override_can_be_explicitly_allowed_while_armed() {
+    MavlinkHandler handler;
+    armedState = true;
+    handler.setArmStateProvider(provideArmState);
+    handler.setRCOverrideHandler(applyOverride);
+    handler.setRCOverrideEnabled(true);
+    handler.setRCOverrideAllowedWhileArmed(true);
+
+    handler.handleRCOverrideMessageForTest(MAV_SYSTEM_ID, MAV_COMPONENT_ID, 1600, 1400, 1200, 1700);
+
+    TEST_ASSERT_TRUE(overrideCalled);
+    TEST_ASSERT_EQUAL_UINT16(1200, overrideThrottle);
+}
+
+int main() {
+    UNITY_BEGIN();
+    RUN_TEST(test_mavlink_override_uses_provided_channels);
+    RUN_TEST(test_mavlink_override_ignores_channels_using_latest_data);
+    RUN_TEST(test_mavlink_override_all_ignored_clears_override);
+    RUN_TEST(test_mavlink_override_rejects_wrong_target_system);
+    RUN_TEST(test_mavlink_override_rejects_when_disabled);
+    RUN_TEST(test_mavlink_override_rejects_when_armed_by_default);
+    RUN_TEST(test_mavlink_override_can_be_explicitly_allowed_while_armed);
+    return UNITY_END();
+}

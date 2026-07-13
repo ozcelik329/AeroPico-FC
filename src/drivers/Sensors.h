@@ -2,76 +2,102 @@
 #define SENSORS_H
 
 #include <Arduino.h>
-#include <Wire.h>
 #include "../config.h"
-#include "hardware/i2c.h"
-#include "hardware/dma.h"
 #include "pico/platform.h"
+#include "IDrivers.h"
+#include "sensors/SensorHealthMonitor.h"
+#include "sensors/SensorCalibration.h"
+#include "sensors/SensorBackendRegistry.h"
+#include "sensors/SensorDmaBus.h"
+#include "sensors/SensorAuxBus.h"
+#include "sensors/baro/BaroDriver.h"
+#include "sensors/gyro/GyroAccelDriver.h"
+#include "sensors/mag/MagDriver.h"
+#include "../hal/HAL_I2C.h"
+#include "../hal/rp2350/RP2350_I2C.h"
 
-#ifdef USE_GY87
-  #include <Adafruit_HMC5883_U.h>
-  #include <Adafruit_BMP085_U.h>
-#endif
-
-#define MPU6050_ADDR        0x68
-#define MPU6050_REG_PWR     0x6B
-#define MPU6050_REG_ACCEL   0x3B
-#define MPU6050_REG_GYRO    0x43
-#define MPU6050_REG_GYRO_CFG  0x1B
-#define MPU6050_REG_ACCEL_CFG 0x1C
-#define MPU6050_REG_DLPF    0x1A
-#define MPU6050_REG_TEMP    0x41  // Sıcaklık register'ı
-
-#define MPU6050_RAW_LEN     14
-
-#define ACCEL_SCALE  (1.0f / 4096.0f)
-#define GYRO_SCALE   (1.0f / 65.5f)
+#define MPU6050_RAW_LEN     SensorDmaBus::MPU_RAW_LEN
 
 // IIR Low-Pass Filter alpha değeri (0.0-1.0)
 // Düşük alpha = daha fazla filtreleme, daha fazla gecikme
 // Yüksek alpha = daha az filtreleme, daha az gecikme
+#define MPU6050_REG_TEMP    0x41  // Sıcaklık register'ı
+
 #define IIR_ALPHA    0.15f
+#define BOOT_CAL_SAMPLES    256
 
-struct SensorBuffer {
-    float ax, ay, az;   // Filtrelenmiş ivme
-    float gx, gy, gz;   // Ham jiroskop (filtre gerekmez)
-    float tempC;         // Sıcaklık (°C)
-    #ifdef USE_GY87
-        float mx, my, mz;
-        float pressure;
-    #endif
-    uint32_t timestamp;
-    bool valid;
-};
+#include "../types.h"
 
-class SensorManager {
+class SensorManager : public IImuDriver, public IMagDriver, public IBaroDriver, public IGpsDriver {
   public:
     void init();
+    void setI2CBus(IHALI2C* bus);
+    void setI2CBus(RP2350I2C* bus);
     void update();
     SensorBuffer getLatest();
 
+    bool isImuAvailable() const override;
+    bool isDmaOk() const override;
+    SensorCapabilityStatus capabilities() const;
+    SensorFaultCode getFaultCode() const;
+    const char* getFaultText() const;
+    uint8_t getLastWhoAmI() const { return _lastWhoAmI; }
+    bool runBootCalibration() override;
+    ImuCalibration getImuCalibration() const;
+    void setImuCalibration(const ImuCalibration& calibration);
+
+    // Driver capability queries
+    bool hasMag() const override;
+    bool hasBaro() const override;
+    void beginMagCalibration();
+    bool observeMagCalibrationSample(float mx, float my, float mz);
+    MagCalibration finishMagCalibration();
+    MagCalibration getMagCalibration() const;
+    void setMagCalibration(const MagCalibration& calibration);
+
     #ifdef USE_GY87
-        bool hasMag  = false;
-        bool hasBaro = false;
+      bool _hasMag  = false;
+      bool _hasBaro = false;
     #endif
 
   private:
-    int _dma_chan = -1;
-    uint8_t _dma_buf[MPU6050_RAW_LEN];
-    uint8_t _reg_addr = MPU6050_REG_ACCEL;
+    bool _imuAvailable = false;
+    uint8_t _lastWhoAmI = 0;
+    SensorFaultCode _faultCode = SensorFaultCode::None;
 
-    // IIR filter state
-    float _ax_f = 0.0f, _ay_f = 0.0f, _az_f = 0.0f;
+    const ImuDeviceProfile* _imuProfile = &SensorBackendRegistry::mpu6050();
+    uint8_t _reg_addr = SensorBackendRegistry::mpu6050().accelReg;
+
+    SensorDmaBus _dmaBus;
+#ifdef USE_GY87
+    SensorAuxBus _auxBus;
+#endif
+    GyroAccelDriver _gyroAccelDriver;
+    MagDriver _magDriver;
+    BaroDriver _baroDriver;
+    SensorHealthMonitor _healthMonitor;
+    SensorCalibration _calibration;
+    IHALI2C* _i2cBus = nullptr;
+    RP2350I2C* _rp2350Bus = nullptr;
+    bool _dmaFastPath = false;
+
+    // Boot kalibrasyon ofsetleri
+    float _gyroBiasX = 0.0f, _gyroBiasY = 0.0f, _gyroBiasZ = 0.0f;
+    float _accelBiasX = 0.0f, _accelBiasY = 0.0f, _accelBiasZ = 0.0f;
+    ImuCalibration _imuCalibration = {};
+
+    bool _readWhoAmI(uint8_t& whoami);
+    bool _readRawSample(int16_t& raw_ax, int16_t& raw_ay, int16_t& raw_az,
+                        int16_t& raw_gx, int16_t& raw_gy, int16_t& raw_gz,
+                        int16_t* raw_temp = nullptr);
 
     void _mpu_write_reg(uint8_t reg, uint8_t val);
     void _mpu_start_dma_read();
     bool _mpu_dma_ready();
-    void _mpu_parse(SensorBuffer& buf);  // __not_in_flash_func kaldırıldı
-
-    #ifdef USE_GY87
-        Adafruit_HMC5883_Unified mag = Adafruit_HMC5883_Unified(12345);
-        Adafruit_BMP085_Unified  bmp = Adafruit_BMP085_Unified(10085);
-    #endif
+    bool _readRawFrame(uint8_t raw[GyroAccelDriver::RAW_LEN]);
+    void _setFault(SensorFaultCode code);
+    IHALI2C& _bus();
+    RP2350I2C* _rpBus();
 
     SensorBuffer _buf[2];
     volatile uint8_t _writeIdx = 0;

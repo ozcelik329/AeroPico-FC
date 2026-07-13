@@ -1,183 +1,228 @@
-![PlatformIO](https://img.shields.io/badge/PlatformIO-Compatible-orange)
-![RP2040](https://img.shields.io/badge/Platform-RP2040-7546C6)
-![RP2350](https://img.shields.io/badge/Platform-RP2350-7546C6)
-![C++](https://img.shields.io/badge/Language-C++-00599C)
-![MAVLink](https://img.shields.io/badge/Protocol-MAVLink-red)
-![License](https://img.shields.io/badge/License-Proprietary-yellow)
+# AeroPico-FC
 
-<div align="center">
-  <img src="https://github.com/user-attachments/assets/0a66fec3-2c89-4f69-b286-e269c3606a84" width="658" height="298" />
-</div>
+[![PlatformIO](https://img.shields.io/badge/PlatformIO-compatible-orange)](https://platformio.org/)
+[![Target](https://img.shields.io/badge/Target-RP2350%20%2F%20Pico%202-7546C6)](https://www.raspberrypi.com/products/raspberry-pi-pico-2/)
+[![Language](https://img.shields.io/badge/Language-C%2B%2B17-00599C)](https://isocpp.org/)
+[![Protocol](https://img.shields.io/badge/Protocol-MAVLink-red)](https://mavlink.io/)
+[![License](https://img.shields.io/badge/License-MIT-green)](LICENSE)
 
-# ✈️ AeroPico FC : Fixed-Wing Flight Controller
+AeroPico-FC is an open-source fixed-wing flight controller firmware for the
+RP2350-based Raspberry Pi Pico 2. The v1.0.0-rc1 target is a professional
+manual-flight software release candidate: deterministic scheduling, isolated
+flight-control pipelines, MAVLink ground-station compatibility, runtime
+parameters, blackbox logging, preflight gates, failsafe policy, and a dedicated
+Configurator.
 
-**AeroPico FC** is an open-source flight controller firmware for fixed-wing UAVs, built on the **RP2040 (Raspberry Pi Pico)**. It uses the chip's dual-core architecture to keep sensor fusion and flight control on separate cores — the same separation professional autopilots rely on, now accessible to everyone. 🚀
+This project is not a certified flight system. v1.0.0-rc1 is a software RCI
+release. Physical bench validation, HIL evidence, airframe-specific tuning, and
+field test records are required before any real flight or commercial use.
 
-Whether you are a hobbyist building your first fixed-wing or a developer researching custom autopilot stacks, AeroPico FC gives you a clean, readable codebase you can actually understand and extend. 🛠️
+## Scope
 
-> ⚠️ **Note:** This project is currently in the **prototype phase** and is intended for educational and experimental use. It is not certified for commercial or safety-critical applications.
+v1.0 focuses on manual fixed-wing infrastructure:
 
----
+- `MANUAL` and stabilized control foundations
+- SBUS receiver input and RC failsafe handling
+- cascaded attitude/rate PID control
+- fixed-wing mixer and PIO servo output
+- MPU6050 / GY-87 sensor stack with DMA-assisted I2C
+- adaptive Madgwick attitude estimator
+- 2-state barometric vertical Kalman estimator
+- typed state publishing and blackboard-style data flow
+- MAVLink Common telemetry and command handling
+- Mission Planner / QGroundControl generic autopilot compatibility
+- AeroPico Configurator for setup, parameters, calibration, and bench service commands
 
-## 💡 Why AeroPico FC?
+The following are deliberately not active v1.0 flight features:
 
-Most hobby-grade firmware is a black box. AeroPico FC is written to be readable first — every module has a single responsibility, every design decision is traceable in the code. You can start by tuning PID gains in `config.h` without touching anything else, and work your way down to the sensor fusion math when you are ready. 🧠
+- RTL
+- waypoint mission execution
+- loiter
+- auto landing
+- full-state navigation EKF
 
-At the same time, the architecture does not cut corners. FreeRTOS task isolation, mutex-protected cross-core data sharing, hardware-accelerated I/O via PIO and DMA, a cascaded PID structure, and a hardware abstraction layer are patterns borrowed from professional embedded systems — not academic exercises. 💻
+The infrastructure for GPS capability, mission stubs, navigation state, and
+future modes is present so those features can be added in later releases without
+rewriting the core manual-flight architecture.
 
----
+## Architecture Highlights
 
-## ⚙️ Key Features
+| Area | Implementation |
+| --- | --- |
+| Real-time model | FreeRTOS tasks, Core 0 acquisition/telemetry, Core 1 flight loop |
+| Scheduler | Time-triggered scheduler for telemetry, logging, health, and task budgets |
+| Control loop | 500 Hz flight control path with timing monitor and watchdog gate |
+| Sensor I/O | RP2350 I2C, DMA fast path for IMU, fallback HAL I2C path |
+| Sensor backends | Role/backend split: `Mpu6050Backend`, `Hmc5883lBackend`, `Bmp085Backend` |
+| Estimation | Adaptive Madgwick attitude + barometric vertical Kalman filter |
+| Safety | PreflightHealth, FailsafeManager, battery/brownout monitor, watchdog gating |
+| Actuation | PIO PWM with dynamic system-clock divider |
+| Telemetry | MAVLink over USB Serial and PIO UART companion transport |
+| Persistence | Flash-backed calibration and parameter storage envelopes |
+| Testing | Native unit tests, native full-link test, static architecture policy, fault injection |
 
-* **FreeRTOS dual-core isolation** — Sensor reading and RC input run as a dedicated task on Core 0; PID loop and servo output run on Core 1 with higher priority. They never block each other.
-* **Cascaded PID** — Outer angle loop feeds a target rate into the inner rate loop, giving smoother and more precise attitude control than a single-loop approach.
-* **Madgwick filter** — Efficient quaternion-based attitude estimation that works well even on resource-constrained hardware.
-* **PIO-based hardware PWM** — Servo signals are generated by RP2040's Programmable I/O state machines, eliminating jitter entirely without consuming CPU cycles.
-* **DMA sensor reads** — MPU6050 is read via raw I2C + DMA. The CPU does not wait for sensor data; it picks up the result from a ping-pong buffer when the transfer completes.
-* **MAVLink over PIO UART** — Full MAVLink v2 parser and sender running over a software UART implemented in PIO, keeping hardware UART ports free for GPS and RC receiver.
-* **RC Failsafe** — Automatic failsafe on signal loss: throttle cuts, control surfaces return to neutral. Triggered by SBUS failsafe bit or 500 ms timeout.
-* **Watchdog timer** — Hardware watchdog resets the system if the flight loop stalls for more than 2 seconds.
-* **Blackbox logger** — Flight data is streamed over PIO UART to an ESP32-CAM companion, which writes timestamped logs to SD card.
-* **MPU6050 & GY-87 support** — Works with both a basic IMU and a 9-DOF module (with magnetometer and barometer).
-* **Configurable** — Pins, PID constants, RC ranges, failsafe thresholds, and loop frequency are all in one place: `config.h`.
+## Ground-Station Compatibility
 
----
+AeroPico-FC behaves as a generic MAVLink autopilot. It does not emulate
+ArduPilot internals or ArduPilot-specific setup wizards.
 
-## 🏗 System Architecture
+Supported v1.0.0-rc1 MAVLink/GCS behavior:
 
-```mermaid
-graph TD
-    subgraph C0 ["Core 0: Data Acquisition (FreeRTOS Task)"]
-        IMU["GY-87 / MPU6050\nRaw I2C + DMA"] --> SP["Ping-Pong Buffer\nZero-copy sensor data"]
-        SP --> MF["Madgwick Filter\nQuaternion → Euler"]
-        RC["SBUS RC Receiver\nGP1 via transistor inverter"] --> MX["🔒 Mutex\nCross-core data protection"]
-        MF --> MX
-    end
-    subgraph C1 ["Core 1: Flight Control (FreeRTOS Task, higher priority)"]
-        OP["Outer Loop: Angle PID"] --> IP["Inner Loop: Rate PID"]
-        IP --> FM["FixedWingMixer\nPID + RC → Servo PWM"]
-        FM --> FSM{"Failsafe Monitor\n500ms timeout + SBUS bit"}
-        FSM --> SC["Safety Limits\n1000–2000μs"]
-    end
-    MX -- "Euler angles / RC input" --> OP
-    MX -. "Gyro rates" .-> IP
-    SC --> A["Aileron\nPIO PWM GP16"]
-    SC --> E["Elevator\nPIO PWM GP17"]
-    SC --> R["Rudder\nPIO PWM GP18"]
-    SC --> T["Throttle ESC\nPIO PWM GP19"]
-    subgraph ESP ["ESP32-CAM Companion"]
-        BB["Blackbox\nSD card logger"]
-        TEL["MAVLink Bridge\nWiFi → GCS"]
-    end
-    SC -- "MAVLink + Blackbox\nPIO UART GP12/GP13" --> ESP
-    subgraph FUTURE ["📅 Planned"]
-        GPS["GPS Module\nUART1 GP8/GP9"]
-        GCS["GCS\nTracking antenna"]
-    end
+- `HEARTBEAT` with real armed bit
+- `COMMAND_LONG`
+- `MAV_CMD_COMPONENT_ARM_DISARM`
+- `COMMAND_ACK`
+- `SYS_STATUS`
+- `VFR_HUD`
+- `GPS_RAW_INT` with `GPS_FIX_TYPE_NO_GPS` when GPS is absent
+- `MISSION_REQUEST_LIST` response with `MISSION_COUNT = 0`
+- `STATUSTEXT` for preflight, arm denial, service command, and failsafe reasons
+- MAVLink parameters with runtime safety gates
+
+Recommended bench order:
+
+1. AeroPico Configurator over Pico USB Serial
+2. QGroundControl over Pico USB Serial
+3. Mission Planner over Pico USB Serial
+4. Optional ESP32/WiFi MAVLink bridge after USB behavior is validated
+
+## AeroPico Configurator
+
+The Configurator lives in `tools/aeropico-configurator`.
+
+It provides:
+
+- serial port selection and baud selection
+- MAVLink parameter read/write
+- `PARAM_SAVE` flash persistence
+- PID, mixer, servo, RC, failsafe, stream-rate, and blackbox settings
+- module and heartbeat status
+- armed/disarmed status
+- command pending/accepted/rejected tracking
+- safe service commands:
+  - IMU calibration
+  - two-step magnetometer hard-iron calibration
+  - sensor check
+  - preflight check
+  - RC monitor
+  - disarmed-only servo direction test
+- Pico 2 pin mapper and local configuration audit
+
+Run it locally:
+
+```bash
+cd tools/aeropico-configurator
+npm install
+npm start
 ```
 
----
+Static check:
 
-## 🛠 Hardware Pinout
+```bash
+npm run check
+```
 
-| Function | Pin | Type | Description |
-| :--- | :--- | :--- | :--- |
-| **SDA (I2C)** | GP4 | I/O | GY-87 sensor communication |
-| **SCL (I2C)** | GP5 | I/O | GY-87 sensor communication |
-| **SBUS RX** | GP1 | UART2 RX | RC receiver (transistor inverter required) |
-| **ESP32-CAM TX** | GP12 | PIO UART TX | MAVLink + Blackbox to ESP32-CAM |
-| **ESP32-CAM RX** | GP13 | PIO UART RX | MAVLink commands from ESP32-CAM |
-| **GPS TX** | GP8 | UART1 TX | GPS module (planned) |
-| **GPS RX** | GP9 | UART1 RX | GPS module (planned) |
-| **AILERON** | GP16 | PIO PWM | Aileron servo |
-| **ELEVATOR** | GP17 | PIO PWM | Elevator servo |
-| **RUDDER** | GP18 | PIO PWM | Rudder servo |
-| **THROTTLE** | GP19 | PIO PWM | Motor / ESC control |
+## Hardware Pinout
 
----
+Default v1.0 bench pinout:
 
-## 📂 Project Structure
+| Function | Pico 2 pin | Signal |
+| --- | --- | --- |
+| I2C SDA | GP4 | GY-87 / MPU6050 / mag / baro |
+| I2C SCL | GP5 | GY-87 / MPU6050 / mag / baro |
+| SBUS RX | GP1 | Receiver input through transistor inverter |
+| Companion TX | GP12 | PIO UART MAVLink/blackbox TX |
+| Companion RX | GP13 | PIO UART MAVLink RX |
+| Battery ADC | GP26 / ADC0 | Voltage divider input |
+| Aileron | GP16 | PIO PWM |
+| Elevator | GP17 | PIO PWM |
+| Rudder | GP18 | PIO PWM |
+| Throttle | GP19 | PIO PWM / ESC signal |
 
-| Module | Description |
-| --- | --- |
-| `src/main.cpp` | Entry point, FreeRTOS task creation |
-| `src/config.h` | Pins, PID gains, RC parameters — start here |
-| `src/core/` | Flight manager, Madgwick filter, PID, mixer |
-| `src/drivers/` | MPU6050 (raw I2C+DMA), PIO PWM, PIO UART, RC |
-| `src/telemetry/` | MAVLink v2 parser/sender, Blackbox logger |
-| `src/utils/` | Logger, math helpers |
+Use 3.3 V logic for Pico-side signals. Never feed 5 V pull-ups or 5 V signal
+levels into RP2350 GPIO or ADC pins.
 
----
+## Build
 
-## 📊 Performance
+Install PlatformIO, then run:
 
-| Parameter | Value |
-| --- | --- |
-| ⏱ Control loop frequency | 500 Hz (FreeRTOS task) |
-| 🛡 Cross-core data sharing | Mutex-protected ping-pong buffer |
-| 🧭 Attitude estimation | Madgwick (quaternion) |
-| ⚡ PWM output | PIO state machine, jitter-free |
-| 📡 Sensor read | Raw I2C + DMA, CPU not blocked |
-| 🐕 Watchdog timeout | 2000 ms hardware reset |
-| ⚠️ RC failsafe timeout | 500 ms |
+```bash
+pio run -e pico
+```
 
----
-## 🚀 Optional & Companion Features
-The **AeroPico Flight Controller** is designed as a core system that can be expanded with modular companion hardware. These features are **optional** and not required for the basic flight operation.
+The UF2 firmware is generated at:
 
-### Modular Expansion Modules
-* **ESP32-CAM (Companion):** Provides remote camera streaming and enhanced WiFi telemetry. Found in the `companion/` directory.
-* **GPS Integration:** Supports external GPS modules via UART. The firmware includes a pre-configured MAVLink parser to process GPS location data (GPRMC/GPGGA) if connected.
-    * *Note: Requires assigning an available UART port in the configuration.*
+```text
+.pio/build/pico/firmware.uf2
+```
 
-### Modularity Philosophy
-The core firmware (located in `firmware/`) is strictly optimized for flight stability using the RP2040’s real-time capabilities. Companion modules and external sensors are treated as independent data sources:
-1. **Pico (FC)** handles all high-priority flight loops.
-2. **Companion Modules** operate as separate entities, communicating asynchronously to prevent any interference with flight-critical tasks.
+To flash manually, hold BOOTSEL while connecting the Pico 2 and copy the UF2
+file to the mounted drive.
 
-> **Plug-and-Play:** You can deploy the core flight firmware today and add GPS or camera streaming modules later without modifying the core control logic.
+## Verification
 
-## 🗺 Roadmap
+Software verification used for v1.0.0-rc1:
 
-| Feature | Status |
-| --- | --- |
-| Basic flight control loop | ✅ |
-| Mutex-protected dual-core sharing | ✅ |
-| FreeRTOS task isolation | ✅ |
-| PIO hardware PWM (jitter-free servos) | ✅ |
-| Raw I2C + DMA sensor reads | ✅ |
-| RC Failsafe & signal-loss handling | ✅ |
-| Watchdog timer | ✅ |
-| MAVLink v2 over PIO UART | ✅ |
-| Blackbox logger (ESP32-CAM SD card) | ✅ |
-| MPU6050 + GY-87 support | ✅ |
-| ESP32-CAM integration (WiFi + camera) | ⏳ |
-| GPS navigation | 📅 |
-| GCS with tracking antenna | 📅 |
+```bash
+pio test -e native
+pio run -e native_link
+pio test -e native_link
+python3 tools/ci/check_architecture.py
+python3 tools/fault_injection/fault_injection.py
+pio run -e pico
+cd tools/aeropico-configurator && npm run check
+```
 
----
-> ⚠️ **Note:** The current code contains non-essential ESP and telemetry components; if you don't need them, you can review and delete the telemetry folder. Also, check the config.h file for PIN configurations.
- ---
-## 🛠 How to Build
-1. **Clone** this repository.
-2. Open the project in **PlatformIO** (VS Code).
-3. Verify `platformio.ini` targets the `earlephilhower` RP2040 core.
-4. Run **Build**.
-5. Copy the generated `firmware.uf2` to your Pico in **BOOTSEL** mode. 🚀
+Expected release-gate status:
 
----
+- native tests pass
+- native full-link integration passes
+- architecture policy passes
+- fault-injection smoke passes
+- Pico firmware build passes
+- Configurator JavaScript syntax check passes
 
-## 🤝 Contribute
+## Bench Validation Required Before Flight
 
-Issues and pull requests are welcome. If you are new to embedded systems and want to understand how a flight controller works from the ground up, this codebase is a good place to start — open an issue and ask questions freely! 💡
+The following hardware evidence must be captured before moving from software RCI
+to real flight readiness:
 
----
-## Intellectual Property Notice
-**Copyright © 2026 Muhammed Fatih Emre Özçelik. All Rights Reserved.**
+- servo PWM capture at 1000/1500/2000 us with a logic analyzer
+- SBUS GP1 receiver input validation
+- RC failsafe timeout and mode-channel validation
+- battery ADC divider calibration with a multimeter
+- GY-87 sensor health and stale-sample behavior
+- watchdog behavior when the flight task stalls
+- Mission Planner and QGroundControl USB connection records
+- blackbox log capture and replay/inspection
+- at least one documented dry-run checklist with propeller removed
 
-This project is **proprietary software**. The source code is provided for educational, non-commercial study, and evaluation purposes only. Any commercial use, redistribution, modification, or inclusion of this code in other software/products is **strictly prohibited** without explicit written permission from the author. 
+## Documentation
 
-*For commercial licensing inquiries, please contact: fatihemreozcelik@gmail.com
-___
-*Developed by Muhammed Fatih Emre Özçelik*
+Important project documents:
 
+- `docs/AeroPico_FC_Kullanma_Kilavuzu.md`
+- `docs/AeroPico_FC_Gelistirici_Kullanma_Kilavuzu.md`
+- `docs/AeroPico_FC_v1_0_RCI_Release_Notes.md`
+- `docs/Bench_Test_Checklist.md`
+- `docs/First_Flight_Checklist.md`
+- `docs/HIL_Bench_Artifact_Template.md`
+- `docs/MAVLink_Security_Policy.md`
+- `docs/Project_Structure.md`
+
+## Release
+
+Current software release candidate:
+
+- Tag: `v1.0.0-rc1`
+- Branch source: `pico2-catalyi`
+- Target branch after promotion: `main`
+
+The release is intentionally labeled RCI/RC because physical bench and HIL proof
+remain mandatory before declaring flight-ready v1.0 final.
+
+## License
+
+AeroPico-FC is released under the MIT License. See `LICENSE`.
+
+Copyright (c) 2026 Muhammed Fatih Emre Ozcelik.
