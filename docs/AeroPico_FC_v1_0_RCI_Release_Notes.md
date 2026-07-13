@@ -48,3 +48,17 @@ bench kanitlari tamamlanmadan final kabul verilmemelidir:
 - SBUS GP1 alici testi
 - Battery ADC multimetre dogrulamasi
 - ESP32/WiFi UDP 14550 MAVLink bridge testi
+
+## Yazilim Kabul Kaniti
+
+v1.0.0-rc1 yazilim kapatma kriterleri:
+
+- `pio test -e native`
+- `pio run -e native_link`
+- `pio test -e native_link`
+- `python3 tools/ci/check_architecture.py`
+- `python3 tools/fault_injection/fault_injection.py`
+- `pio run -e pico`
+- `cd tools/aeropico-configurator && npm run check`
+
+Bu kontroller gecmeden release tag'i yayinlanmamalidir.
