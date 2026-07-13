@@ -217,6 +217,9 @@
       battery: "unknown",
       rc: "unknown"
     },
+    armed: null,
+    lastCommand: null,
+    commandHistory: [],
     lastHeartbeatMs: 0,
     portDisplay: { name: null, vid: null, pid: null },
     activeBaud: null,
@@ -264,6 +267,9 @@
     paramSummary: document.getElementById("paramSummary"),
     moduleSummaryTop: document.getElementById("moduleSummaryTop"),
     heartbeatSummary: document.getElementById("heartbeatSummary"),
+    armSummary: document.getElementById("armSummary"),
+    commandSummary: document.getElementById("commandSummary"),
+    commandStatusList: document.getElementById("commandStatusList"),
     terminalPreflightBtn: document.getElementById("terminalPreflightBtn"),
     terminalLogBtn: document.getElementById("terminalLogBtn"),
     preflightPane: document.getElementById("preflightPane"),
@@ -473,6 +479,11 @@
     els.disconnectBtn.disabled = !state.connected;
     els.readParamsBtn.disabled = !state.connected;
     els.saveParamsBtn.disabled = !state.connected;
+    document.querySelectorAll("[data-command]").forEach((button) => {
+      const command = button.dataset.command;
+      const dangerousWhileArmed = command === "CAL_IMU" || command === "CAL_MAG" || command === "SERVO_TEST";
+      button.disabled = !state.connected || (dangerousWhileArmed && state.armed === true);
+    });
     renderSettings();
     renderSummary();
   }
@@ -489,6 +500,17 @@
     } else {
       els.heartbeatSummary.textContent = "Yok";
       els.heartbeatSummary.dataset.state = "muted";
+    }
+
+    if (state.armed === true) {
+      els.armSummary.textContent = "Armed";
+      els.armSummary.dataset.state = "bad";
+    } else if (state.armed === false) {
+      els.armSummary.textContent = "Disarmed";
+      els.armSummary.dataset.state = "ok";
+    } else {
+      els.armSummary.textContent = "Bilinmiyor";
+      els.armSummary.dataset.state = "muted";
     }
   }
 
@@ -718,7 +740,54 @@
     }
     const [p1, p2, p3, p4] = serviceCommandParams(command);
     writeFrame(encoder.aeroPicoService(p1, p2, p3, p4));
+    state.lastCommand = command;
+    pushCommandHistory(command, "pending", "ACK bekleniyor");
+    updateButtons();
     log(`${SERVICE_LABELS[command] || command} komutu gonderildi.`);
+  }
+
+  function pushCommandHistory(command, stateName, detail) {
+    const label = SERVICE_LABELS[command] || command;
+    state.commandHistory.unshift({
+      command,
+      label,
+      state: stateName,
+      detail,
+      at: new Date().toLocaleTimeString("tr-TR", { hour12: false })
+    });
+    state.commandHistory = state.commandHistory.slice(0, 5);
+    renderCommandStatus();
+  }
+
+  function updateLastCommand(stateName, detail) {
+    if (!state.lastCommand) return;
+    pushCommandHistory(state.lastCommand, stateName, detail);
+    if (stateName !== "pending") state.lastCommand = null;
+  }
+
+  function renderCommandStatus() {
+    if (!els.commandStatusList) return;
+    const latest = state.commandHistory[0];
+    if (latest) {
+      const pillClass = latest.state === "accepted" ? "ok" : latest.state === "pending" ? "warn" : "bad";
+      els.commandSummary.textContent = latest.state === "pending" ? "Bekliyor" : latest.state === "accepted" ? "OK" : "Red";
+      els.commandSummary.className = `status-pill ${pillClass}`;
+    } else {
+      els.commandSummary.textContent = "Bekliyor";
+      els.commandSummary.className = "status-pill muted";
+    }
+
+    if (state.commandHistory.length === 0) {
+      els.commandStatusList.innerHTML = `<p class="hint">Henüz komut gönderilmedi.</p>`;
+      return;
+    }
+    els.commandStatusList.innerHTML = "";
+    for (const item of state.commandHistory) {
+      const row = document.createElement("div");
+      row.className = `command-status-row ${item.state}`;
+      row.innerHTML = `<strong>${item.label}</strong><span>${item.detail}</span><time>${item.at}</time>`;
+      els.commandStatusList.appendChild(row);
+    }
   }
 
   function mavResultText(result) {
@@ -735,10 +804,12 @@
   function handleMavlinkMessage(message) {
     if (message.type === "heartbeat") {
       state.lastHeartbeatMs = Date.now();
+      state.armed = (message.baseMode & 0x80) !== 0;
       state.modules.imu = "ok";
       state.modules.rc = "ok";
       els.preflightText.textContent = `Heartbeat alindi. System status: ${message.systemStatus}. Parametreleri okuyup preflight sonucunu kontrol et.`;
       renderModules();
+      updateButtons();
       return;
     }
 
@@ -761,6 +832,8 @@
     }
 
     if (message.type === "commandAck") {
+      const accepted = message.result === 0;
+      updateLastCommand(accepted ? "accepted" : "rejected", mavResultText(message.result));
       if (message.command === 31010) {
         log(`Servis komutu ACK: ${mavResultText(message.result)}.`);
       } else {
@@ -773,8 +846,10 @@
       log(`FC: ${message.text}`);
       const text = message.text.toUpperCase();
       if (text.includes("IMU CALIBRATION SAVED") || text.includes("SENSOR_CHECK_OK") || text.includes("PREFLIGHT_OK")) state.modules.imu = "ok";
+      if (text.includes("IMU MISSING") || text.includes("WHOAMI")) state.modules.imu = "bad";
       if (text.includes("BMP") || text.includes("BARO")) state.modules.baro = text.includes("HAZIR") || text.includes("OK") ? "ok" : "bad";
-      if (text.includes("HMC") || text.includes("MAG")) state.modules.mag = text.includes("HAZIR") || text.includes("OK") || text.includes("SAVED") || text.includes("STARTED") ? "ok" : "bad";
+      if (text.includes("MAG")) state.modules.mag = text.includes("MISSING") || text.includes("FAILED") ? "bad" : "ok";
+      if (text.includes("HMC")) state.modules.mag = text.includes("HAZIR") || text.includes("OK") ? "ok" : "bad";
       if (text.includes("GPS")) state.modules.gps = text.includes("FIX") || text.includes("HAZIR") ? "ok" : "bad";
       if (text.includes("RC_MONITOR_OK")) state.modules.rc = "ok";
       if (text.includes("RC_MONITOR_FAIL")) state.modules.rc = "bad";
@@ -784,6 +859,10 @@
       }
       if (text.includes("PREFLIGHT_OK")) els.preflightText.textContent = "Preflight OK: sistem arm icin yazilim tarafinda hazir.";
       if (text.includes("PREFLIGHT") && !text.includes("OK")) els.preflightText.textContent = message.text;
+      if (state.commandHistory[0] && state.commandHistory[0].state !== "pending") {
+        state.commandHistory[0].detail = message.text;
+        renderCommandStatus();
+      }
       renderModules();
       renderConfigAudit();
       renderSummary();
@@ -1130,6 +1209,7 @@
   renderTabs();
   renderModules();
   renderSettings();
+  renderCommandStatus();
   updateButtons();
   updatePortInfoDisplay();
   initPinMapper();

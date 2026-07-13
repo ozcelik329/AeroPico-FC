@@ -15,6 +15,9 @@ metadata dosyalari ve paketlenmis zip arsivleri bilerek repoya alinmaz.
 - Parametreleri `PARAM_SAVE` ile flash'a kaydetme
 - Moduller icin ilk durum ekrani
 - Kalibrasyon ve bench test komutlarini MAVLink servis komutu olarak firmware'e gonderme
+- Her servis komutu icin pending / accepted / rejected durum takibi
+- Heartbeat uzerinden armed/disarmed durumunu gosterme
+- Armed durumda IMU/Mag kalibrasyon ve servo test gibi riskli komutlari kilitleme
 - AeroPico varsayilan pin haritasi
 - Servo, RC, failsafe ve telemetry parametreleri icin istemci tarafi aralik
   dogrulamasi
@@ -55,7 +58,7 @@ icindeki `MAV_CMD_USER_1` ile tasinir:
 | --- | --- |
 | IMU Kalibrasyon | IMU bias kalibrasyonu ve flash kaydi |
 | Mag Kalibrasyon | Ilk basista toplama baslatma, ikinci basista hard-iron kaydetme |
-| RC Range | Simdilik parametre tabanli RC mapping'e yonlendirilir |
+| RC Mapping Kontrol | Simdilik parametre tabanli RC mapping'e yonlendirilir |
 | Servo Yon Testi | Sadece disarmed/safe durumda kisa servo pulse testi |
 | RC Kanal Kontrol | Receiver valid/failsafe durumunu sorgular |
 | Sensor Kontrol | IMU zorunlu, mag/baro opsiyonel capability durumunu sorgular |

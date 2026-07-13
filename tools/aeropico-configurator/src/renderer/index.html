@@ -159,6 +159,10 @@
           <span class="status-tile-label">Heartbeat</span>
           <strong id="heartbeatSummary">Yok</strong>
         </div>
+        <div class="status-tile">
+          <span class="status-tile-label">Arm</span>
+          <strong id="armSummary">Bilinmiyor</strong>
+        </div>
       </section>
 
       <section class="settings-grid" id="settingsGrid"></section>
@@ -223,7 +227,7 @@
               <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
               <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
             </svg>
-            RC Range
+            RC Mapping Kontrol
           </button>
           <p class="hint">Komutlar MAVLink servis kapısından geçer; firmware güvenli değilse reddeder.</p>
         </div>
@@ -283,6 +287,14 @@
         <div class="collapse-body">
           <div id="configAudit" class="config-audit"></div>
         </div>
+      </section>
+
+      <section class="panel command-panel">
+        <div class="panel-title">
+          <span>Komut Durumu</span>
+          <span id="commandSummary" class="status-pill muted">Bekliyor</span>
+        </div>
+        <div id="commandStatusList" class="command-status-list"></div>
       </section>
 
     </aside>

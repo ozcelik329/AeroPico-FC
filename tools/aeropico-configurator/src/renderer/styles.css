@@ -261,7 +261,7 @@ input[type="number"]::-webkit-inner-spin-button {
 
 .app-shell {
   display: grid;
-  grid-template-columns: 306px minmax(500px, 1fr) 292px;
+  grid-template-columns: 306px minmax(500px, 1fr) 308px;
   height: 100vh;
   overflow: hidden;
 }
@@ -681,6 +681,64 @@ input[type="number"]::-webkit-inner-spin-button {
 
 .module.bad strong {
   color: var(--danger);
+}
+
+/* ── Command Status ───────────────────────── */
+
+.command-panel {
+  min-height: 0;
+}
+
+.command-status-list {
+  display: grid;
+  gap: 6px;
+}
+
+.command-status-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2px 8px;
+  min-height: 38px;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  padding: 6px 8px;
+}
+
+.command-status-row strong {
+  font-size: 11.5px;
+  line-height: 1.2;
+}
+
+.command-status-row span {
+  grid-column: 1 / -1;
+  color: var(--muted);
+  font-size: 10.5px;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.command-status-row time {
+  color: var(--muted);
+  font-family: 'SF Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 10px;
+}
+
+.command-status-row.accepted {
+  border-color: rgba(53, 194, 134, 0.35);
+  background: var(--ok-dim);
+}
+
+.command-status-row.pending {
+  border-color: rgba(237, 181, 79, 0.35);
+  background: var(--warn-dim);
+}
+
+.command-status-row.rejected {
+  border-color: rgba(239, 106, 112, 0.30);
+  background: var(--danger-dim);
 }
 
 /* ── Preflight ────────────────────────────── */
