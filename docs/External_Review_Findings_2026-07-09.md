@@ -53,7 +53,7 @@ Durumlar:
 | Konu | Durum | Takip |
 |---|---|---|
 | Statik FreeRTOS task/stack tahsisi | KAPALI | `xTaskCreateStaticAffinitySet` ile Sensor/Flight/Telemetry task stackleri statik; high-water ve drop sayaclari runtime-health blackbox kaydinda. |
-| Blocking ring buffer yerine lock-free veri yolu | KAPALI | Aktif veri yolu typed blackboard/seqlock topic; legacy ring buffer aktif akista kullanilmiyor. |
+| Blocking ring buffer yerine lock-free veri yolu | KAPALI | Kritik sensor/control veri yolu typed blackboard/seqlock topic ile calisiyor; `ThreadSafeRingBuffer` yalnizca telemetry/blackbox kuyrugunda, kontrol dongusu disinda kullaniliyor. |
 | Binary/non-blocking blackbox ve ortak UART bant genisligi yonetimi | KAPALI | Binary blackbox record + CRC var; PioUart TX queue `pio_sm_put_blocking` kullanmiyor. |
 | Battery ADC, filtre/hysteresis ve brownout dogrulamasi | KAPALI / DONANIM | `V1-12` yazilim kapali; fiziksel divider/pin kaniti `V1-15` |
 | Otomatik fiziksel HIL runner | DONANIM | `V1-15` |

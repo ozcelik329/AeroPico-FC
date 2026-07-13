@@ -71,6 +71,13 @@ size_t PioUart::write(const uint8_t* buf, size_t len) {
     return accepted;
 }
 
+size_t PioUart::availableForWrite() const {
+    const uint16_t head = _txHead;
+    const uint16_t tail = _txTail;
+    const uint16_t used = (uint16_t)((head + TX_QUEUE_CAPACITY - tail) % TX_QUEUE_CAPACITY);
+    return (size_t)(TX_QUEUE_CAPACITY - used - 1u);
+}
+
 void PioUart::serviceTx() {
     while (_txTail != _txHead && !pio_sm_is_tx_fifo_full(_pio, _sm_tx)) {
         pio_sm_put(_pio, _sm_tx, _txQueue[_txTail]);

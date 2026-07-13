@@ -17,6 +17,7 @@ class PioUart : public IHALUART {
     size_t write(uint8_t value) override { return write(&value, 1); }
     int available() override { return 0; }
     int read() override { return -1; }
+    size_t availableForWrite() const { return 65535u; }
     void serviceTx() {}
     uint32_t droppedBytes() const { return 0; }
     size_t bytesWritten = 0;
@@ -39,6 +40,7 @@ class PioUart : public IHALUART {
     size_t write(uint8_t value) override { return write(&value, 1); }
     int available() override;
     int read() override;
+    size_t availableForWrite() const;
     void serviceTx();
     void serviceRx();
     void handleIrq();

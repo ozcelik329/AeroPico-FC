@@ -38,8 +38,8 @@
   {
     "id": "FI-EST-001",
     "scenario": "estimator sensor dropout",
-    "test": "test_ekf_lite_estimator",
-    "expected": "prediction/fallback path remains bounded"
+    "test": "test_baro_vertical_kalman",
+    "expected": "acceleration-assisted prediction/fallback path remains bounded"
   },
   {
     "id": "FI-PARAM-001",

@@ -6,3 +6,4 @@ tmp/
 node_modules/
 tools/temp_folder/
 tools/aeropico-configurator.zip
+fault_matrix_report.json

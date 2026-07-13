@@ -7,7 +7,9 @@ Blackbox blackbox;
 void Blackbox::init() {
     _enabled = true;
     _sequence = 0;
+    _lastLogMs = 0;
     _droppedRecords = 0;
+    _queue.reset();
     Serial.println("[BLACKBOX] Baslatildi.");
 }
 
@@ -51,6 +53,25 @@ void Blackbox::logRuntimeHealth(const RuntimeHealthStatus& status) {
     writeRecord(BlackboxRecordType::RuntimeHealth, &status, sizeof(status));
 }
 
+uint8_t Blackbox::drain(uint8_t maxRecords) {
+    if (!_enabled) return 0;
+
+    uint8_t drained = 0;
+    Frame frame;
+    while (drained < maxRecords && _queue.peek(frame)) {
+        if (espUart.availableForWrite() < frame.size) {
+            break;
+        }
+        if (espUart.write(frame.bytes, frame.size) != frame.size) {
+            _droppedRecords++;
+            break;
+        }
+        _queue.pop(frame);
+        drained++;
+    }
+    return drained;
+}
+
 uint16_t Blackbox::crc16(const uint8_t* data, size_t length) {
     uint16_t crc = 0xFFFFu;
     for (size_t i = 0; i < length; ++i) {
@@ -66,27 +87,25 @@ uint16_t Blackbox::crc16(const uint8_t* data, size_t length) {
 bool Blackbox::writeRecord(BlackboxRecordType type, const void* payload, uint16_t payloadSize) {
     constexpr uint16_t MAGIC = 0x4242;
     constexpr uint8_t VERSION = 1;
-    constexpr size_t MAX_PAYLOAD = sizeof(TimingBudgetStatus) > sizeof(RuntimeHealthStatus)
-        ? sizeof(TimingBudgetStatus) : sizeof(RuntimeHealthStatus);
-    static_assert(sizeof(BlackboxFlightPayload) <= MAX_PAYLOAD, "Blackbox payload limit");
+    static_assert(sizeof(BlackboxFlightPayload) <= MAX_PAYLOAD_SIZE, "Blackbox payload limit");
 
-    if (!payload || payloadSize > MAX_PAYLOAD) {
+    if (!payload || payloadSize > MAX_PAYLOAD_SIZE) {
         _droppedRecords++;
         return false;
     }
 
-    uint8_t frame[sizeof(BlackboxRecordHeader) + MAX_PAYLOAD + sizeof(uint16_t)] = {};
     BlackboxRecordHeader header = {
         MAGIC, VERSION, (uint8_t)type, payloadSize, _sequence++, (uint32_t)millis()
     };
-    memcpy(frame, &header, sizeof(header));
-    memcpy(frame + sizeof(header), payload, payloadSize);
+    Frame frame = {};
+    memcpy(frame.bytes, &header, sizeof(header));
+    memcpy(frame.bytes + sizeof(header), payload, payloadSize);
     const size_t bodySize = sizeof(header) + payloadSize;
-    const uint16_t crc = crc16(frame, bodySize);
-    memcpy(frame + bodySize, &crc, sizeof(crc));
-    const size_t frameSize = bodySize + sizeof(crc);
+    const uint16_t crc = crc16(frame.bytes, bodySize);
+    memcpy(frame.bytes + bodySize, &crc, sizeof(crc));
+    frame.size = (uint16_t)(bodySize + sizeof(crc));
 
-    if (espUart.write(frame, frameSize) != frameSize) {
+    if (!_queue.push(frame)) {
         _droppedRecords++;
         return false;
     }

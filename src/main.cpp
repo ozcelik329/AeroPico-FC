@@ -227,6 +227,10 @@ static void runBlackboxLog() {
     );
 }
 
+static void runBlackboxDrain() {
+    blackbox.drain(2);
+}
+
 static void runHealthReport() {
     lastPreflightResult = evaluatePreflight();
     BatteryStatus battery = batteryMonitor.evaluate();
@@ -319,6 +323,7 @@ void taskFlight(void* pvParameters) {
 void taskTelemetry(void* pvParameters) {
     telemetryScheduler.reset();
     telemetryScheduler.addTask("mavlink", 50, runMavlinkTelemetry);
+    telemetryScheduler.addTask("blackbox-drain", 100, runBlackboxDrain);
     telemetryScheduler.addTask("blackbox", 50, runBlackboxLog);
     telemetryScheduler.addTask("health", 1, runHealthReport);
 

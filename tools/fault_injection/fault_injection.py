@@ -15,7 +15,7 @@ DEFAULT_TESTS = (
     "test_preflight",
     "test_sensor_preflight",
     "test_sensor_pipeline",
-    "test_ekf_lite_estimator",
+    "test_baro_vertical_kalman",
     "test_param_manager",
     "test_param_storage",
     "test_calibration_storage",
@@ -49,6 +49,10 @@ def run_test(name: str) -> int:
     return subprocess.call(cmd)
 
 
+def test_exists(name: str) -> bool:
+    return (ROOT / "test" / name).is_dir()
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Run AeroPico native fault-injection smoke tests")
     parser.add_argument("--test", action="append", dest="tests", help="Specific PlatformIO test name")
@@ -60,6 +64,11 @@ def main() -> int:
     results = []
 
     for test in tests:
+        if not test_exists(test):
+            print(f"[fault-injection] missing test target: {test}", file=sys.stderr)
+            failed.append(test)
+            results.append({"test": test, "passed": False, "missing": True})
+            continue
         code = run_test(test)
         results.append({"test": test, "passed": code == 0})
         if code != 0:

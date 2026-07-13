@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 from pathlib import Path
+import json
 import sys
 
 
@@ -122,6 +123,14 @@ def main() -> int:
     fault_matrix = ROOT / "tools/fault_injection/fault_matrix.json"
     if not fault_matrix.exists():
         failures.append("fault injection matrix is missing")
+    else:
+        try:
+            for entry in json.loads(fault_matrix.read_text()):
+                test_name = entry.get("test", "")
+                if not test_name or not (ROOT / "test" / test_name).is_dir():
+                    failures.append(f"fault injection matrix references missing test target: {test_name}")
+        except json.JSONDecodeError as exc:
+            failures.append(f"fault injection matrix is invalid JSON: {exc}")
 
     if failures:
         print("\n".join(f"[architecture] FAIL {failure}" for failure in failures))
