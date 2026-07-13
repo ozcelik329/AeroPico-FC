@@ -160,6 +160,7 @@ Hedef: GPS/otonom moda hemen girmeden, ileride EKF ve urun farklilastirmasi icin
 | F7-03 | Tamamlandi | `EstimatedState` veri tipini tasarla | `types.h` |
 | F7-04 | Tamamlandi | Complementary altitude/attitude estimator prototipi | `src/estimators/ComplementaryEstimator.*`, `test/test_complementary_estimator/` |
 | F7-05 | Tamamlandi | EKF tasarim notu ve test stratejisi | `docs/EKF_Design_Note.md` |
+| F7-06 | Backlog | Ayirt edici inovasyon hedeflerini izle: adaptif Madgwick, sensor confidence, preflight explainability, EKF-lite altitude, gorsel kalibrasyon, fault injection, blackbox analiz, modul otomatik algilama, timing profiler, RP2350 PIO/DMA/FPU hizli mimari | `docs/Innovation_Backlog.md` |
 
 ## Guncel Dogrulama
 

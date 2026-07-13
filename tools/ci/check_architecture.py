@@ -4,6 +4,7 @@ import sys
 
 
 ROOT = Path(__file__).resolve().parents[2]
+SENSOR_FUSION_SOURCES = tuple((ROOT / "src").rglob("SensorFusion.cpp"))
 
 FORBIDDEN = {
     "dynamic flight task allocation": (
@@ -16,7 +17,8 @@ FORBIDDEN = {
         (ROOT / "src/drivers/Output.cpp", "pio_sm_clear_fifos(targetPio"),
     ),
     "double precision sensor fusion math": tuple(
-        (ROOT / "src/core/SensorFusion.cpp", token)
+        (path, token)
+        for path in SENSOR_FUSION_SOURCES
         for token in ("sqrt(", "asin(", "atan2(")
     ),
     "sensor hot path busy wait": tuple(
@@ -58,6 +60,9 @@ FORBIDDEN = {
 
 def main() -> int:
     failures = []
+    if not SENSOR_FUSION_SOURCES:
+        failures.append("SensorFusion.cpp policy target is missing")
+
     for rule, checks in FORBIDDEN.items():
         for path, token in checks:
             if path.exists() and token in path.read_text(errors="ignore"):
