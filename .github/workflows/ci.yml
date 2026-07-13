@@ -127,6 +127,22 @@ jobs:
           pio test -e native --without-uploading --filter test_blackbox
           pio test -e native_link --without-uploading
 
+  configurator:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: tools/aeropico-configurator/package-lock.json
+      - name: Install configurator dependencies
+        working-directory: tools/aeropico-configurator
+        run: npm ci
+      - name: Check configurator JavaScript
+        working-directory: tools/aeropico-configurator
+        run: npm run check
+
   hil-smoke:
     runs-on: ubuntu-latest
     if: ${{ github.event_name == 'workflow_dispatch' && inputs.hil_port != '' }}

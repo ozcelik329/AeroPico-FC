@@ -6,6 +6,16 @@ import sys
 ROOT = Path(__file__).resolve().parents[2]
 SENSOR_FUSION_SOURCES = tuple((ROOT / "src").rglob("SensorFusion.cpp"))
 
+POLICY_TARGETS = {
+    "main scheduler/task policy target": (ROOT / "src/main.cpp",),
+    "PIO UART policy target": (ROOT / "src/drivers/PioUart.cpp",),
+    "servo output policy target": (ROOT / "src/drivers/Output.cpp",),
+    "servo PIO policy target": (ROOT / "src/drivers/pwm.pio",),
+    "sensor DMA bus policy target": (ROOT / "src/drivers/sensors/SensorDmaBus.cpp",),
+    "sensor aux bus policy target": (ROOT / "src/drivers/sensors/SensorAuxBus.cpp",),
+    "sensor fusion policy target": SENSOR_FUSION_SOURCES,
+}
+
 FORBIDDEN = {
     "dynamic flight task allocation": (
         (ROOT / "src/main.cpp", "xTaskCreateAffinitySet("),
@@ -60,8 +70,9 @@ FORBIDDEN = {
 
 def main() -> int:
     failures = []
-    if not SENSOR_FUSION_SOURCES:
-        failures.append("SensorFusion.cpp policy target is missing")
+    for label, paths in POLICY_TARGETS.items():
+        if not paths or not any(path.exists() for path in paths):
+            failures.append(f"{label} is missing")
 
     for rule, checks in FORBIDDEN.items():
         for path, token in checks:
