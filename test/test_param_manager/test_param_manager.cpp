@@ -15,6 +15,7 @@ static bool rcMappingApplied;
 static bool mavlinkRatesApplied;
 static bool blackboxRateApplied;
 static bool preflightQualityApplied;
+static bool batteryProfileApplied;
 static float appliedAngleP;
 static float appliedRateD;
 static MixerSettings appliedMixerSettings;
@@ -29,6 +30,13 @@ static uint8_t appliedMavRc;
 static uint8_t appliedMavSys;
 static uint8_t appliedBlackboxHz;
 static uint8_t appliedPreflightQuality;
+static uint8_t appliedBatteryCells;
+static uint16_t appliedBatteryCapacityMah;
+static uint8_t appliedBatteryCRating;
+static float appliedBatteryNominalVoltage;
+static float appliedBatteryLowVoltage;
+static float appliedBatteryBrownoutVoltage;
+static float appliedBatteryMaxVoltage;
 static bool armed;
 
 static bool provideArmState() {
@@ -82,6 +90,23 @@ static void applyPreflightQuality(uint8_t minQuality) {
     appliedPreflightQuality = minQuality;
 }
 
+static void applyBatteryProfile(uint8_t cells,
+                                float nominalVoltage,
+                                uint16_t capacityMah,
+                                uint8_t cRating,
+                                float lowVoltage,
+                                float brownoutVoltage,
+                                float maxVoltage) {
+    batteryProfileApplied = true;
+    appliedBatteryCells = cells;
+    appliedBatteryNominalVoltage = nominalVoltage;
+    appliedBatteryCapacityMah = capacityMah;
+    appliedBatteryCRating = cRating;
+    appliedBatteryLowVoltage = lowVoltage;
+    appliedBatteryBrownoutVoltage = brownoutVoltage;
+    appliedBatteryMaxVoltage = maxVoltage;
+}
+
 void setUp() {
     gainsApplied = false;
     mixerApplied = false;
@@ -90,6 +115,7 @@ void setUp() {
     mavlinkRatesApplied = false;
     blackboxRateApplied = false;
     preflightQualityApplied = false;
+    batteryProfileApplied = false;
     appliedAngleP = 0.0f;
     appliedRateD = 0.0f;
     appliedFailsafeTimeoutMs = 0;
@@ -97,6 +123,13 @@ void setUp() {
     appliedMavAtt = appliedMavRc = appliedMavSys = 0;
     appliedBlackboxHz = 0;
     appliedPreflightQuality = 0;
+    appliedBatteryCells = 0;
+    appliedBatteryCapacityMah = 0;
+    appliedBatteryCRating = 0;
+    appliedBatteryNominalVoltage = 0.0f;
+    appliedBatteryLowVoltage = 0.0f;
+    appliedBatteryBrownoutVoltage = 0.0f;
+    appliedBatteryMaxVoltage = 0.0f;
     armed = false;
     paramManager = ParamManager();
     paramManager.setPidGainsApplyHandler(applyGains);
@@ -106,6 +139,7 @@ void setUp() {
     paramManager.setMavlinkRatesApplyHandler(applyMavlinkRates);
     paramManager.setBlackboxRateApplyHandler(applyBlackboxRate);
     paramManager.setPreflightQualityApplyHandler(applyPreflightQuality);
+    paramManager.setBatteryProfileApplyHandler(applyBatteryProfile);
     paramManager.setArmStateProvider(provideArmState);
 }
 
@@ -164,7 +198,7 @@ void test_param_manager_loads_older_blob_and_keeps_new_defaults() {
     values[PARAM_IDX_MAV_ATT_HZ] = 22.0f;
     values[PARAM_IDX_PREF_Q_MIN] = 73.0f;
 
-    ParamStorageBlob olderBlob = ParamStorage::makeBlob(values, PARAM_PERSISTED_COUNT - 1);
+    ParamStorageBlob olderBlob = ParamStorage::makeBlob(values, PARAM_IDX_RC_MODE_CH);
     TEST_ASSERT_TRUE(storage.save(olderBlob));
     paramManager.setStorage(&storage);
 
@@ -173,6 +207,8 @@ void test_param_manager_loads_older_blob_and_keeps_new_defaults() {
     TEST_ASSERT_EQUAL_UINT8(22, paramManager.getMavlinkAttitudeHz());
     TEST_ASSERT_EQUAL_UINT8(73, paramManager.getPreflightMinQuality());
     TEST_ASSERT_EQUAL_UINT8(RC_MODE_CHANNEL, paramManager.getRcModeChannel());
+    TEST_ASSERT_EQUAL_UINT8(BATTERY_CELL_COUNT, paramManager.getBatteryCellCount());
+    TEST_ASSERT_EQUAL_UINT16(BATTERY_CAPACITY_MAH, paramManager.getBatteryCapacityMah());
 }
 
 void test_param_manager_rejects_save_while_armed() {
@@ -224,6 +260,26 @@ void test_param_manager_applies_preflight_quality_callback() {
     TEST_ASSERT_EQUAL_UINT8(75, appliedPreflightQuality);
 }
 
+void test_param_manager_applies_battery_profile_callback() {
+    TEST_ASSERT_TRUE(paramManager.setParamByName("BATT_CELLS", 4.0f));
+    TEST_ASSERT_TRUE(batteryProfileApplied);
+    TEST_ASSERT_EQUAL_UINT8(4, appliedBatteryCells);
+    TEST_ASSERT_FLOAT_WITHIN(0.001f, 17.08f, appliedBatteryMaxVoltage);
+
+    TEST_ASSERT_TRUE(paramManager.setParamByName("BATT_CAP_MAH", 5000.0f));
+    TEST_ASSERT_EQUAL_UINT16(5000, appliedBatteryCapacityMah);
+
+    TEST_ASSERT_TRUE(paramManager.setParamByName("BATT_C_RATE", 60.0f));
+    TEST_ASSERT_EQUAL_UINT8(60, appliedBatteryCRating);
+}
+
+void test_param_manager_clamps_battery_profile() {
+    TEST_ASSERT_TRUE(paramManager.setParamByName("BATT_CELLS", 12.0f));
+    TEST_ASSERT_EQUAL_UINT8(6, paramManager.getBatteryCellCount());
+    TEST_ASSERT_TRUE(paramManager.setParamByName("BATT_BRN_V", 1.0f));
+    TEST_ASSERT_FLOAT_WITHIN(0.001f, 3.0f, paramManager.getBatteryBrownoutVoltage());
+}
+
 void test_param_manager_schedules_non_blocking_parameter_stream() {
     paramManager.sendAll();
     TEST_ASSERT_TRUE(paramManager.isSendActive());
@@ -264,6 +320,8 @@ int main() {
     RUN_TEST(test_param_manager_applies_rc_mapping_callback);
     RUN_TEST(test_param_manager_applies_stream_and_log_callbacks);
     RUN_TEST(test_param_manager_applies_preflight_quality_callback);
+    RUN_TEST(test_param_manager_applies_battery_profile_callback);
+    RUN_TEST(test_param_manager_clamps_battery_profile);
     RUN_TEST(test_param_manager_schedules_non_blocking_parameter_stream);
     RUN_TEST(test_param_manager_rejects_message_for_other_system);
     return UNITY_END();

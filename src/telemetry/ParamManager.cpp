@@ -40,6 +40,10 @@ void ParamManager::setPreflightQualityApplyHandler(PreflightQualityApplyHandler 
     _preflightQualityApplyHandler = handler;
 }
 
+void ParamManager::setBatteryProfileApplyHandler(BatteryProfileApplyHandler handler) {
+    _batteryProfileApplyHandler = handler;
+}
+
 void ParamManager::setArmStateProvider(ArmStateProvider provider) {
     _armStateProvider = provider;
 }
@@ -63,6 +67,10 @@ bool ParamManager::_isRcMappingParam(uint8_t index) const {
 
 bool ParamManager::_isMavlinkRateParam(uint8_t index) const {
     return index >= PARAM_IDX_MAV_ATT_HZ && index <= PARAM_IDX_MAV_SYS_HZ;
+}
+
+bool ParamManager::_isBatteryParam(uint8_t index) const {
+    return index >= PARAM_IDX_BATT_CELLS && index <= PARAM_IDX_BATT_BRN_V;
 }
 
 int ParamManager::_findParamIndex(const char* name) const {
@@ -108,6 +116,17 @@ void ParamManager::_applyParam(uint8_t index) {
     }
     if (index == PARAM_IDX_PREF_Q_MIN && _preflightQualityApplyHandler) {
         _preflightQualityApplyHandler(getPreflightMinQuality());
+    }
+    if (_isBatteryParam(index) && _batteryProfileApplyHandler) {
+        _batteryProfileApplyHandler(
+            getBatteryCellCount(),
+            getBatteryNominalVoltage(),
+            getBatteryCapacityMah(),
+            getBatteryCRating(),
+            getBatteryLowVoltage(),
+            getBatteryBrownoutVoltage(),
+            getBatteryMaxVoltage()
+        );
     }
 }
 

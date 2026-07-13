@@ -5,7 +5,7 @@
 
 static constexpr uint32_t PARAM_STORAGE_MAGIC = 0x41505052; // APPR
 static constexpr uint16_t PARAM_STORAGE_VERSION = 1;
-static constexpr size_t PARAM_STORAGE_MAX_VALUES = 32;
+static constexpr size_t PARAM_STORAGE_MAX_VALUES = 48;
 
 struct ParamStorageBlob {
     uint32_t magic;

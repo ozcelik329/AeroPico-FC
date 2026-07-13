@@ -12,8 +12,8 @@
 #include "../storage/ParamStorage.h"
 
 // Desteklenen parametreler
-#define PARAM_PERSISTED_COUNT 29
-#define PARAM_COUNT 30
+#define PARAM_PERSISTED_COUNT 35
+#define PARAM_COUNT 36
 
 enum ParamIndex : uint8_t {
     PARAM_IDX_ANGLE_P = 0,
@@ -45,6 +45,12 @@ enum ParamIndex : uint8_t {
     PARAM_IDX_BB_LOG_HZ,
     PARAM_IDX_PREF_Q_MIN,
     PARAM_IDX_RC_MODE_CH,
+    PARAM_IDX_BATT_CELLS,
+    PARAM_IDX_BATT_NOM_V,
+    PARAM_IDX_BATT_CAP_MAH,
+    PARAM_IDX_BATT_C_RATE,
+    PARAM_IDX_BATT_LOW_V,
+    PARAM_IDX_BATT_BRN_V,
     PARAM_IDX_SAVE
 };
 
@@ -65,6 +71,13 @@ class ParamManager {
     using MavlinkRatesApplyHandler = void (*)(uint8_t attitudeHz, uint8_t rcHz, uint8_t sysStatusHz);
     using BlackboxRateApplyHandler = void (*)(uint8_t logHz);
     using PreflightQualityApplyHandler = void (*)(uint8_t minQuality);
+    using BatteryProfileApplyHandler = void (*)(uint8_t cells,
+                                                float nominalVoltage,
+                                                uint16_t capacityMah,
+                                                uint8_t cRating,
+                                                float lowVoltage,
+                                                float brownoutVoltage,
+                                                float maxVoltage);
     using ArmStateProvider = bool (*)();
 
     void init();
@@ -75,6 +88,7 @@ class ParamManager {
     void setMavlinkRatesApplyHandler(MavlinkRatesApplyHandler handler);
     void setBlackboxRateApplyHandler(BlackboxRateApplyHandler handler);
     void setPreflightQualityApplyHandler(PreflightQualityApplyHandler handler);
+    void setBatteryProfileApplyHandler(BatteryProfileApplyHandler handler);
     void setArmStateProvider(ArmStateProvider provider);
     void setStorage(IParamStorage* storage);
     bool loadPersistent();
@@ -116,6 +130,13 @@ class ParamManager {
     uint8_t getMavlinkSysStatusHz() const { return (uint8_t)_params[PARAM_IDX_MAV_SYS_HZ].value; }
     uint8_t getBlackboxLogHz() const { return (uint8_t)_params[PARAM_IDX_BB_LOG_HZ].value; }
     uint8_t getPreflightMinQuality() const { return (uint8_t)_params[PARAM_IDX_PREF_Q_MIN].value; }
+    uint8_t getBatteryCellCount() const { return (uint8_t)_params[PARAM_IDX_BATT_CELLS].value; }
+    float getBatteryNominalVoltage() const { return _params[PARAM_IDX_BATT_NOM_V].value; }
+    uint16_t getBatteryCapacityMah() const { return (uint16_t)_params[PARAM_IDX_BATT_CAP_MAH].value; }
+    uint8_t getBatteryCRating() const { return (uint8_t)_params[PARAM_IDX_BATT_C_RATE].value; }
+    float getBatteryLowVoltage() const { return _params[PARAM_IDX_BATT_LOW_V].value; }
+    float getBatteryBrownoutVoltage() const { return _params[PARAM_IDX_BATT_BRN_V].value; }
+    float getBatteryMaxVoltage() const { return getBatteryCellCount() * 4.27f; }
 
   private:
     Param _params[PARAM_COUNT] = {
@@ -148,6 +169,12 @@ class ParamManager {
         {"BB_LOG_HZ", 5.0f, 1.0f, 50.0f},
         {"PREF_Q_MIN", 60.0f, 1.0f, 100.0f},
         {"RC_MODE_CH", RC_MODE_CHANNEL, 0.0f, 7.0f},
+        {"BATT_CELLS", BATTERY_CELL_COUNT, 1.0f, 6.0f},
+        {"BATT_NOM_V", BATTERY_NOMINAL_VOLTAGE, 3.0f, 26.0f},
+        {"BATT_CAP_MAH", BATTERY_CAPACITY_MAH, 100.0f, 30000.0f},
+        {"BATT_C_RATE", BATTERY_C_RATING, 1.0f, 200.0f},
+        {"BATT_LOW_V", BATTERY_MIN_VOLTAGE, 3.0f, 26.0f},
+        {"BATT_BRN_V", BATTERY_BROWNOUT_VOLTAGE, 3.0f, 26.0f},
         {"PARAM_SAVE", 0.0f, 0.0f, 1.0f},
     };
     PidGainsApplyHandler _pidGainsApplyHandler = nullptr;
@@ -157,6 +184,7 @@ class ParamManager {
     MavlinkRatesApplyHandler _mavlinkRatesApplyHandler = nullptr;
     BlackboxRateApplyHandler _blackboxRateApplyHandler = nullptr;
     PreflightQualityApplyHandler _preflightQualityApplyHandler = nullptr;
+    BatteryProfileApplyHandler _batteryProfileApplyHandler = nullptr;
     ArmStateProvider _armStateProvider = nullptr;
     IParamStorage* _storage = nullptr;
     bool _dirty = false;
@@ -169,6 +197,7 @@ class ParamManager {
     bool _isMixerParam(uint8_t index) const;
     bool _isRcMappingParam(uint8_t index) const;
     bool _isMavlinkRateParam(uint8_t index) const;
+    bool _isBatteryParam(uint8_t index) const;
     void _applyParam(uint8_t index);
     void _handleParamRequestList(const mavlink_message_t& msg);
     void _handleParamSet(const mavlink_message_t& msg);

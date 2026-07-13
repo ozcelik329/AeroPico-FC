@@ -56,6 +56,18 @@
       ]
     },
     {
+      id: "battery",
+      label: "Battery",
+      params: [
+        ["BATT_CELLS", "Cell Count", "LiPo seri hucre sayisi. Varsayilan 3S."],
+        ["BATT_NOM_V", "Nominal Volt", "Paket nominal voltaji. 3S icin 11.1 V."],
+        ["BATT_CAP_MAH", "Capacity mAh", "Paket kapasitesi. Varsayilan 3300 mAh."],
+        ["BATT_C_RATE", "C Rating", "Paket C degeri. Varsayilan 40C."],
+        ["BATT_LOW_V", "Low Voltage", "Preflight/failsafe dusuk voltaj esigi."],
+        ["BATT_BRN_V", "Brownout Voltage", "Kritik brownout esigi."]
+      ]
+    },
+    {
       id: "streams",
       label: "Telemetry",
       params: [
@@ -135,6 +147,12 @@
     RC_MODE_CH: { min: 0, max: 15, step: 1, integer: true },
     FS_TIMEOUT: { min: 100, max: 5000, step: 1, integer: true },
     PREF_Q_MIN: { min: 0, max: 100, step: 1, integer: true },
+    BATT_CELLS: { min: 1, max: 6, step: 1, integer: true },
+    BATT_NOM_V: { min: 3.0, max: 26.0, step: 0.1 },
+    BATT_CAP_MAH: { min: 100, max: 30000, step: 10, integer: true },
+    BATT_C_RATE: { min: 1, max: 200, step: 1, integer: true },
+    BATT_LOW_V: { min: 3.0, max: 26.0, step: 0.1 },
+    BATT_BRN_V: { min: 3.0, max: 26.0, step: 0.1 },
     MAV_ATT_HZ: { min: 0, max: 100, step: 1, integer: true },
     MAV_RC_HZ: { min: 0, max: 100, step: 1, integer: true },
     MAV_SYS_HZ: { min: 0, max: 50, step: 1, integer: true },
@@ -282,6 +300,7 @@
     mixer: '<svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>',
     rc: '<svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>',
     safety: '<svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>',
+    battery: '<svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="18" height="10" rx="2"/><path d="M22 11v2"/><path d="M6 11h6"/></svg>',
     streams: '<svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>'
   };
 
@@ -899,6 +918,12 @@
     const items = [];
     const servoMin = paramValue("SERVO_MIN");
     const servoMax = paramValue("SERVO_MAX");
+    const batteryCells = paramValue("BATT_CELLS");
+    const batteryNominal = paramValue("BATT_NOM_V");
+    const batteryCapacity = paramValue("BATT_CAP_MAH");
+    const batteryCRate = paramValue("BATT_C_RATE");
+    const batteryLow = paramValue("BATT_LOW_V");
+    const batteryBrownout = paramValue("BATT_BRN_V");
     const rcChannels = ["RC_ROLL_CH", "RC_PITCH_CH", "RC_THR_CH", "RC_YAW_CH", "RC_MODE_CH"]
       .map((name) => paramValue(name))
       .filter((value) => value !== null);
@@ -913,6 +938,28 @@
       items.push(["bad", "RC kanal eşlemesinde tekrar eden kanal var."]);
     } else if (rcChannels.length > 0) {
       items.push(["ok", "RC kanal eşlemesi çakışmasız."]);
+    }
+
+    if (batteryCells !== null && batteryNominal !== null) {
+      const expectedNominal = batteryCells * 3.7;
+      const diff = Math.abs(batteryNominal - expectedNominal);
+      items.push([
+        diff <= 0.25 ? "ok" : "warn",
+        `${batteryCells}S batarya profili: nominal ${batteryNominal.toFixed(1)} V, beklenen yaklaşık ${expectedNominal.toFixed(1)} V.`
+      ]);
+    }
+
+    if (batteryLow !== null && batteryBrownout !== null) {
+      if (batteryBrownout >= batteryLow) {
+        items.push(["bad", "Brownout voltajı low voltage eşiğinden küçük olmalı."]);
+      } else {
+        items.push(["ok", "Batarya low/brownout eşikleri tutarlı."]);
+      }
+    }
+
+    if (batteryCapacity !== null && batteryCRate !== null) {
+      const maxCurrent = (batteryCapacity / 1000) * batteryCRate;
+      items.push(["muted", `Paket teorik sürekli akım limiti yaklaşık ${maxCurrent.toFixed(0)} A.`]);
     }
 
     if (state.modules.battery === "bad") items.push(["warn", "Batarya ölçümü yok veya geçersiz görünüyor."]);

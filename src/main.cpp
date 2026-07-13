@@ -94,8 +94,7 @@ static bool handleMavlinkArmCommand(bool arm, bool force, char* reason, size_t r
     return flightManager.requestArmFromMavlink(arm, force, reason, reasonLen);
 }
 
-static uint8_t handleMavlinkServiceCommand(uint16_t action, float p2, float p3, float p4,
-                                           char* reason, size_t reasonLen) {
+static uint8_t handleMavlinkServiceCommand(uint16_t action, float p2, float p3, float p4, char* reason, size_t reasonLen) {
     return mavlinkServiceCommands.handle(action, p2, p3, p4, reason, reasonLen);
 }
 
@@ -113,33 +112,37 @@ static void clearRCOverride() {
     flightManager.clearRCOverride();
 }
 
-static void applyPidGains(float angleP, float angleI, float angleD,
-                          float rateP, float rateI, float rateD) {
+static void applyPidGains(float angleP, float angleI, float angleD, float rateP, float rateI, float rateD) {
     SystemTimer::applyPidGains(angleP, angleI, angleD, rateP, rateI, rateD);
 }
 
-static void applyMixerSettings(const MixerSettings& settings) {
-    SystemTimer::applyMixerSettings(settings);
-}
+static void applyMixerSettings(const MixerSettings& settings) { SystemTimer::applyMixerSettings(settings); }
 
-static void applyFailsafeTimeout(uint32_t timeoutMs) {
-    rxManager.setFailsafeTimeoutMs(timeoutMs);
-}
+static void applyFailsafeTimeout(uint32_t timeoutMs) { rxManager.setFailsafeTimeoutMs(timeoutMs); }
 
 static void applyRcMapping(uint8_t roll, uint8_t pitch, uint8_t throttle, uint8_t yaw, uint8_t mode) {
     flightManager.applyRcMapping({roll, pitch, throttle, yaw, mode});
 }
 
-static void applyMavlinkRates(uint8_t attitudeHz, uint8_t rcHz, uint8_t sysStatusHz) {
-    mavlink.setStreamRates(attitudeHz, rcHz, sysStatusHz);
-}
+static void applyMavlinkRates(uint8_t attitudeHz, uint8_t rcHz, uint8_t sysStatusHz) { mavlink.setStreamRates(attitudeHz, rcHz, sysStatusHz); }
 
-static void applyBlackboxRate(uint8_t logHz) {
-    blackbox.setLogRateHz(logHz);
-}
+static void applyBlackboxRate(uint8_t logHz) { blackbox.setLogRateHz(logHz); }
 
 static void applyPreflightQuality(uint8_t minQuality) {
     preflightMinSensorQuality = minQuality > 100 ? 100 : minQuality;
+}
+
+static void applyBatteryProfile(uint8_t cells, float nominalVoltage, uint16_t capacityMah, uint8_t cRating,
+                                float lowVoltage, float brownoutVoltage, float maxVoltage) {
+    (void)cells;
+    (void)nominalVoltage;
+    (void)capacityMah;
+    (void)cRating;
+#if BATTERY_ADC_ENABLED
+    batteryMonitor.init(provideBatteryVoltage, lowVoltage, maxVoltage, brownoutVoltage);
+#else
+    batteryMonitor.init();
+#endif
 }
 
 static bool evaluateSensorPreflight() {
@@ -360,10 +363,7 @@ void setup() {
     Logger::init();
 #if BATTERY_ADC_ENABLED
     batteryAdc.init(PIN_BATTERY_ADC, BATTERY_ADC_CHANNEL);
-    batteryMonitor.init(provideBatteryVoltage,
-                        BATTERY_MIN_VOLTAGE,
-                        BATTERY_MAX_VOLTAGE,
-                        BATTERY_BROWNOUT_VOLTAGE);
+    batteryMonitor.init(provideBatteryVoltage, BATTERY_MIN_VOLTAGE, BATTERY_MAX_VOLTAGE, BATTERY_BROWNOUT_VOLTAGE);
 #else
     batteryMonitor.init();
 #endif
@@ -383,10 +383,8 @@ void setup() {
             BootLogger::ok("Calibration Load");
         } else if (sensorManager.runBootCalibration()) {
             BootLogger::ok("Gyro/Accel Bias Cal");
-            CalibrationBlob savedCalibration = CalibrationStorage::makeBlob(
-                sensorManager.getImuCalibration(),
-                sensorManager.getMagCalibration()
-            );
+            CalibrationBlob savedCalibration = CalibrationStorage::makeBlob(sensorManager.getImuCalibration(),
+                                                                            sensorManager.getMagCalibration());
             if (calibrationStorage.save(savedCalibration)) {
                 BootLogger::ok("Calibration Save");
             } else {
@@ -445,29 +443,26 @@ void setup() {
     paramManager.setMavlinkRatesApplyHandler(applyMavlinkRates);
     paramManager.setBlackboxRateApplyHandler(applyBlackboxRate);
     paramManager.setPreflightQualityApplyHandler(applyPreflightQuality);
+    paramManager.setBatteryProfileApplyHandler(applyBatteryProfile);
     paramManager.setArmStateProvider(provideArmState);
     paramManager.setStorage(&paramStorage);
     paramManager.init();
-    applyPidGains(
-        paramManager.getAngleP(), paramManager.getAngleI(), paramManager.getAngleD(),
-        paramManager.getRateP(), paramManager.getRateI(), paramManager.getRateD()
-    );
+    applyPidGains(paramManager.getAngleP(), paramManager.getAngleI(), paramManager.getAngleD(),
+                  paramManager.getRateP(), paramManager.getRateI(), paramManager.getRateD());
     applyMixerSettings(paramManager.getMixerSettings());
     applyFailsafeTimeout(paramManager.getFailsafeTimeoutMs());
-    applyRcMapping(
-        paramManager.getRcRollChannel(),
-        paramManager.getRcPitchChannel(),
-        paramManager.getRcThrottleChannel(),
-        paramManager.getRcYawChannel(),
-        paramManager.getRcModeChannel()
-    );
-    applyMavlinkRates(
-        paramManager.getMavlinkAttitudeHz(),
-        paramManager.getMavlinkRcHz(),
-        paramManager.getMavlinkSysStatusHz()
-    );
+    applyRcMapping(paramManager.getRcRollChannel(), paramManager.getRcPitchChannel(),
+                   paramManager.getRcThrottleChannel(), paramManager.getRcYawChannel(),
+                   paramManager.getRcModeChannel());
+    applyMavlinkRates(paramManager.getMavlinkAttitudeHz(),
+                      paramManager.getMavlinkRcHz(),
+                      paramManager.getMavlinkSysStatusHz());
     applyBlackboxRate(paramManager.getBlackboxLogHz());
     applyPreflightQuality(paramManager.getPreflightMinQuality());
+    applyBatteryProfile(paramManager.getBatteryCellCount(), paramManager.getBatteryNominalVoltage(),
+                        paramManager.getBatteryCapacityMah(), paramManager.getBatteryCRating(),
+                        paramManager.getBatteryLowVoltage(), paramManager.getBatteryBrownoutVoltage(),
+                        paramManager.getBatteryMaxVoltage());
 #endif
 
     sensorCapabilities = sensorManager.capabilities();
