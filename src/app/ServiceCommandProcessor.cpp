@@ -34,6 +34,14 @@ void ServiceCommandProcessor::pollAsyncCompletions() {
     complete(AEROPICO_CMD_CAL_IMU, MAV_RESULT_ACCEPTED, "IMU calibration saved");
 }
 
+bool ServiceCommandProcessor::rejectIfArmed(uint16_t action, const char* reason) {
+    if (_context.isArmed && _context.isArmed()) {
+        complete(action, MAV_RESULT_TEMPORARILY_REJECTED, reason);
+        return true;
+    }
+    return false;
+}
+
 void ServiceCommandProcessor::processRequest(const ServiceCommandRequest& request) {
     if (!_context.sensors) {
         complete(request.action, MAV_RESULT_FAILED, "Sensor service unavailable");
@@ -42,6 +50,9 @@ void ServiceCommandProcessor::processRequest(const ServiceCommandRequest& reques
 
     switch (request.action) {
         case AEROPICO_CMD_CAL_IMU:
+            if (rejectIfArmed(request.action, "IMU calibration rejected while armed")) {
+                break;
+            }
             if (!_context.sensors->beginImuCalibration()) {
                 complete(request.action, MAV_RESULT_TEMPORARILY_REJECTED,
                          _context.sensors->isImuCalibrationActive()
@@ -53,6 +64,9 @@ void ServiceCommandProcessor::processRequest(const ServiceCommandRequest& reques
             break;
 
         case AEROPICO_CMD_CAL_MAG:
+            if (rejectIfArmed(request.action, "Mag calibration rejected while armed")) {
+                break;
+            }
             if (!_context.sensors->hasMag()) {
                 complete(request.action, MAV_RESULT_DENIED, "Mag calibration failed: mag missing");
                 break;
@@ -83,6 +97,9 @@ void ServiceCommandProcessor::processRequest(const ServiceCommandRequest& reques
             break;
 
         case AEROPICO_CMD_SERVO_TEST: {
+            if (rejectIfArmed(request.action, "Servo test rejected while armed")) {
+                break;
+            }
             const uint8_t surface = (uint8_t)request.p2;
             const uint16_t pulse = (uint16_t)request.p3;
             const uint16_t duration = (uint16_t)request.p4;

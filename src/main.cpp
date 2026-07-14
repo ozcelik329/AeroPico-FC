@@ -413,6 +413,7 @@ void setup() {
     serviceProcessorContext.sensors = &sensorManager;
     serviceProcessorContext.calibrationStorage = &calibrationStorage;
     serviceProcessorContext.magCalibrationActive = &magCalibrationActive;
+    serviceProcessorContext.isArmed = provideArmState;
     serviceProcessorContext.requestServoTest = SystemTimer::requestServoTest;
     serviceProcessorContext.mailbox = &serviceCommandMailbox;
     serviceCommandProcessor.init(serviceProcessorContext);

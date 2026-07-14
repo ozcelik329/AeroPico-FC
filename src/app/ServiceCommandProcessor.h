@@ -10,6 +10,7 @@ struct ServiceCommandProcessorContext {
     SensorManager* sensors = nullptr;
     ICalibrationStorage* calibrationStorage = nullptr;
     bool* magCalibrationActive = nullptr;
+    bool (*isArmed)() = nullptr;
     bool (*requestServoTest)(uint8_t surface, uint16_t pulseUs, uint16_t durationMs) = nullptr;
     ServiceCommandMailbox* mailbox = nullptr;
 };
@@ -25,6 +26,7 @@ class ServiceCommandProcessor {
     void complete(uint16_t action, uint8_t result, const char* reason);
     void pollAsyncCompletions();
     void processRequest(const ServiceCommandRequest& request);
+    bool rejectIfArmed(uint16_t action, const char* reason);
 };
 
 #endif
