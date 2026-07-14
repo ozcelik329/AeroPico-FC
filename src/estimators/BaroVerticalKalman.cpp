@@ -1,5 +1,6 @@
 #include "BaroVerticalKalman.h"
 
+#include <cmath>
 #include <math.h>
 
 void BaroVerticalKalman::init(const BaroVerticalKalmanConfig& config) {
@@ -47,7 +48,7 @@ void BaroVerticalKalman::predict(float dt, float verticalAccelMps2) {
         return;
     }
 
-    const float accel = isfinite(verticalAccelMps2)
+    const float accel = std::isfinite(verticalAccelMps2)
         ? constrain(verticalAccelMps2, -30.0f, 30.0f)
         : 0.0f;
     _altitudeM += _verticalSpeedMps * dt + 0.5f * accel * dt * dt;
@@ -71,7 +72,7 @@ void BaroVerticalKalman::predict(float dt, float verticalAccelMps2) {
 }
 
 bool BaroVerticalKalman::correct(float baroAltitudeM) {
-    if (!isfinite(baroAltitudeM)) {
+    if (!std::isfinite(baroAltitudeM)) {
         _lastMeasurementRejected = true;
         _consecutiveRejects = _consecutiveRejects < 255 ? (uint8_t)(_consecutiveRejects + 1u) : _consecutiveRejects;
         return false;
@@ -108,12 +109,12 @@ bool BaroVerticalKalman::correct(float baroAltitudeM) {
 }
 
 bool BaroVerticalKalman::stateFinite() const {
-    return isfinite(_altitudeM) &&
-           isfinite(_verticalSpeedMps) &&
-           isfinite(_p00) &&
-           isfinite(_p01) &&
-           isfinite(_p10) &&
-           isfinite(_p11);
+    return std::isfinite(_altitudeM) &&
+           std::isfinite(_verticalSpeedMps) &&
+           std::isfinite(_p00) &&
+           std::isfinite(_p01) &&
+           std::isfinite(_p10) &&
+           std::isfinite(_p11);
 }
 
 void BaroVerticalKalman::constrainCovariance() {
@@ -155,14 +156,14 @@ void BaroVerticalKalman::updateEstimatorHealth(bool baroValid) {
 
 EstimatedState BaroVerticalKalman::update(const EstimatorInput& input, float baroAltitudeM, bool baroValid) {
     copyAttitude(input);
-    if (!isfinite(input.rollDeg) || !isfinite(input.pitchDeg) || !isfinite(input.yawDeg)) {
+    if (!std::isfinite(input.rollDeg) || !std::isfinite(input.pitchDeg) || !std::isfinite(input.yawDeg)) {
         _state.health = SensorHealth::Invalid;
         _state.valid = false;
         return _state;
     }
 
     if (!_initialized) {
-        if (baroValid && !isfinite(baroAltitudeM)) {
+        if (baroValid && !std::isfinite(baroAltitudeM)) {
             _state.health = SensorHealth::Invalid;
             _state.valid = false;
             return _state;

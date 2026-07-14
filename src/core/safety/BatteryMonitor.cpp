@@ -1,10 +1,19 @@
 #include "BatteryMonitor.h"
 
-void BatteryMonitor::init(VoltageProvider provider, float minVoltage, float maxVoltage, float brownoutVoltage) {
+void BatteryMonitor::init(VoltageProvider provider,
+                          float minVoltage,
+                          float maxVoltage,
+                          float brownoutVoltage,
+                          uint8_t cells,
+                          uint16_t capacityMah,
+                          uint8_t cRating) {
     _provider = provider;
     _minVoltage = minVoltage;
     _maxVoltage = maxVoltage;
     _brownoutVoltage = brownoutVoltage;
+    _cells = cells;
+    _capacityMah = capacityMah;
+    _cRating = cRating;
     _filteredVoltage = 0.0f;
     _filterInitialized = false;
     _lowLatched = false;
@@ -14,14 +23,17 @@ void BatteryMonitor::init(VoltageProvider provider, float minVoltage, float maxV
 }
 
 BatteryStatus BatteryMonitor::evaluate() {
+    const uint16_t maxCurrentA = _capacityMah == 0 || _cRating == 0
+        ? 0
+        : (uint16_t)(((uint32_t)_capacityMah * _cRating) / 1000U);
     if (!_provider) {
-        return {false, false, false, false, 0.0f, "Battery monitor not configured"};
+        return {false, false, false, false, 0.0f, _cells, _capacityMah, maxCurrentA, "Battery monitor not configured"};
     }
 
     float voltage = 0.0f;
     if (!_provider(voltage)) {
         _unavailableSamples = _unavailableSamples < 255 ? (uint8_t)(_unavailableSamples + 1u) : _unavailableSamples;
-        return {true, false, false, false, 0.0f, "Battery voltage unavailable"};
+        return {true, false, false, false, 0.0f, _cells, _capacityMah, maxCurrentA, "Battery voltage unavailable"};
     }
     _unavailableSamples = 0;
 
@@ -42,7 +54,7 @@ BatteryStatus BatteryMonitor::evaluate() {
          (_brownoutLatched && voltage < _brownoutVoltage + BROWNOUT_RECOVERY_HYSTERESIS_V))) {
         _lowLatched = true;
         _brownoutLatched = true;
-        return {true, false, true, true, voltage, "Battery brownout risk"};
+        return {true, false, true, true, voltage, _cells, _capacityMah, maxCurrentA, "Battery brownout risk"};
     }
     _brownoutLatched = false;
 
@@ -56,13 +68,13 @@ BatteryStatus BatteryMonitor::evaluate() {
 
     if (lowNow && (_lowLatched || _lowSamples >= LOW_DEBOUNCE_SAMPLES)) {
         _lowLatched = true;
-        return {true, false, false, true, voltage, "Battery voltage low"};
+        return {true, false, false, true, voltage, _cells, _capacityMah, maxCurrentA, "Battery voltage low"};
     }
     _lowLatched = false;
 
     if (voltage > _maxVoltage) {
-        return {true, false, false, false, voltage, "Battery voltage out of range"};
+        return {true, false, false, false, voltage, _cells, _capacityMah, maxCurrentA, "Battery voltage out of range"};
     }
 
-    return {true, true, false, false, voltage, ""};
+    return {true, true, false, false, voltage, _cells, _capacityMah, maxCurrentA, ""};
 }

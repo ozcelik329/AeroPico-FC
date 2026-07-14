@@ -13,6 +13,33 @@ struct ParamFlashWriteContext {
     const uint8_t* page;
 };
 
+struct LegacyParamStorageBlob {
+    uint32_t magic;
+    uint16_t version;
+    uint16_t count;
+    float values[PARAM_STORAGE_MAX_VALUES];
+    uint32_t checksum;
+};
+
+uint32_t legacyParamChecksum(const LegacyParamStorageBlob& blob) {
+    LegacyParamStorageBlob copy = blob;
+    copy.checksum = 0;
+    const uint8_t* bytes = reinterpret_cast<const uint8_t*>(&copy);
+    uint32_t sum = 2166136261u;
+    for (size_t i = 0; i < sizeof(LegacyParamStorageBlob); ++i) {
+        sum ^= bytes[i];
+        sum *= 16777619u;
+    }
+    return sum;
+}
+
+bool legacyParamValid(const LegacyParamStorageBlob& blob) {
+    return blob.magic == PARAM_STORAGE_MAGIC &&
+           blob.version == PARAM_STORAGE_VERSION &&
+           blob.count <= PARAM_STORAGE_MAX_VALUES &&
+           blob.checksum == legacyParamChecksum(blob);
+}
+
 void __not_in_flash_func(programParamFlash)(void* opaque) {
     auto* context = static_cast<ParamFlashWriteContext*>(opaque);
     flash_range_erase(context->offset, FLASH_SECTOR_SIZE);
@@ -28,11 +55,18 @@ ParamStorageBlob ParamStorage::makeBlob(const float* values, size_t count) {
     blob.magic = PARAM_STORAGE_MAGIC;
     blob.version = PARAM_STORAGE_VERSION;
     blob.count = count > PARAM_STORAGE_MAX_VALUES ? PARAM_STORAGE_MAX_VALUES : (uint16_t)count;
+    blob.generation = 1;
 
     for (size_t i = 0; i < blob.count; i++) {
         blob.values[i] = values[i];
     }
 
+    blob.checksum = checksum(blob);
+    return blob;
+}
+
+ParamStorageBlob ParamStorage::withGeneration(ParamStorageBlob blob, uint32_t generation) {
+    blob.generation = generation == 0 ? 1 : generation;
     blob.checksum = checksum(blob);
     return blob;
 }
@@ -86,10 +120,30 @@ bool RPFlashParamStorage::load(ParamStorageBlob& blob) {
     (void)blob;
     return false;
 #else
-    constexpr uint32_t FLASH_TARGET_OFFSET = PICO_FLASH_SIZE_BYTES - (2 * FLASH_SECTOR_SIZE);
-    const auto* stored = reinterpret_cast<const ParamStorageBlob*>(XIP_BASE + FLASH_TARGET_OFFSET);
-    blob = *stored;
-    return ParamStorage::hasValidEnvelope(blob);
+    constexpr uint32_t FLASH_BASE_OFFSET = PICO_FLASH_SIZE_BYTES - (4 * FLASH_SECTOR_SIZE);
+    bool found = false;
+    ParamStorageBlob best = {};
+    for (uint8_t slot = 0; slot < PARAM_STORAGE_SLOT_COUNT; ++slot) {
+        const uint32_t offset = FLASH_BASE_OFFSET + ((uint32_t)slot * FLASH_SECTOR_SIZE);
+        const auto* stored = reinterpret_cast<const ParamStorageBlob*>(XIP_BASE + offset);
+        ParamStorageBlob candidate = *stored;
+        if (ParamStorage::hasValidEnvelope(candidate) && (!found || candidate.generation > best.generation)) {
+            best = candidate;
+            found = true;
+        }
+    }
+    if (!found) {
+        constexpr uint32_t LEGACY_OFFSET = PICO_FLASH_SIZE_BYTES - (2 * FLASH_SECTOR_SIZE);
+        const auto* legacy = reinterpret_cast<const LegacyParamStorageBlob*>(XIP_BASE + LEGACY_OFFSET);
+        LegacyParamStorageBlob legacyBlob = *legacy;
+        if (!legacyParamValid(legacyBlob)) {
+            return false;
+        }
+        blob = ParamStorage::makeBlob(legacyBlob.values, legacyBlob.count);
+        return true;
+    }
+    blob = best;
+    return true;
 #endif
 }
 
@@ -102,19 +156,27 @@ bool RPFlashParamStorage::save(const ParamStorageBlob& blob) {
     (void)blob;
     return false;
 #else
-    constexpr uint32_t FLASH_TARGET_OFFSET = PICO_FLASH_SIZE_BYTES - (2 * FLASH_SECTOR_SIZE);
+    constexpr uint32_t FLASH_BASE_OFFSET = PICO_FLASH_SIZE_BYTES - (4 * FLASH_SECTOR_SIZE);
     constexpr size_t PAGE_SIZE = FLASH_PAGE_SIZE;
     alignas(4) uint8_t page[PAGE_SIZE];
 
     ParamStorageBlob existing = {};
-    if (load(existing) && memcmp(&existing, &blob, sizeof(ParamStorageBlob)) == 0) {
+    const bool hasExisting = load(existing);
+    if (hasExisting && existing.count == blob.count &&
+        memcmp(existing.values, blob.values, sizeof(float) * blob.count) == 0) {
         return true;
     }
+    const uint32_t nextGeneration = hasExisting ? existing.generation + 1U : 1U;
+    const uint8_t slot = (uint8_t)(nextGeneration % PARAM_STORAGE_SLOT_COUNT);
+    const ParamStorageBlob journalBlob = ParamStorage::withGeneration(blob, nextGeneration);
 
     memset(page, 0xFF, sizeof(page));
-    memcpy(page, &blob, sizeof(ParamStorageBlob));
+    memcpy(page, &journalBlob, sizeof(ParamStorageBlob));
 
-    ParamFlashWriteContext context = {FLASH_TARGET_OFFSET, page};
+    ParamFlashWriteContext context = {
+        FLASH_BASE_OFFSET + ((uint32_t)slot * FLASH_SECTOR_SIZE),
+        page
+    };
     constexpr uint32_t FLASH_SAFE_TIMEOUT_MS = 1000;
     return flash_safe_execute(programParamFlash, &context, FLASH_SAFE_TIMEOUT_MS) == PICO_OK;
 #endif

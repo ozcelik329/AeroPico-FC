@@ -70,7 +70,14 @@ class SensorAuxBus {
                       size_t len,
                       AuxReadKind kind,
                       SensorFaultCode& faultCode);
+    bool readRegsPolling(RP2350I2C& bus,
+                         uint8_t address,
+                         uint8_t reg,
+                         uint8_t* dest,
+                         size_t len,
+                         SensorFaultCode& faultCode);
     bool processPendingRead(SensorDmaBus& dmaBus,
+                            RP2350I2C& bus,
                             MagDriver& magDriver,
                             BaroDriver& baroDriver,
                             SensorBuffer& buffer,

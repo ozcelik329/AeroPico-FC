@@ -6,6 +6,7 @@
 #include "../drivers/RX.h"
 #include "../drivers/Sensors.h"
 #include "../storage/CalibrationStorage.h"
+#include "ServiceCommandMailbox.h"
 
 struct MavlinkServiceContext {
     SensorManager* sensors = nullptr;
@@ -16,6 +17,7 @@ struct MavlinkServiceContext {
     PreflightResult (*evaluatePreflight)() = nullptr;
     bool (*requestServoTest)(uint8_t surface, uint16_t pulseUs, uint16_t durationMs) = nullptr;
     PreflightResult* lastPreflightResult = nullptr;
+    ServiceCommandMailbox* mailbox = nullptr;
 };
 
 class MavlinkServiceCommands {
@@ -28,6 +30,7 @@ class MavlinkServiceCommands {
 
     bool safeForService() const;
     void copyReason(char* reason, size_t reasonLen, const char* text) const;
+    uint8_t enqueue(uint16_t action, float p2, float p3, float p4, char* reason, size_t reasonLen);
 };
 
 #endif

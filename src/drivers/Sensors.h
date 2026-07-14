@@ -43,6 +43,9 @@ class SensorManager : public IImuDriver, public IMagDriver, public IBaroDriver, 
     const char* getFaultText() const;
     uint8_t getLastWhoAmI() const { return _lastWhoAmI; }
     bool runBootCalibration() override;
+    bool beginImuCalibration();
+    bool isImuCalibrationActive() const;
+    bool takeImuCalibrationResult(ImuCalibration& calibration, bool& success);
     ImuCalibration getImuCalibration() const;
     void setImuCalibration(const ImuCalibration& calibration);
 
@@ -77,6 +80,15 @@ class SensorManager : public IImuDriver, public IMagDriver, public IBaroDriver, 
     BaroDriver _baroDriver;
     SensorHealthMonitor _healthMonitor;
     SensorCalibration _calibration;
+    enum class ImuCalibrationState : uint8_t {
+        Idle = 0,
+        Collecting,
+        Complete,
+        Failed
+    };
+    ImuCalibrationState _imuCalibrationState = ImuCalibrationState::Idle;
+    uint16_t _imuCalibrationSamples = 0;
+    ImuCalibration _lastAsyncImuCalibration = {};
     IHALI2C* _i2cBus = nullptr;
     RP2350I2C* _rp2350Bus = nullptr;
     bool _dmaFastPath = false;
@@ -95,6 +107,8 @@ class SensorManager : public IImuDriver, public IMagDriver, public IBaroDriver, 
     void _mpu_start_dma_read();
     bool _mpu_dma_ready();
     bool _readRawFrame(uint8_t raw[GyroAccelDriver::RAW_LEN]);
+    void _observeCalibrationRawFrame(const uint8_t raw[GyroAccelDriver::RAW_LEN]);
+    void _finishAsyncImuCalibration();
     void _setFault(SensorFaultCode code);
     IHALI2C& _bus();
     RP2350I2C* _rpBus();

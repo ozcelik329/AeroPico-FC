@@ -1,5 +1,6 @@
 #include "MavlinkServiceCommands.h"
 
+#include <cmath>
 #include <common/mavlink.h>
 #include "../telemetry/AeroPicoMavlinkCommands.h"
 
@@ -8,7 +9,7 @@ void MavlinkServiceCommands::init(const MavlinkServiceContext& context) {
 }
 
 bool MavlinkServiceCommands::safeForService() const {
-    return !_context.isArmed || !_context.isArmed();
+    return _context.isArmed == nullptr || !_context.isArmed();
 }
 
 void MavlinkServiceCommands::copyReason(char* reason, size_t reasonLen, const char* text) const {
@@ -20,6 +21,24 @@ void MavlinkServiceCommands::copyReason(char* reason, size_t reasonLen, const ch
         strncpy(reason, text, reasonLen - 1);
         reason[reasonLen - 1] = '\0';
     }
+}
+
+uint8_t MavlinkServiceCommands::enqueue(uint16_t action,
+                                        float p2,
+                                        float p3,
+                                        float p4,
+                                        char* reason,
+                                        size_t reasonLen) {
+    if (!_context.mailbox) {
+        copyReason(reason, reasonLen, "Service mailbox unavailable");
+        return MAV_RESULT_FAILED;
+    }
+    if (!_context.mailbox->submit({action, p2, p3, p4})) {
+        copyReason(reason, reasonLen, "Service command busy");
+        return MAV_RESULT_TEMPORARILY_REJECTED;
+    }
+    copyReason(reason, reasonLen, "Service command queued");
+    return MAV_RESULT_ACCEPTED;
 }
 
 uint8_t MavlinkServiceCommands::handle(uint16_t action,
@@ -42,6 +61,9 @@ uint8_t MavlinkServiceCommands::handle(uint16_t action,
             if (!_context.sensors->isImuAvailable()) {
                 copyReason(reason, reasonLen, "IMU calibration failed: IMU missing");
                 return MAV_RESULT_DENIED;
+            }
+            if (_context.mailbox) {
+                return enqueue(action, p2, p3, p4, reason, reasonLen);
             }
             if (!_context.sensors->runBootCalibration()) {
                 copyReason(reason, reasonLen, "IMU calibration failed");
@@ -67,6 +89,9 @@ uint8_t MavlinkServiceCommands::handle(uint16_t action,
             if (!_context.sensors->hasMag()) {
                 copyReason(reason, reasonLen, "Mag calibration failed: mag missing");
                 return MAV_RESULT_DENIED;
+            }
+            if (_context.mailbox) {
+                return enqueue(action, p2, p3, p4, reason, reasonLen);
             }
             bool& active = *_context.magCalibrationActive;
             if (!active) {
@@ -99,9 +124,12 @@ uint8_t MavlinkServiceCommands::handle(uint16_t action,
                 copyReason(reason, reasonLen, "Servo test rejected while armed");
                 return MAV_RESULT_TEMPORARILY_REJECTED;
             }
-            const uint8_t surface = isfinite(p2) ? (uint8_t)p2 : AEROPICO_SERVO_TEST_SURFACES;
-            const uint16_t pulse = isfinite(p3) && p3 > 0.0f ? (uint16_t)p3 : 1600;
-            const uint16_t duration = isfinite(p4) && p4 > 0.0f ? (uint16_t)p4 : 700;
+            const uint8_t surface = std::isfinite(p2) ? (uint8_t)p2 : AEROPICO_SERVO_TEST_SURFACES;
+            const uint16_t pulse = std::isfinite(p3) && p3 > 0.0f ? (uint16_t)p3 : 1600;
+            const uint16_t duration = std::isfinite(p4) && p4 > 0.0f ? (uint16_t)p4 : 700;
+            if (_context.mailbox) {
+                return enqueue(action, (float)surface, (float)pulse, (float)duration, reason, reasonLen);
+            }
             if (!_context.requestServoTest || !_context.requestServoTest(surface, pulse, duration)) {
                 copyReason(reason, reasonLen, "Servo test failed: outputs not ready");
                 return MAV_RESULT_TEMPORARILY_REJECTED;

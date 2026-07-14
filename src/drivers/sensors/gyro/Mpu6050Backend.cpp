@@ -1,5 +1,6 @@
 #include "Mpu6050Backend.h"
 
+#include <cmath>
 #include <Arduino.h>
 
 int16_t Mpu6050Backend::raw16(uint8_t hi, uint8_t lo) {
@@ -8,7 +9,7 @@ int16_t Mpu6050Backend::raw16(uint8_t hi, uint8_t lo) {
 
 float Mpu6050Backend::effectiveGyroTempCoeff(const ImuCalibration& calibration) {
     constexpr float DEFAULT_GYRO_TEMP_COEFF = 0.004f;
-    if (!calibration.valid || calibration.gyroTempCoeff <= 0.0f || !isfinite(calibration.gyroTempCoeff)) {
+    if (!calibration.valid || calibration.gyroTempCoeff <= 0.0f || !std::isfinite(calibration.gyroTempCoeff)) {
         return DEFAULT_GYRO_TEMP_COEFF;
     }
     return constrain(calibration.gyroTempCoeff, 0.0f, 0.05f);

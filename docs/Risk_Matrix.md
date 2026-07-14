@@ -11,6 +11,11 @@ Kapsam: Yazilimsal risk taramasi, performans kokulari ve RC1 oncesi duzeltmeler.
 | Ring buffer indeks ilerletmede genel `%` operatoru gereksiz maliyet yaratabilir. | Dusuk | Kapali | Power-of-two buffer boyutlarinda bit maskesiyle wrap-around kullanildi; non-power-of-two boyutlar icin genel yol korundu. |
 | CI/fault-injection raporu untracked dosya olarak calisma agacini kirletebilir. | Dusuk | Kapali | `fault_matrix_report.json` `.gitignore` kapsamina alindi. |
 | `main.cpp` boot, task creation ve subsystem wiring'ini tek yerde topluyor. | Orta | Kismen kapali | Static FreeRTOS task stack/TCB ve affinity wiring'i `AppTasks` sinifina tasindi. Boot composition daha sonra `AppBootstrap` ile daha da inceltilebilir. |
+| MAVLink/Configurator servis komutlari sensor/control nesnelerini dogrudan degistirebilir. | Yuksek | Kapali | Mutating komutlar `ServiceCommandMailbox` ile task-owned `ServiceCommandProcessor` yoluna tasindi. |
+| IMU kalibrasyonu telemetry task'i bloklayabilir. | Yuksek | Kapali | IMU kalibrasyonu sensor task icinde non-blocking ornek toplama state machine'i olarak calisir. |
+| Servo PIO FIFO doldugunda frame sessizce dusebilir. | Yuksek | Kapali | Output latest-value modeli ve FIFO drop/stale/latency sayaçlari eklendi; safe-frame onceliklidir. |
+| Mag/baro DMA hatasinda yardimci sensor tamamen kaybedilebilir. | Orta | Kapali | `SensorAuxBus` DMA baslatma/timeout hatasinda bounded polling fallback kullanir ve fault code raporlar. |
+| Parametre/kalibrasyon flash yazimi tek slotta guc kesintisine hassastir. | Orta | Kapali | Parametre ve kalibrasyon storage iki slotlu generation + checksum journal modeline tasindi. |
 | MAVLink signing henuz yokken armed durumda RC override kabul edilmesi guvenlik riski yaratir. | Orta | Kapali | RC override varsayilan olarak armed durumda reddedilir; ozel olarak `setRCOverrideAllowedWhileArmed(true)` ile acilabilir. Parametre yazma/save zaten armed durumda reddedilir. |
 | Fault-injection matrix eski veya silinmis test hedeflerini sessizce gecebilir. | Orta | Kapali | `fault_injection.py` ve `check_architecture.py` matrix icindeki test klasorlerinin varligini dogrular. |
 | Boot sensor init/kalibrasyonunda `delay()` bulunuyor. | Dusuk | Kabul | Bu cagri hot flight path'te degil; boot-only davranis. Donanim bench sirasinda boot suresi ve sensor hazirlik mesaji izlenecek. |

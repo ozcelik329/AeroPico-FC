@@ -6,11 +6,13 @@
 
 static constexpr uint32_t CALIBRATION_STORAGE_MAGIC = 0x41504341; // APCA
 static constexpr uint16_t CALIBRATION_STORAGE_VERSION = 1;
+static constexpr uint8_t CALIBRATION_STORAGE_SLOT_COUNT = 2;
 
 struct CalibrationBlob {
     uint32_t magic;
     uint16_t version;
     uint16_t size;
+    uint32_t generation;
     ImuCalibration imu;
     MagCalibration mag;
     uint32_t checksum;
@@ -26,6 +28,7 @@ class ICalibrationStorage {
 class CalibrationStorage {
   public:
     static CalibrationBlob makeBlob(const ImuCalibration& imu, const MagCalibration& mag);
+    static CalibrationBlob withGeneration(CalibrationBlob blob, uint32_t generation);
     static bool isValid(const CalibrationBlob& blob);
     static uint32_t checksum(const CalibrationBlob& blob);
 };

@@ -1,17 +1,19 @@
 #include "BootLogger.h"
+#include "../BuildInfo.h"
+#include "../def.h"
 
 void BootLogger::printBanner() {
     Serial.println("==============================");
-    Serial.println(" AeroPico FC v0.2.0");
-    Serial.println(" Target : Raspberry Pi Pico 2");
-    Serial.println(" CPU    : RP2350");
+    Serial.printf(" %s %s\n", AEROPICO_FIRMWARE_NAME, AEROPICO_VERSION);
+    Serial.printf(" Target : %s\n", AEROPICO_TARGET);
+    Serial.printf(" CPU    : %s\n", AEROPICO_MCU);
     Serial.println("==============================");
 }
 
 void BootLogger::printReadyMessage() {
     Serial.println();
     Serial.println("System Ready.");
-    Serial.println("Loop Frequency: 500Hz");
+    Serial.printf("Loop Frequency: %luHz\n", 1000000UL / FLIGHT_LOOP_PERIOD_US);
 }
 
 void BootLogger::printHealthReport(

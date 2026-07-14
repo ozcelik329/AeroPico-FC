@@ -8,12 +8,21 @@
 
 #include "IDrivers.h"
 
+struct ServoOutputStatus {
+	uint32_t framesWritten;
+	uint32_t fifoDrops;
+	uint32_t staleSkips;
+	uint32_t maxLatencyUs;
+	uint32_t lastWriteUs;
+};
+
 class ServoOutput : public IServoOutput {
 	public:
 		void init() override;
 		void writeMotors(int throttle, int roll, int pitch, int yaw) override;
 		void setServoPulse(void* pio, unsigned sm, uint32_t pulse_us) override;
 		bool isReady() const { return _ready; }
+		ServoOutputStatus status() const;
 
 	private:
 		bool _ready = false;
@@ -25,5 +34,6 @@ extern ServoOutput servoOutput;
 void outputInit();
 void writeMotors(int throttle, int roll, int pitch, int yaw);
 void setServoPulse(PIO pio, uint sm, uint32_t pulse_us);
+ServoOutputStatus getServoOutputStatus();
 
 #endif

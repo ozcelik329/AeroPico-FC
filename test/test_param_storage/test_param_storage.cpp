@@ -56,6 +56,15 @@ void test_memory_param_storage_round_trip() {
     TEST_ASSERT_FLOAT_WITHIN(0.001f, 2.0f, loaded.values[1]);
 }
 
+void test_param_storage_generation_recomputes_checksum() {
+    ParamStorageBlob blob = makeBlob();
+    ParamStorageBlob gen = ParamStorage::withGeneration(blob, 7);
+
+    TEST_ASSERT_TRUE(ParamStorage::hasValidEnvelope(gen));
+    TEST_ASSERT_EQUAL_UINT32(7, gen.generation);
+    TEST_ASSERT_NOT_EQUAL(blob.checksum, gen.checksum);
+}
+
 int main() {
     UNITY_BEGIN();
     RUN_TEST(test_param_storage_rejects_bad_magic);
@@ -64,5 +73,6 @@ int main() {
     RUN_TEST(test_param_storage_accepts_valid_envelope_with_different_count);
     RUN_TEST(test_param_storage_rejects_checksum_mismatch);
     RUN_TEST(test_memory_param_storage_round_trip);
+    RUN_TEST(test_param_storage_generation_recomputes_checksum);
     return UNITY_END();
 }

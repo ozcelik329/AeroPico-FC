@@ -18,6 +18,8 @@
 #include "utils/Logger.h"
 #include "utils/BootLogger.h"
 #include "app/MavlinkServiceCommands.h"
+#include "app/ServiceCommandMailbox.h"
+#include "app/ServiceCommandProcessor.h"
 #include "telemetry/MavlinkHandler.h"
 #include "telemetry/Blackbox.h"
 #include "app/AppTasks.h"
@@ -61,6 +63,8 @@ static bool batteryWarningLatched = false;
 static bool latestBatteryCritical = false;
 static bool magCalibrationActive = false;
 static MavlinkServiceCommands mavlinkServiceCommands;
+static ServiceCommandMailbox serviceCommandMailbox;
+static ServiceCommandProcessor serviceCommandProcessor;
 static TaskHandle_t sensorTaskHandle = nullptr;
 static TaskHandle_t flightTaskHandle = nullptr;
 static TaskHandle_t telemetryTaskHandle = nullptr;
@@ -68,9 +72,7 @@ static RuntimeHealthStatus runtimeHealth = {};
 
 static PreflightResult evaluatePreflight();
 
-static uint16_t clampStackWords(UBaseType_t value) {
-    return value > 0xFFFFu ? 0xFFFFu : (uint16_t)value;
-}
+static uint16_t clampStackWords(UBaseType_t value) { return value > 0xFFFFu ? 0xFFFFu : (uint16_t)value; }
 
 static WatchdogDecision evaluateWatchdogGate() {
     return WatchdogGate::evaluate(
@@ -82,13 +84,8 @@ static WatchdogDecision evaluateWatchdogGate() {
     );
 }
 
-static bool provideFlightData(FlightData& out) {
-    return flightManager.peekLatest(out);
-}
-
-static bool provideArmState() {
-    return flightManager.isArmed();
-}
+static bool provideFlightData(FlightData& out) { return flightManager.peekLatest(out); }
+static bool provideArmState() { return flightManager.isArmed(); }
 
 static bool handleMavlinkArmCommand(bool arm, bool force, char* reason, size_t reasonLen) {
     return flightManager.requestArmFromMavlink(arm, force, reason, reasonLen);
@@ -104,44 +101,28 @@ static bool provideBatteryVoltage(float& voltage) {
 }
 #endif
 
-static void applyRCOverride(uint16_t aileron, uint16_t elevator, uint16_t throttle, uint16_t rudder) {
-    flightManager.setRCOverride(aileron, elevator, throttle, rudder);
-}
+static void applyRCOverride(uint16_t aileron, uint16_t elevator, uint16_t throttle, uint16_t rudder) { flightManager.setRCOverride(aileron, elevator, throttle, rudder); }
+static void clearRCOverride() { flightManager.clearRCOverride(); }
 
-static void clearRCOverride() {
-    flightManager.clearRCOverride();
-}
-
-static void applyPidGains(float angleP, float angleI, float angleD, float rateP, float rateI, float rateD) {
-    SystemTimer::applyPidGains(angleP, angleI, angleD, rateP, rateI, rateD);
-}
-
+static void applyPidGains(float angleP, float angleI, float angleD, float rateP, float rateI, float rateD) { SystemTimer::applyPidGains(angleP, angleI, angleD, rateP, rateI, rateD); }
 static void applyMixerSettings(const MixerSettings& settings) { SystemTimer::applyMixerSettings(settings); }
-
 static void applyFailsafeTimeout(uint32_t timeoutMs) { rxManager.setFailsafeTimeoutMs(timeoutMs); }
-
 static void applyRcMapping(uint8_t roll, uint8_t pitch, uint8_t throttle, uint8_t yaw, uint8_t mode) {
     flightManager.applyRcMapping({roll, pitch, throttle, yaw, mode});
 }
-
 static void applyMavlinkRates(uint8_t attitudeHz, uint8_t rcHz, uint8_t sysStatusHz) { mavlink.setStreamRates(attitudeHz, rcHz, sysStatusHz); }
-
 static void applyBlackboxRate(uint8_t logHz) { blackbox.setLogRateHz(logHz); }
-
-static void applyPreflightQuality(uint8_t minQuality) {
-    preflightMinSensorQuality = minQuality > 100 ? 100 : minQuality;
-}
+static void applyPreflightQuality(uint8_t minQuality) { preflightMinSensorQuality = minQuality > 100 ? 100 : minQuality; }
 
 static void applyBatteryProfile(uint8_t cells, float nominalVoltage, uint16_t capacityMah, uint8_t cRating,
                                 float lowVoltage, float brownoutVoltage, float maxVoltage) {
-    (void)cells;
     (void)nominalVoltage;
-    (void)capacityMah;
-    (void)cRating;
 #if BATTERY_ADC_ENABLED
-    batteryMonitor.init(provideBatteryVoltage, lowVoltage, maxVoltage, brownoutVoltage);
+    batteryMonitor.init(provideBatteryVoltage, lowVoltage, maxVoltage, brownoutVoltage,
+                        cells, capacityMah, cRating);
 #else
-    batteryMonitor.init();
+    batteryMonitor.init(nullptr, lowVoltage, maxVoltage, brownoutVoltage,
+                        cells, capacityMah, cRating);
 #endif
 }
 
@@ -180,13 +161,9 @@ static void updatePreflightArmGate() {
     flightManager.setPreflightArmAllowed(lastPreflightResult.canArm);
 }
 
-static void runSensorUpdate() {
-    flightManager.updateSensors();
-}
-
-static void runRcUpdate() {
-    flightManager.updateRc();
-}
+static void runSensorUpdate() { flightManager.updateSensors(); }
+static void runServiceCommandMailbox() { serviceCommandProcessor.process(); }
+static void runRcUpdate() { flightManager.updateRc(); }
 
 static void runStatePublish() {
     flightManager.setSystemFaults(
@@ -215,6 +192,17 @@ static void runWatchdogGate() {
 
 static void runMavlinkTelemetry() {
     mavlink.update();
+    ServiceCommandCompletion completion = {};
+    while (serviceCommandMailbox.takeCompletion(completion)) {
+        if (completion.reason[0] != '\0') {
+            mavlink.sendStatusText(
+                completion.reason,
+                completion.result == MAV_RESULT_ACCEPTED || completion.result == MAV_RESULT_IN_PROGRESS
+                    ? MAV_SEVERITY_INFO
+                    : MAV_SEVERITY_WARNING
+            );
+        }
+    }
 #ifdef MAVLINK_PARAMS_ENABLED
     paramManager.processSendQueue(millis());
 #endif
@@ -242,9 +230,7 @@ static void runBlackboxLog() {
     );
 }
 
-static void runBlackboxDrain() {
-    blackbox.drain(2);
-}
+static void runBlackboxDrain() { blackbox.drain(2); }
 
 static void runHealthReport() {
     lastPreflightResult = evaluatePreflight();
@@ -319,6 +305,7 @@ extern "C" void vApplicationMallocFailedHook() {
 void taskSensor(void* pvParameters) {
     core0Scheduler.reset();
     core0Scheduler.addTask("sensor", 200, runSensorUpdate);
+    core0Scheduler.addTask("service", 50, runServiceCommandMailbox);
     core0Scheduler.addTask("rc", 150, runRcUpdate);
     core0Scheduler.addTask("state", 200, runStatePublish);
     core0Scheduler.addTask("preflight", 20, updatePreflightArmGate);
@@ -330,10 +317,7 @@ void taskSensor(void* pvParameters) {
     }
 }
 
-void taskFlight(void* pvParameters) {
-    SystemTimer::init();
-    SystemTimer::core1_entry();
-}
+void taskFlight(void* pvParameters) { SystemTimer::init(); SystemTimer::core1_entry(); }
 
 void taskTelemetry(void* pvParameters) {
     telemetryScheduler.reset();
@@ -422,7 +406,16 @@ void setup() {
     serviceContext.evaluatePreflight = evaluatePreflight;
     serviceContext.requestServoTest = SystemTimer::requestServoTest;
     serviceContext.lastPreflightResult = &lastPreflightResult;
+    serviceContext.mailbox = &serviceCommandMailbox;
     mavlinkServiceCommands.init(serviceContext);
+
+    ServiceCommandProcessorContext serviceProcessorContext = {};
+    serviceProcessorContext.sensors = &sensorManager;
+    serviceProcessorContext.calibrationStorage = &calibrationStorage;
+    serviceProcessorContext.magCalibrationActive = &magCalibrationActive;
+    serviceProcessorContext.requestServoTest = SystemTimer::requestServoTest;
+    serviceProcessorContext.mailbox = &serviceCommandMailbox;
+    serviceCommandProcessor.init(serviceProcessorContext);
 
     mavlink.setFlightDataProvider(provideFlightData);
     mavlink.setArmStateProvider(provideArmState);

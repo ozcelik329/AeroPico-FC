@@ -52,7 +52,7 @@ jobs:
       - name: Run native unit tests
         run: pio test -e native --without-uploading
       - name: Run native full-link integration
-        run: pio test -e native_link --without-uploading
+        run: pio run -e native_link
 
   fault-injection:
     runs-on: ubuntu-latest
@@ -125,7 +125,7 @@ jobs:
           pio test -e native --without-uploading --filter test_blackboard
           pio test -e native --without-uploading --filter test_event_bus
           pio test -e native --without-uploading --filter test_blackbox
-          pio test -e native_link --without-uploading
+          pio run -e native_link
 
   configurator:
     runs-on: ubuntu-latest

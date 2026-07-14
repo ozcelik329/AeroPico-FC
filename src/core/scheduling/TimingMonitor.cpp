@@ -35,7 +35,9 @@ void TimingMonitor::end(size_t phase, uint32_t budgetUs, int debugPin) {
     if (avgQ8 == 0) {
         avgQ8 = sampleQ8;
     } else {
-        avgQ8 += (sampleQ8 - avgQ8) >> AVG_SHIFT;
+        const int64_t deltaQ8 = (int64_t)sampleQ8 - (int64_t)avgQ8;
+        const int64_t nextQ8 = (int64_t)avgQ8 + (deltaQ8 >> AVG_SHIFT);
+        avgQ8 = nextQ8 > 0 ? (uint32_t)nextQ8 : 0U;
     }
     __atomic_store_n(&_phaseAvgQ8Us[phase], avgQ8, __ATOMIC_RELEASE);
 

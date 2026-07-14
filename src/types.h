@@ -23,6 +23,7 @@ enum class SensorFaultCode : uint8_t {
     DmaTransferTimeout,
     AuxI2cWriteFailed,
     AuxDmaTransferTimeout,
+    AuxPollingFallbackFailed,
     MagReadFailed,
     BaroReadFailed
 };

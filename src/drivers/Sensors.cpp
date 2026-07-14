@@ -124,6 +124,7 @@ const char* SensorManager::getFaultText() const {
         case SensorFaultCode::DmaTransferTimeout: return "DMA transfer timeout";
         case SensorFaultCode::AuxI2cWriteFailed: return "Aux I2C write failed";
         case SensorFaultCode::AuxDmaTransferTimeout: return "Aux DMA transfer timeout";
+        case SensorFaultCode::AuxPollingFallbackFailed: return "Aux polling fallback failed";
         case SensorFaultCode::MagReadFailed: return "Mag read failed";
         case SensorFaultCode::BaroReadFailed: return "Baro read failed";
         default: return "Unknown sensor fault";
@@ -170,6 +171,32 @@ bool SensorManager::runBootCalibration() {
     snprintf(line, sizeof(line), "[SENSOR] Gyro temp coeff: %.5f deg/s/C (span %.2f C)",
              _imuCalibration.gyroTempCoeff, result.tempSpanC);
     Logger::log(line);
+    return true;
+}
+
+bool SensorManager::beginImuCalibration() {
+    if (!_imuAvailable || _imuCalibrationState == ImuCalibrationState::Collecting) {
+        return false;
+    }
+    _calibration.reset();
+    _imuCalibrationSamples = 0;
+    _lastAsyncImuCalibration = {};
+    _imuCalibrationState = ImuCalibrationState::Collecting;
+    return true;
+}
+
+bool SensorManager::isImuCalibrationActive() const {
+    return _imuCalibrationState == ImuCalibrationState::Collecting;
+}
+
+bool SensorManager::takeImuCalibrationResult(ImuCalibration& calibration, bool& success) {
+    if (_imuCalibrationState != ImuCalibrationState::Complete &&
+        _imuCalibrationState != ImuCalibrationState::Failed) {
+        return false;
+    }
+    success = _imuCalibrationState == ImuCalibrationState::Complete;
+    calibration = _lastAsyncImuCalibration;
+    _imuCalibrationState = ImuCalibrationState::Idle;
     return true;
 }
 
@@ -296,6 +323,39 @@ void SensorManager::_mpu_start_dma_read() {
     _dmaBus.startMpuRead(*rpBus, imu.address, _reg_addr, micros());
 }
 
+void SensorManager::_observeCalibrationRawFrame(const uint8_t raw[GyroAccelDriver::RAW_LEN]) {
+    if (_imuCalibrationState != ImuCalibrationState::Collecting) {
+        return;
+    }
+    auto raw16 = [](uint8_t hi, uint8_t lo) -> int16_t {
+        return (int16_t)((hi << 8) | lo);
+    };
+    _calibration.observeMpuRaw({
+        raw16(raw[0], raw[1]),
+        raw16(raw[2], raw[3]),
+        raw16(raw[4], raw[5]),
+        raw16(raw[8], raw[9]),
+        raw16(raw[10], raw[11]),
+        raw16(raw[12], raw[13]),
+        raw16(raw[6], raw[7])
+    });
+    if (++_imuCalibrationSamples >= BOOT_CAL_SAMPLES) {
+        _finishAsyncImuCalibration();
+    }
+}
+
+void SensorManager::_finishAsyncImuCalibration() {
+    const SensorCalibrationResult result = _calibration.finish(BOOT_CAL_SAMPLES / 2);
+    if (!result.valid) {
+        _lastAsyncImuCalibration = {};
+        _imuCalibrationState = ImuCalibrationState::Failed;
+        return;
+    }
+    setImuCalibration(result.imu);
+    _lastAsyncImuCalibration = result.imu;
+    _imuCalibrationState = ImuCalibrationState::Complete;
+}
+
 bool SensorManager::_mpu_dma_ready() {
     return _dmaFastPath && _dmaBus.isMpuReady();
 }
@@ -313,6 +373,7 @@ void SensorManager::update() {
         uint8_t writeIdx = 1 - _writeIdx;
         SensorBuffer& buf = _buf[writeIdx];
         _gyroAccelDriver.parseRawSample(raw, _imuCalibration, buf, micros());
+        _observeCalibrationRawFrame(raw);
         buf.baroValid = false;
         buf.pressureHpa = 0.0f;
         mutex_enter_blocking(&_mutex);
@@ -344,7 +405,9 @@ void SensorManager::update() {
     uint8_t writeIdx = 1 - _writeIdx;
     SensorBuffer& buf = _buf[writeIdx];
 
-    _gyroAccelDriver.parseRawSample(_dmaBus.mpuBuffer(), _imuCalibration, buf, micros());
+    const uint8_t* raw = _dmaBus.mpuBuffer();
+    _gyroAccelDriver.parseRawSample(raw, _imuCalibration, buf, micros());
+    _observeCalibrationRawFrame(raw);
     buf.baroValid = false;
     buf.pressureHpa = 0.0f;
 

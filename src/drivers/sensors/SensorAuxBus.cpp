@@ -28,7 +28,7 @@ void SensorAuxBus::update(SensorDmaBus& dmaBus,
                           BaroDriver& baroDriver,
                           SensorBuffer& buffer,
                           SensorFaultCode& faultCode) {
-    if (!processPendingRead(dmaBus, magDriver, baroDriver, buffer, faultCode)) {
+    if (!processPendingRead(dmaBus, bus, magDriver, baroDriver, buffer, faultCode)) {
         return;
     }
 
@@ -76,15 +76,26 @@ bool SensorAuxBus::readRegsDma(SensorDmaBus& dmaBus,
                                size_t len,
                                SensorFaultCode& faultCode) {
     if (!dmaBus.hasAuxChannel()) {
-        setFaultIfNeeded(faultCode, SensorFaultCode::DmaChannelClaimFailed);
-        return false;
+        return readRegsPolling(bus, address, reg, dest, len, faultCode);
     }
 
     if (!dmaBus.readAuxRegistersDma(bus, address, reg, dest, len, I2C_DMA_TIMEOUT_US, micros)) {
-        setFaultIfNeeded(faultCode, SensorFaultCode::AuxDmaTransferTimeout);
-        return false;
+        return readRegsPolling(bus, address, reg, dest, len, faultCode);
     }
 
+    return true;
+}
+
+bool SensorAuxBus::readRegsPolling(RP2350I2C& bus,
+                                   uint8_t address,
+                                   uint8_t reg,
+                                   uint8_t* dest,
+                                   size_t len,
+                                   SensorFaultCode& faultCode) {
+    if (!dest || len == 0 || !bus.readRegisters(address, reg, dest, len)) {
+        setFaultIfNeeded(faultCode, SensorFaultCode::AuxPollingFallbackFailed);
+        return false;
+    }
     return true;
 }
 
@@ -109,6 +120,7 @@ bool SensorAuxBus::startRegsDma(SensorDmaBus& dmaBus,
 }
 
 bool SensorAuxBus::processPendingRead(SensorDmaBus& dmaBus,
+                                      RP2350I2C& bus,
                                       MagDriver& magDriver,
                                       BaroDriver& baroDriver,
                                       SensorBuffer& buffer,
@@ -122,12 +134,36 @@ bool SensorAuxBus::processPendingRead(SensorDmaBus& dmaBus,
         dmaBus.abortAux();
         setFaultIfNeeded(faultCode, SensorFaultCode::AuxDmaTransferTimeout);
         if (_auxReadKind == AUX_MAG) {
-            buffer.mx = buffer.my = buffer.mz = 0.0f;
-            setFaultIfNeeded(faultCode, SensorFaultCode::MagReadFailed);
+            if (_magProfile &&
+                readRegsPolling(bus, _magProfile->address, _magProfile->dataReg,
+                                _hmcDmaBuf, _magProfile->sampleLen, faultCode)) {
+                const int16_t mx = (int16_t)(_hmcDmaBuf[0] << 8 | _hmcDmaBuf[1]);
+                const int16_t my = (int16_t)(_hmcDmaBuf[4] << 8 | _hmcDmaBuf[5]);
+                const int16_t mz = (int16_t)(_hmcDmaBuf[2] << 8 | _hmcDmaBuf[3]);
+                magDriver.applySample(mx, my, mz, buffer);
+            } else {
+                buffer.mx = buffer.my = buffer.mz = 0.0f;
+                setFaultIfNeeded(faultCode, SensorFaultCode::MagReadFailed);
+            }
         } else {
-            buffer.baroValid = false;
-            buffer.pressureHpa = 0.0f;
-            setFaultIfNeeded(faultCode, SensorFaultCode::BaroReadFailed);
+            if (_baroProfile &&
+                readRegsPolling(bus, _baroProfile->address, _baroProfile->resultReg,
+                                _bmpDmaBuf, _auxReadKind == AUX_BARO_TEMP ? 2 : 3, faultCode)) {
+                if (_auxReadKind == AUX_BARO_TEMP) {
+                    baroDriver.setRawTemperature((int32_t)(_bmpDmaBuf[0] << 8) | _bmpDmaBuf[1]);
+                    _bmpState = BMP_TEMP_READ;
+                } else {
+                    const int32_t up = ((int32_t)_bmpDmaBuf[0] << 16 | (int32_t)_bmpDmaBuf[1] << 8 | _bmpDmaBuf[2]) >> (8 - 3);
+                    if (!baroDriver.applyRawPressure(up, buffer)) {
+                        setFaultIfNeeded(faultCode, SensorFaultCode::BaroReadFailed);
+                    }
+                    _bmpState = BMP_IDLE;
+                }
+            } else {
+                buffer.baroValid = false;
+                buffer.pressureHpa = 0.0f;
+                setFaultIfNeeded(faultCode, SensorFaultCode::BaroReadFailed);
+            }
         }
         _auxReadKind = AUX_NONE;
         return true;
@@ -199,8 +235,17 @@ void SensorAuxBus::readMag(SensorDmaBus& dmaBus,
     if (!_magProfile ||
         !startRegsDma(dmaBus, bus, _magProfile->address, _magProfile->dataReg,
                       _hmcDmaBuf, _magProfile->sampleLen, AUX_MAG, faultCode)) {
-        buffer.mx = buffer.my = buffer.mz = 0.0f;
-        setFaultIfNeeded(faultCode, SensorFaultCode::MagReadFailed);
+        if (_magProfile &&
+            readRegsPolling(bus, _magProfile->address, _magProfile->dataReg,
+                            _hmcDmaBuf, _magProfile->sampleLen, faultCode)) {
+            const int16_t mx = (int16_t)(_hmcDmaBuf[0] << 8 | _hmcDmaBuf[1]);
+            const int16_t my = (int16_t)(_hmcDmaBuf[4] << 8 | _hmcDmaBuf[5]);
+            const int16_t mz = (int16_t)(_hmcDmaBuf[2] << 8 | _hmcDmaBuf[3]);
+            magDriver.applySample(mx, my, mz, buffer);
+        } else {
+            buffer.mx = buffer.my = buffer.mz = 0.0f;
+            setFaultIfNeeded(faultCode, SensorFaultCode::MagReadFailed);
+        }
     }
 }
 
@@ -229,7 +274,12 @@ bool SensorAuxBus::readBaro(SensorDmaBus& dmaBus,
         if ((int32_t)(micros() - _bmpWaitUntilUs) < 0) return false;
         if (!startRegsDma(dmaBus, bus, profile.address, profile.resultReg,
                           _bmpDmaBuf, 2, AUX_BARO_TEMP, faultCode)) {
-            setFaultIfNeeded(faultCode, SensorFaultCode::BaroReadFailed);
+            if (!readRegsPolling(bus, profile.address, profile.resultReg, _bmpDmaBuf, 2, faultCode)) {
+                setFaultIfNeeded(faultCode, SensorFaultCode::BaroReadFailed);
+                return false;
+            }
+            baroDriver.setRawTemperature((int32_t)(_bmpDmaBuf[0] << 8) | _bmpDmaBuf[1]);
+            _bmpState = BMP_TEMP_READ;
             return false;
         }
         return false;
@@ -250,8 +300,13 @@ bool SensorAuxBus::readBaro(SensorDmaBus& dmaBus,
         if ((int32_t)(micros() - _bmpWaitUntilUs) < 0) return false;
         if (!startRegsDma(dmaBus, bus, profile.address, profile.resultReg,
                           _bmpDmaBuf, 3, AUX_BARO_PRESSURE, faultCode)) {
-            setFaultIfNeeded(faultCode, SensorFaultCode::BaroReadFailed);
-            return false;
+            if (!readRegsPolling(bus, profile.address, profile.resultReg, _bmpDmaBuf, 3, faultCode)) {
+                setFaultIfNeeded(faultCode, SensorFaultCode::BaroReadFailed);
+                return false;
+            }
+            const int32_t up = ((int32_t)_bmpDmaBuf[0] << 16 | (int32_t)_bmpDmaBuf[1] << 8 | _bmpDmaBuf[2]) >> (8 - 3);
+            _bmpState = BMP_IDLE;
+            return baroDriver.applyRawPressure(up, buffer);
         }
         return false;
     }

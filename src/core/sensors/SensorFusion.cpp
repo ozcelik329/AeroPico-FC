@@ -1,4 +1,5 @@
 #include "SensorFusion.h"
+#include <cmath>
 #include <math.h>
 #include <Arduino.h>
 
@@ -19,7 +20,7 @@ void SensorFusion::setTemperature(float tempC) {
 }
 
 void SensorFusion::setGyroTempCoeff(float coeffDegPerSecPerC) {
-    if (isfinite(coeffDegPerSecPerC)) {
+    if (std::isfinite(coeffDegPerSecPerC)) {
         _gyroTempCoeff = constrain(coeffDegPerSecPerC, 0.0f, 0.05f);
     }
 }

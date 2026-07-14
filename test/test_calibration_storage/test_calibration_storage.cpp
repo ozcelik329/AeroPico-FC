@@ -68,6 +68,15 @@ void test_memory_calibration_storage_round_trip() {
     TEST_ASSERT_FLOAT_WITHIN(0.001f, saved.mag.hardIronX, loaded.mag.hardIronX);
 }
 
+void test_calibration_storage_generation_recomputes_checksum() {
+    CalibrationBlob blob = CalibrationStorage::makeBlob(makeImuCalibration(), makeMagCalibration());
+    CalibrationBlob gen = CalibrationStorage::withGeneration(blob, 42);
+
+    TEST_ASSERT_TRUE(CalibrationStorage::isValid(gen));
+    TEST_ASSERT_EQUAL_UINT32(42, gen.generation);
+    TEST_ASSERT_NOT_EQUAL(blob.checksum, gen.checksum);
+}
+
 int main() {
     UNITY_BEGIN();
     RUN_TEST(test_calibration_storage_creates_valid_blob);
@@ -75,5 +84,6 @@ int main() {
     RUN_TEST(test_calibration_storage_rejects_version_mismatch);
     RUN_TEST(test_calibration_storage_rejects_empty_blob);
     RUN_TEST(test_memory_calibration_storage_round_trip);
+    RUN_TEST(test_calibration_storage_generation_recomputes_checksum);
     return UNITY_END();
 }

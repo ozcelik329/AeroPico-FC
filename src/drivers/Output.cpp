@@ -10,6 +10,12 @@ static int sm_throttle = -1;
 static constexpr uint32_t SERVO_UPDATE_PERIOD_US = 20000U;
 static uint32_t lastServoWriteUs = 0;
 static bool forceNextServoWrite = true;
+static ServoOutputStatus outputStatus = {};
+static int pendingThrottle = PWM_MIN;
+static int pendingRoll = PWM_NEUTRAL;
+static int pendingPitch = PWM_NEUTRAL;
+static int pendingYaw = PWM_NEUTRAL;
+static uint32_t pendingFrameUs = 0;
 
 // ServoOutput implementation
 ServoOutput servoOutput;
@@ -17,6 +23,7 @@ ServoOutput servoOutput;
 // forward declarations for helper functions
 static bool initServoSM(uint sm, uint pin, uint offset);
 static void writePulse(uint sm, int pulse_us);
+static void flushPendingFrame(uint32_t nowUs);
 static uint32_t packServoFrameUs(int pulse_us);
 static float getOneMicrosecondPioClockDivider();
 
@@ -48,6 +55,12 @@ void ServoOutput::init() {
 
     _ready = true;
     forceNextServoWrite = true;
+    outputStatus = {};
+    pendingThrottle = PWM_MIN;
+    pendingRoll = PWM_NEUTRAL;
+    pendingPitch = PWM_NEUTRAL;
+    pendingYaw = PWM_NEUTRAL;
+    pendingFrameUs = micros();
     writePulse((uint)sm_aileron,  PWM_NEUTRAL);
     writePulse((uint)sm_elevator, PWM_NEUTRAL);
     writePulse((uint)sm_rudder,   PWM_NEUTRAL);
@@ -60,6 +73,12 @@ void ServoOutput::writeMotors(int throttle, int roll, int pitch, int yaw) {
     }
 
     const uint32_t nowUs = micros();
+    pendingThrottle = throttle;
+    pendingRoll = roll;
+    pendingPitch = pitch;
+    pendingYaw = yaw;
+    pendingFrameUs = nowUs;
+
     const bool immediateSafeFrame = throttle <= PWM_MIN
         && roll == PWM_NEUTRAL
         && pitch == PWM_NEUTRAL
@@ -67,24 +86,34 @@ void ServoOutput::writeMotors(int throttle, int roll, int pitch, int yaw) {
     if (!immediateSafeFrame
         && !forceNextServoWrite
         && (uint32_t)(nowUs - lastServoWriteUs) < SERVO_UPDATE_PERIOD_US) {
+        __atomic_add_fetch(&outputStatus.staleSkips, 1U, __ATOMIC_RELAXED);
         return;
     }
     forceNextServoWrite = false;
     lastServoWriteUs = nowUs;
 
-    writePulse((uint)sm_aileron,  roll);
-    writePulse((uint)sm_elevator, pitch);
-    writePulse((uint)sm_rudder,   yaw);
-    writePulse((uint)sm_throttle, throttle);
+    flushPendingFrame(nowUs);
 }
 
 void ServoOutput::setServoPulse(void* p, unsigned sm, uint32_t pulse_us) {
     PIO targetPio = p ? (PIO)p : pio;
     uint32_t packed = packServoFrameUs((int)pulse_us);
     if (pio_sm_is_tx_fifo_full(targetPio, sm)) {
+        __atomic_add_fetch(&outputStatus.fifoDrops, 1U, __ATOMIC_RELAXED);
         return;
     }
     pio_sm_put(targetPio, sm, packed);
+    __atomic_add_fetch(&outputStatus.framesWritten, 1U, __ATOMIC_RELAXED);
+}
+
+ServoOutputStatus ServoOutput::status() const {
+    ServoOutputStatus copy = {};
+    copy.framesWritten = __atomic_load_n(&outputStatus.framesWritten, __ATOMIC_ACQUIRE);
+    copy.fifoDrops = __atomic_load_n(&outputStatus.fifoDrops, __ATOMIC_ACQUIRE);
+    copy.staleSkips = __atomic_load_n(&outputStatus.staleSkips, __ATOMIC_ACQUIRE);
+    copy.maxLatencyUs = __atomic_load_n(&outputStatus.maxLatencyUs, __ATOMIC_ACQUIRE);
+    copy.lastWriteUs = __atomic_load_n(&outputStatus.lastWriteUs, __ATOMIC_ACQUIRE);
+    return copy;
 }
 
 static bool initServoSM(uint sm, uint pin, uint offset) {
@@ -117,11 +146,31 @@ static uint32_t packServoFrameUs(int pulse_us) {
     return ((lowTicks & 0xFFFFU) << 16) | (highTicks & 0xFFFFU);
 }
 
+static void updateMaxLatency(uint32_t latencyUs) {
+    uint32_t current = __atomic_load_n(&outputStatus.maxLatencyUs, __ATOMIC_RELAXED);
+    while (latencyUs > current &&
+           !__atomic_compare_exchange_n(&outputStatus.maxLatencyUs, &current, latencyUs,
+                                        false, __ATOMIC_ACQ_REL, __ATOMIC_RELAXED)) {
+    }
+}
+
+static void flushPendingFrame(uint32_t nowUs) {
+    const uint32_t latencyUs = nowUs - pendingFrameUs;
+    updateMaxLatency(latencyUs);
+    __atomic_store_n(&outputStatus.lastWriteUs, nowUs, __ATOMIC_RELEASE);
+    writePulse((uint)sm_aileron,  pendingRoll);
+    writePulse((uint)sm_elevator, pendingPitch);
+    writePulse((uint)sm_rudder,   pendingYaw);
+    writePulse((uint)sm_throttle, pendingThrottle);
+}
+
 static void writePulse(uint sm, int pulse_us) {
     if (pio_sm_is_tx_fifo_full(pio, sm)) {
+        __atomic_add_fetch(&outputStatus.fifoDrops, 1U, __ATOMIC_RELAXED);
         return;
     }
     pio_sm_put(pio, sm, packServoFrameUs(pulse_us));
+    __atomic_add_fetch(&outputStatus.framesWritten, 1U, __ATOMIC_RELAXED);
 }
 
 void outputInit() {
@@ -135,4 +184,8 @@ void writeMotors(int throttle, int roll, int pitch, int yaw) {
 
 void setServoPulse(PIO pio, uint sm, uint32_t pulse_us) {
     servoOutput.setServoPulse((void*)pio, sm, pulse_us);
+}
+
+ServoOutputStatus getServoOutputStatus() {
+    return servoOutput.status();
 }
