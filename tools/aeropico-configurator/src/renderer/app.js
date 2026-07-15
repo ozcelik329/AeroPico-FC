@@ -223,6 +223,7 @@
     port: null,
     reader: null,
     writer: null,
+    nativeSerial: false,
     connected: false,
     activeGroup: "pid",
     params: new Map(),
@@ -587,6 +588,22 @@
     });
   }
 
+  function hasNativeSerialBridge() {
+    return window.aeropicoBridge &&
+      typeof window.aeropicoBridge.nativeConnect === "function" &&
+      typeof window.aeropicoBridge.nativeListPorts === "function";
+  }
+
+  function bindNativeSerialBridge() {
+    if (!window.aeropicoBridge || typeof window.aeropicoBridge.onNativeData !== "function") return;
+    window.aeropicoBridge.onNativeData((bytes) => {
+      if (state.connected && bytes) parser.pushBytes(bytes);
+    });
+    window.aeropicoBridge.onNativeError((message) => {
+      if (state.connected) log(`Native serial hatasi: ${message}`);
+    });
+  }
+
   function chooseLikelyAeroPicoPort(ports) {
     if (ports.length === 0) return null;
     const picoVid = new Set(["2e8a", "0x2e8a", 0x2e8a]);
@@ -633,8 +650,15 @@
         state.portDisplay.pid = port.productId || null;
         updatePortInfoDisplay();
         closeModal(els.portPickerModal);
-        log(`Port secildi: ${state.portDisplay.name || port.portId}`);
-        window.aeropicoBridge.chooseSerialPort(port.portId || "");
+        log(`Port secildi: ${state.portDisplay.name || port.portId}. Native baglanti deneniyor.`);
+        if (window.aeropicoBridge && typeof window.aeropicoBridge.nativeConnect !== "function") {
+          window.aeropicoBridge.chooseSerialPort(port.portId || "");
+        } else {
+          window.aeropicoBridge.chooseSerialPort("");
+          setTimeout(() => {
+            if (!state.connected) connect();
+          }, 100);
+        }
       });
       els.portPickerList.appendChild(row);
     }
@@ -643,14 +667,54 @@
   /* ── Connection ────────────────────────────── */
 
   async function connect() {
-    if (!("serial" in navigator)) {
-      log("Web Serial API bulunamadi. Electron/Chromium surumunu kontrol et.");
-      return;
-    }
-
     const baudRate = currentBaudRate();
     if (!baudRate) {
       log("Gecerli bir baud rate girin.");
+      return;
+    }
+
+    if (hasNativeSerialBridge() && !state.portDisplay.name) {
+      const ports = await window.aeropicoBridge.nativeListPorts();
+      if (ports.length === 0) {
+        log("Native serial port bulunamadi.");
+        setLinkStatus("Hata", "bad");
+        return;
+      }
+      renderPortPicker(ports);
+      openModal(els.portPickerModal);
+      return;
+    }
+
+    if (hasNativeSerialBridge() && state.portDisplay.name) {
+      try {
+        const info = await window.aeropicoBridge.nativeConnect({
+          portName: state.portDisplay.name,
+          baudRate
+        });
+        state.nativeSerial = true;
+        state.connected = true;
+        state.activeBaud = baudRate;
+        if (info && info.portName) state.portDisplay.name = info.portName;
+        updatePortInfoDisplay();
+        setLinkStatus("Bagli", "ok");
+        updateButtons();
+        log(`Native serial baglandi @ ${baudRate.toLocaleString("tr-TR")} bps.`);
+        requestParams();
+        return;
+      } catch (error) {
+        log(`Native serial baglanti hatasi: ${error.message}`);
+        setLinkStatus("Hata", "bad");
+        updateButtons();
+        return;
+      }
+    }
+
+    log("Native serial bridge yuklenemedi; Configurator yeniden baslatilmali.");
+    setLinkStatus("Hata", "bad");
+    return;
+
+    if (!("serial" in navigator)) {
+      log("Web Serial API bulunamadi. Electron/Chromium surumunu kontrol et.");
       return;
     }
 
@@ -660,6 +724,7 @@
       state.writer = state.port.writable.getWriter();
       state.reader = state.port.readable.getReader();
       state.connected = true;
+      state.nativeSerial = false;
       state.activeBaud = baudRate;
 
       if (typeof state.port.getInfo === "function") setPortDisplay(normalizeSerialInfo(state.port.getInfo()));
@@ -679,18 +744,21 @@
   async function disconnect() {
     try {
       state.connected = false;
-      if (state.reader) {
+      if (state.nativeSerial && window.aeropicoBridge && typeof window.aeropicoBridge.nativeDisconnect === "function") {
+        await window.aeropicoBridge.nativeDisconnect();
+      } else if (state.reader) {
         await state.reader.cancel().catch(() => { });
         state.reader.releaseLock();
       }
-      if (state.writer) state.writer.releaseLock();
-      if (state.port) await state.port.close();
+      if (!state.nativeSerial && state.writer) state.writer.releaseLock();
+      if (!state.nativeSerial && state.port) await state.port.close();
     } catch (error) {
       log(`Baglanti kapatma hatasi: ${error.message}`);
     } finally {
       state.reader = null;
       state.writer = null;
       state.port = null;
+      state.nativeSerial = false;
       state.activeBaud = null;
       setLinkStatus("Kapali", "muted");
       updateButtons();
@@ -713,6 +781,15 @@
   }
 
   async function writeFrame(frame) {
+    if (state.nativeSerial && window.aeropicoBridge && typeof window.aeropicoBridge.nativeWrite === "function") {
+      try {
+        const ok = await window.aeropicoBridge.nativeWrite(frame);
+        if (!ok) log("Yazma hatasi: native serial port hazir degil.");
+      } catch (error) {
+        log(`Yazma hatasi: ${error.message}`);
+      }
+      return;
+    }
     if (!state.writer) return;
     try {
       await state.writer.write(frame);
@@ -753,7 +830,7 @@
       log(`${command}: desteklenmeyen configurator komutu.`);
       return;
     }
-    if (!state.connected || !state.writer) {
+    if (!state.connected || (!state.writer && !state.nativeSerial)) {
       log(`${SERVICE_LABELS[command] || command}: once baglan.`);
       return;
     }
@@ -1249,6 +1326,7 @@
     bindCollapsibles();
     bindBaudSelect();
     bindSerialBridge();
+    bindNativeSerialBridge();
   }
 
   initTheme();

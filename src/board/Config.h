@@ -6,6 +6,17 @@
 // --- Sensör Tipi ---
 #define USE_GY87
 
+// --- Bench / bring-up modu ---
+// Ciplak Pico veya kablolama dogrulama asamasinda sensor/RC init'i yapmadan
+// USB, scheduler, MAVLink ve output altyapisini ayaga kaldirir.
+#ifndef AEROPICO_BENCH_MODE
+#define AEROPICO_BENCH_MODE 0
+#endif
+
+#ifndef AEROPICO_USB_SMOKE_MODE
+#define AEROPICO_USB_SMOKE_MODE 0
+#endif
+
 // --- UART Pin Atamaları ---
 #define SBUS_UART_INDEX  0   // 0: Serial1/UART0, 1: Serial2/UART1
 #define PIN_SBUS_RX     1   // UART0 RX — SBUS alıcı (transistör ile invert)
@@ -28,11 +39,19 @@
 // --- PIO UART — ESP32-CAM MAVLink ---
 #define PIN_ESP_TX      12
 #define PIN_ESP_RX      13
+#ifndef ESP32_CAM_LINK_ENABLED
 #define ESP32_CAM_LINK_ENABLED 0
+#endif
 #define ESP32_CAM_UART_BAUD 57600
 
 // --- MAVLink bench / GCS transport ---
+#ifndef MAVLINK_USB_ENABLED
 #define MAVLINK_USB_ENABLED 1
+#endif
+
+#ifndef USB_STARTUP_WAIT_MS
+#define USB_STARTUP_WAIT_MS 2500
+#endif
 
 // --- PWM Servo Çıkışları ---
 #define PIN_AILERON     16
@@ -41,8 +60,10 @@
 #define PIN_THROTTLE    19
 
 // --- Battery / Brownout ADC ---
-// Varsayilan acik: divider/pin hatasi preflight ve health tarafinda gorunur olmalidir.
-#define BATTERY_ADC_ENABLED 1
+// Bench varsayilani kapali: voltage divider dogrulanmadan floating ADC sahte brownout uretir.
+#ifndef BATTERY_ADC_ENABLED
+#define BATTERY_ADC_ENABLED 0
+#endif
 #define PIN_BATTERY_ADC 26
 #define BATTERY_ADC_CHANNEL 0
 #define BATTERY_VOLTAGE_DIVIDER_RATIO 11.0f
@@ -91,6 +112,9 @@
 #define MAX_YAW_RATE    100.0f
 
 // Watchdog & Failsafe
+#ifndef WATCHDOG_HARDWARE_ENABLED
+#define WATCHDOG_HARDWARE_ENABLED 1
+#endif
 #define WATCHDOG_TIMEOUT_MS     2000
 #define FAILSAFE_TIMEOUT_MS     500
 #define MAVLINK_RC_OVERRIDE_TIMEOUT_MS 1000

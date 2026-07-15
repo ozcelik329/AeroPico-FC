@@ -89,7 +89,7 @@ Uno GND      -> Pico GND
 
 1. Arduino IDE'de ESP32 board paketini kur.
 2. Board olarak `ESP32 Dev Module` sec.
-3. `tools/sbus_generator/esp32_devkitv1/ESP32DevKitV1_SBUS_Generator.ino`
+3. `tools/sbus_generator/esp32_devkitv1/ESP32DevKitV1_SBUS_Generator/ESP32DevKitV1_SBUS_Generator.ino`
    dosyasini ac.
 4. Upload yap.
 5. Serial Monitor'u `115200` baud ac.

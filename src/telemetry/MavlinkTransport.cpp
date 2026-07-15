@@ -3,13 +3,23 @@
 MavlinkTransport mavlinkTransport;
 
 void MavlinkTransport::init(uint32_t baud) {
+#if ESP32_CAM_LINK_ENABLED
     espUart.init(baud);
+#else
+    (void)baud;
+#endif
 }
 
 size_t MavlinkTransport::writePacket(const uint8_t* bytes, size_t len) {
-    const size_t pioWritten = espUart.write(bytes, len);
+    size_t written = 0;
+#if ESP32_CAM_LINK_ENABLED
+    written = espUart.write(bytes, len);
+#endif
 #if MAVLINK_USB_ENABLED
-    Serial.write(bytes, len);
+    written = Serial.write(bytes, len);
+#ifndef UNIT_TEST
+    Serial.flush();
+#endif
 #endif
 #ifdef UNIT_TEST
     const size_t room = CAPTURE_CAPACITY - _captureSize;
@@ -19,19 +29,23 @@ size_t MavlinkTransport::writePacket(const uint8_t* bytes, size_t len) {
     }
     _captureSize += copyLen;
 #endif
-    return pioWritten;
+    return written;
 }
 
 int MavlinkTransport::available() {
-#if MAVLINK_USB_ENABLED
+#if ESP32_CAM_LINK_ENABLED && MAVLINK_USB_ENABLED
     return espUart.available() || Serial.available();
-#else
+#elif MAVLINK_USB_ENABLED
+    return Serial.available();
+#elif ESP32_CAM_LINK_ENABLED
     return espUart.available();
+#else
+    return 0;
 #endif
 }
 
 int MavlinkTransport::read() {
-#if MAVLINK_USB_ENABLED
+#if ESP32_CAM_LINK_ENABLED && MAVLINK_USB_ENABLED
     if (_readUsbNext && Serial.available()) {
         _readUsbNext = false;
         return Serial.read();
@@ -44,8 +58,12 @@ int MavlinkTransport::read() {
         return Serial.read();
     }
     return -1;
-#else
+#elif MAVLINK_USB_ENABLED
+    return Serial.available() ? Serial.read() : -1;
+#elif ESP32_CAM_LINK_ENABLED
     return espUart.read();
+#else
+    return -1;
 #endif
 }
 

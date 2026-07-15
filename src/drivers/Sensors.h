@@ -31,6 +31,7 @@
 class SensorManager : public IImuDriver, public IMagDriver, public IBaroDriver, public IGpsDriver {
   public:
     void init();
+    void initBenchDisabled();
     void setI2CBus(IHALI2C* bus);
     void setI2CBus(RP2350I2C* bus);
     void update();

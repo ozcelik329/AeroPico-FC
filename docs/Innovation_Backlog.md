@@ -65,6 +65,105 @@ Baslangic onerisi:
 | 13 | Blackbox analiz araci | Log dosyasindan kalite/timing/failsafe ozet raporu ureten CLI tasarla. |
 | 14 | RP2350 performans profili | PIO/DMA/FPU kullanimini profiler ciktilariyla olc ve dokumante et. |
 
+## ESP-FC Uyumluluk ve Olgunluk Kapatma Backlog'u
+
+Bu bolum AeroPico-FC'nin ESP-FC benzeri hobi FC projeleriyle uyumluluk ve
+urun olgunlugu acisindan yarismasi icin izlenecek kontrollu genisleme
+basliklarini toplar. Ana kimlik MAVLink tabanli RP2350 sabit kanat FC olarak
+korunacak; Betaflight/MSP uyumlulugu yardimci bench/tani katmani olarak
+degerlendirilecektir.
+
+### 1. Bench Kaniti
+
+- [ ] SBUS generator testi.
+- [ ] Servo PWM olcumu.
+- [ ] GY-87 health testi.
+- [ ] QGC/Mission Planner baglanti kaydi.
+- [ ] Blackbox kayit dogrulama.
+
+### 2. RC Protokol Genisletme
+
+- [ ] CRSF / ELRS destegi.
+- [ ] IBUS destegi.
+- [ ] PPM opsiyonel giris.
+- [ ] SBUS failsafe testleri.
+
+### 3. Sensor Backend Genisletme
+
+- [ ] BMP280 / BMP390 baro backend.
+- [ ] QMC5883L mag backend.
+- [ ] MPU6500 / MPU9250 IMU backend.
+- [ ] ICM20602 / ICM42688 IMU backend.
+- [ ] Sensor auto-detect matrisi.
+
+### 4. Output Protokolleri
+
+- [ ] Mevcut PWM servo yolu korunacak.
+- [ ] Throttle icin deneysel DShot150 destegi.
+- [ ] ESC telemetry / RPM sonraki faza ayrilacak.
+
+### 5. Configurator Gelistirme
+
+- [ ] Canli RC monitor.
+- [ ] Servo output test ekrani.
+- [ ] Sensor health dashboard.
+- [ ] Preflight reason paneli.
+- [ ] Pin mapper.
+- [ ] Battery setup wizard.
+- [ ] Blackbox viewer.
+
+### 6. MSP / Betaflight Koprusu
+
+- [ ] MSP v1 parser.
+- [ ] Board info / status cevaplari.
+- [ ] RC channels cevaplari.
+- [ ] Raw IMU cevaplari.
+- [ ] Motor/servo test komutlari.
+- [ ] Bench/read-only agirlikli uyumluluk politikasi.
+
+### 7. Blackbox Ekosistemi
+
+- [ ] Log indirme.
+- [ ] CSV export.
+- [ ] Grafik viewer.
+- [ ] Timing/failsafe/sensor event gosterimi.
+
+### 8. Filtre / Tuning
+
+- [ ] Gyro LPF parametreleri.
+- [ ] Dynamic notch arastirmasi.
+- [ ] Vibration score.
+- [ ] Adaptive Madgwick beta grafigi.
+- [ ] PID tuning ekrani.
+
+### 9. CI / HIL Guclendirme
+
+- [ ] SBUS generator test proseduru.
+- [ ] Logic analyzer artefact template.
+- [ ] Mission Planner/QGC smoke checklist.
+- [ ] Fault-injection genisletme.
+
+### 10. Dokumantasyon ve Release Disiplini
+
+- [ ] Desteklenen donanim matrisi.
+- [ ] Wiring varyantlari.
+- [ ] Known limitations.
+- [ ] Bench artefact klasoru.
+- [ ] Her release icin test kaniti.
+
+### Oncelik Sirasi
+
+1. Bench test.
+2. Configurator RC monitor + servo test.
+3. CRSF/ELRS.
+4. BMP280/QMC5883L.
+5. Blackbox viewer.
+6. MSP read-only bridge.
+7. DShot150 throttle.
+
+Ilke: Once ucus zinciri fiziksel olarak kanitlanacak, sonra uyumluluk
+kontrollu sekilde genisletilecek.
+
 ## AeroPico Ayirt Edici Inovasyon Hedefleri
 
 Bu liste V1.0 manuel ucus altyapisi urun seviyesine yaklastiktan sonra sirayla ele alinacak izlenebilir hedeflerdir:

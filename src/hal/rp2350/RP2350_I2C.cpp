@@ -1,6 +1,11 @@
 #include "RP2350_I2C.h"
 
+#include "board/Config.h"
 #include "hardware/gpio.h"
+
+#ifndef I2C_TRANSACTION_TIMEOUT_US
+#define I2C_TRANSACTION_TIMEOUT_US 2000
+#endif
 
 RP2350I2C::RP2350I2C(i2c_inst_t* instance)
     : _instance(instance) {}
@@ -14,11 +19,13 @@ void RP2350I2C::init(uint8_t sdaPin, uint8_t sclPin, uint32_t baudHz) {
 }
 
 bool RP2350I2C::writeRaw(uint8_t address, const uint8_t* data, size_t length, bool nostop) {
-    return i2c_write_blocking(_instance, address, data, length, nostop) == (int)length;
+    return i2c_write_timeout_us(_instance, address, data, length, nostop,
+                                I2C_TRANSACTION_TIMEOUT_US) == (int)length;
 }
 
 bool RP2350I2C::readRaw(uint8_t address, uint8_t* data, size_t length, bool nostop) {
-    return i2c_read_blocking(_instance, address, data, length, nostop) == (int)length;
+    return i2c_read_timeout_us(_instance, address, data, length, nostop,
+                               I2C_TRANSACTION_TIMEOUT_US) == (int)length;
 }
 
 bool RP2350I2C::writeRegister(uint8_t address, uint8_t reg, uint8_t value) {

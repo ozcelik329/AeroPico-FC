@@ -312,6 +312,26 @@ void SensorManager::init() {
     }
 }
 
+void SensorManager::initBenchDisabled() {
+    mutex_init(&_mutex);
+    _imuAvailable = false;
+    _hasMag = false;
+    _hasBaro = false;
+    _dmaFastPath = false;
+    _faultCode = SensorFaultCode::None;
+    _lastWhoAmI = 0;
+    _buf[0] = {};
+    _buf[1] = {};
+    _buf[0].valid = false;
+    _buf[1].valid = false;
+    _buf[0].health = SensorHealth::Invalid;
+    _buf[1].health = SensorHealth::Invalid;
+    _buf[0].timestamp = micros();
+    _buf[1].timestamp = _buf[0].timestamp;
+    _writeIdx = 0;
+    Logger::log("[SENSOR] Bench mode: sensor init skipped.");
+}
+
 void SensorManager::_mpu_start_dma_read() {
     RP2350I2C* rpBus = _rpBus();
     if (!_dmaFastPath || !rpBus || !_dmaBus.hasMpuChannels()) {

@@ -1,5 +1,6 @@
 (function () {
-  const STX = 0xfe;
+  const STX_V1 = 0xfe;
+  const STX_V2 = 0xfd;
   const MAVLINK_VERSION = 1;
   const SYS_ID = 255;
   const COMP_ID = 190;
@@ -67,7 +68,7 @@
       crcBytes.set(payload, header.length);
       const crc = x25(crcBytes, CRC_EXTRA[msgId] || 0);
       const frame = new Uint8Array(1 + header.length + payload.length + 2);
-      frame[0] = STX;
+      frame[0] = STX_V1;
       frame.set(header, 1);
       frame.set(payload, 1 + header.length);
       frame[frame.length - 2] = crc & 0xff;
@@ -122,6 +123,7 @@
       this.state = "stx";
       this.expected = 0;
       this.index = 0;
+      this.version = 1;
     }
 
     pushBytes(bytes) {
@@ -130,7 +132,8 @@
 
     push(byte) {
       if (this.state === "stx") {
-        if (byte === STX) {
+        if (byte === STX_V1 || byte === STX_V2) {
+          this.version = byte === STX_V2 ? 2 : 1;
           this.frame[0] = byte;
           this.index = 1;
           this.state = "len";
@@ -145,7 +148,7 @@
 
       this.frame[this.index++] = byte;
       if (this.state === "len") {
-        this.expected = byte + 8;
+        this.expected = byte + (this.version === 2 ? 12 : 8);
         this.state = "body";
         return;
       }
@@ -158,9 +161,12 @@
 
     consumeFrame(frame) {
       const len = frame[1];
-      const msgId = frame[5];
+      const isV2 = frame[0] === STX_V2;
+      const payloadStart = isV2 ? 10 : 6;
+      const msgId = isV2
+        ? (frame[7] | (frame[8] << 8) | (frame[9] << 16))
+        : frame[5];
       if (CRC_EXTRA[msgId] === undefined) return;
-      const payloadStart = 6;
       const payloadEnd = payloadStart + len;
       const crcIn = frame[payloadEnd] | (frame[payloadEnd + 1] << 8);
       const crcBytes = frame.subarray(1, payloadEnd);

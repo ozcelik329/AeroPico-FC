@@ -41,6 +41,7 @@ static GpsManager gpsManager;
 
 static constexpr uint32_t CORE1_STALE_THRESHOLD_US = 20000;
 static constexpr uint32_t WATCHDOG_BLOCK_LOG_PERIOD_MS = 500;
+static bool watchdogHardwareEnabled = false;
 static Scheduler core0Scheduler;
 static Scheduler telemetryScheduler;
 static PreflightHealth preflightHealth;
@@ -69,6 +70,7 @@ static TaskHandle_t sensorTaskHandle = nullptr;
 static TaskHandle_t flightTaskHandle = nullptr;
 static TaskHandle_t telemetryTaskHandle = nullptr;
 static RuntimeHealthStatus runtimeHealth = {};
+static bool telemetryLedState = false;
 
 static PreflightResult evaluatePreflight();
 
@@ -177,7 +179,9 @@ static void runStatePublish() {
 static void runWatchdogGate() {
     WatchdogDecision watchdogDecision = evaluateWatchdogGate();
     if (watchdogDecision.shouldFeed) {
-        watchdog_update();
+        if (watchdogHardwareEnabled) {
+            watchdog_update();
+        }
         return;
     }
 
@@ -191,6 +195,10 @@ static void runWatchdogGate() {
 }
 
 static void runMavlinkTelemetry() {
+#if AEROPICO_BENCH_MODE
+    telemetryLedState = !telemetryLedState;
+    digitalWrite(LED_BUILTIN, telemetryLedState ? HIGH : LOW);
+#endif
     mavlink.update();
     ServiceCommandCompletion completion = {};
     while (serviceCommandMailbox.takeCompletion(completion)) {
@@ -333,10 +341,40 @@ void taskTelemetry(void* pvParameters) {
 }
 
 void setup() {
+    pinMode(LED_BUILTIN, OUTPUT);
+    digitalWrite(LED_BUILTIN, LOW);
     Serial.begin(115200);
+    Serial.ignoreFlowControl(true);
+    const uint32_t serialStartMs = millis();
+    while (!Serial && (millis() - serialStartMs) < USB_STARTUP_WAIT_MS) {
+        delay(10);
+    }
     delay(100);
 
-    watchdog_enable(WATCHDOG_TIMEOUT_MS, true);
+#if AEROPICO_USB_SMOKE_MODE
+    pinMode(LED_BUILTIN, OUTPUT);
+    Serial.println();
+    Serial.println("[AEROPICO] USB smoke mode");
+    Serial.println("[AEROPICO] No sensors, no FreeRTOS, no MAVLink, no PWM");
+    Serial.println("[AEROPICO] If this stays visible, USB and bootloader are healthy.");
+    uint32_t lastPrintMs = 0;
+    uint32_t lastBlinkMs = 0;
+    bool ledState = false;
+    while (true) {
+        const uint32_t nowMs = millis();
+        if (nowMs - lastBlinkMs >= 250) {
+            lastBlinkMs = nowMs;
+            ledState = !ledState;
+            digitalWrite(LED_BUILTIN, ledState ? HIGH : LOW);
+        }
+        if (nowMs - lastPrintMs >= 1000) {
+            lastPrintMs = nowMs;
+            Serial.printf("[AEROPICO] alive %lu ms\n", (unsigned long)nowMs);
+            Serial.flush();
+        }
+        delay(10);
+    }
+#endif
 
     BootLogger::printBanner();
 
@@ -351,7 +389,13 @@ void setup() {
 #else
     batteryMonitor.init();
 #endif
+#if AEROPICO_BENCH_MODE
+    sensorManager.initBenchDisabled();
+    flightManager.init(nullptr, nullptr);
+    BootLogger::warn("Bench Mode", "Sensor ve RC init kapali; ciplak Pico bring-up");
+#else
     flightManager.init(&sensorManager, &rxManager);
+#endif
 
     SensorCapabilityStatus sensorCapabilities = sensorManager.capabilities();
     bool imuOk = sensorCapabilities.imuAvailable;
@@ -395,7 +439,11 @@ void setup() {
     if (GPS_MODULE_ENABLED) BootLogger::warn("GPS", "UART baglantisi bekleniyor");
     else BootLogger::warn("GPS", "Kapali; takili degilse navigation devreye girmez");
 
+#if AEROPICO_BENCH_MODE
+    BootLogger::warn("RC Receiver", "Bench mode: SBUS init kapali");
+#else
     BootLogger::ok("RC Receiver (SBUS/UART0)");
+#endif
 
     MavlinkServiceContext serviceContext = {};
     serviceContext.sensors = &sensorManager;
@@ -482,8 +530,20 @@ void setup() {
 
     const AppTaskHandles taskHandles = AppTasks::create(taskSensor, taskFlight, taskTelemetry);
     sensorTaskHandle = taskHandles.sensor; flightTaskHandle = taskHandles.flight; telemetryTaskHandle = taskHandles.telemetry;
-
-    vTaskStartScheduler();
+    if (taskHandles.sensor && taskHandles.flight && taskHandles.telemetry && WATCHDOG_HARDWARE_ENABLED) {
+        watchdog_enable(WATCHDOG_TIMEOUT_MS, true);
+        watchdogHardwareEnabled = true;
+    } else if (taskHandles.sensor && taskHandles.flight && taskHandles.telemetry) {
+        BootLogger::warn("Watchdog", "Hardware reset kapali; gate sadece raporlama modunda");
+    } else {
+        BootLogger::fail("FreeRTOS Tasks", "Task olusturma basarisiz; watchdog devreye alinmadi");
+    }
 }
 
-void loop() {}
+void loop() {
+#if AEROPICO_USB_SMOKE_MODE
+    delay(10);
+#else
+    vTaskDelay(pdMS_TO_TICKS(1000));
+#endif
+}
