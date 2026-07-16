@@ -104,9 +104,9 @@ bool SensorDmaBus::prepareAuxCommands(size_t len) {
     return true;
 }
 
-void SensorDmaBus::startMpuRead(RP2350I2C& bus, uint8_t address, uint8_t reg, uint32_t nowUs) {
-    if (!hasMpuChannels()) {
-        return;
+bool SensorDmaBus::startMpuRead(RP2350I2C& bus, uint8_t address, uint8_t reg, uint32_t nowUs) {
+    if (!hasMpuChannels() || _mpuActive) {
+        return false;
     }
 
     prepareMpuCommands(reg);
@@ -123,19 +123,26 @@ void SensorDmaBus::startMpuRead(RP2350I2C& bus, uint8_t address, uint8_t reg, ui
     dma_channel_start(_mpuRxChan);
     dma_channel_start(_mpuTxChan);
     _mpuStartUs = nowUs;
+    _mpuActive = true;
+    return true;
 }
 
 bool SensorDmaBus::isMpuReady() const {
-    return hasMpuChannels() && !dma_channel_is_busy(_mpuRxChan);
+    return _mpuActive && hasMpuChannels() && !dma_channel_is_busy(_mpuRxChan);
 }
 
 bool SensorDmaBus::mpuTimedOut(uint32_t nowUs, uint32_t timeoutUs) const {
-    return hasMpuChannels() && (uint32_t)(nowUs - _mpuStartUs) > timeoutUs;
+    return _mpuActive && hasMpuChannels() && (uint32_t)(nowUs - _mpuStartUs) > timeoutUs;
+}
+
+void SensorDmaBus::finishMpu() {
+    _mpuActive = false;
 }
 
 void SensorDmaBus::abortMpu() {
     if (_mpuRxChan >= 0) dma_channel_abort(_mpuRxChan);
     if (_mpuTxChan >= 0) dma_channel_abort(_mpuTxChan);
+    _mpuActive = false;
 }
 
 bool SensorDmaBus::readAuxRegistersDma(RP2350I2C& bus,

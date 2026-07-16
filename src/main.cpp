@@ -61,15 +61,11 @@ static uint32_t lastWatchdogBlockLogMs = 0;
 static constexpr uint32_t CONTROL_LOOP_HZ = 1000000UL / FLIGHT_LOOP_PERIOD_US;
 static uint32_t lastBlackboxDroppedRecords = 0;
 static SensorFaultCode lastReportedSensorFault = SensorFaultCode::None;
-static bool batteryWarningLatched = false;
-static bool latestBatteryCritical = false;
-static bool magCalibrationActive = false;
+static bool batteryWarningLatched = false, latestBatteryCritical = false, magCalibrationActive = false;
 static MavlinkServiceCommands mavlinkServiceCommands;
 static ServiceCommandMailbox serviceCommandMailbox;
 static ServiceCommandProcessor serviceCommandProcessor;
-static TaskHandle_t sensorTaskHandle = nullptr;
-static TaskHandle_t flightTaskHandle = nullptr;
-static TaskHandle_t telemetryTaskHandle = nullptr;
+static TaskHandle_t sensorTaskHandle = nullptr, flightTaskHandle = nullptr, telemetryTaskHandle = nullptr;
 static RuntimeHealthStatus runtimeHealth = {};
 static bool telemetryLedState = false;
 
@@ -78,13 +74,9 @@ static PreflightResult evaluatePreflight();
 static uint16_t clampStackWords(UBaseType_t value) { return value > 0xFFFFu ? 0xFFFFu : (uint16_t)value; }
 
 static WatchdogDecision evaluateWatchdogGate() {
-    return WatchdogGate::evaluate(
-        micros(),
-        SystemTimer::getCore1HeartbeatUs(),
-        SystemTimer::is_running,
-        SystemTimer::checkTimingBudgets(),
-        CORE1_STALE_THRESHOLD_US
-    );
+    return WatchdogGate::evaluate(micros(), SystemTimer::getCore1HeartbeatUs(),
+                                  SystemTimer::is_running, SystemTimer::checkTimingBudgets(),
+                                  CORE1_STALE_THRESHOLD_US);
 }
 
 static bool provideFlightData(FlightData& out) { return flightManager.peekLatest(out); }
@@ -121,21 +113,15 @@ static void applyBatteryProfile(uint8_t cells, float nominalVoltage, uint16_t ca
                                 float lowVoltage, float brownoutVoltage, float maxVoltage) {
     (void)nominalVoltage;
 #if BATTERY_ADC_ENABLED
-    batteryMonitor.init(provideBatteryVoltage, lowVoltage, maxVoltage, brownoutVoltage,
-                        cells, capacityMah, cRating);
+    batteryMonitor.init(provideBatteryVoltage, lowVoltage, maxVoltage, brownoutVoltage, cells, capacityMah, cRating);
 #else
-    batteryMonitor.init(nullptr, lowVoltage, maxVoltage, brownoutVoltage,
-                        cells, capacityMah, cRating);
+    batteryMonitor.init(nullptr, lowVoltage, maxVoltage, brownoutVoltage, cells, capacityMah, cRating);
 #endif
 }
 
 static bool evaluateSensorPreflight() {
     SensorBuffer latest = sensorManager.getLatest();
-    const SensorPreflightStatus status = SensorPreflightEvaluator::evaluate(
-        sensorManager.isImuAvailable(),
-        latest,
-        preflightMinSensorQuality
-    );
+    const SensorPreflightStatus status = SensorPreflightEvaluator::evaluate(sensorManager.isImuAvailable(), latest, preflightMinSensorQuality);
     SensorPreflightEvaluator::formatReason(status, sensorPreflightReason, sizeof(sensorPreflightReason));
     return status.passed;
 }
@@ -169,11 +155,7 @@ static void runServiceCommandMailbox() { serviceCommandProcessor.process(); }
 static void runRcUpdate() { flightManager.updateRc(); }
 
 static void runStatePublish() {
-    flightManager.setSystemFaults(
-        !SystemTimer::checkTimingBudgets(),
-        latestBatteryCritical,
-        !SystemTimer::outputsReady()
-    );
+    flightManager.setSystemFaults(!SystemTimer::checkTimingBudgets(), latestBatteryCritical, !SystemTimer::outputsReady());
     flightManager.publishState();
 }
 
@@ -219,24 +201,9 @@ static void runMavlinkTelemetry() {
 
 static void runBlackboxLog() {
     FlightData d;
-    if (!flightManager.peekLatest(d)) {
-        return;
-    }
-
-    blackbox.log(
-        d.roll,
-        d.pitch,
-        d.yaw,
-        d.gyroX,
-        d.gyroY,
-        d.gyroZ,
-        d.throttle,
-        d.aileron,
-        d.elevator,
-        d.rudder,
-        d.failsafe,
-        d.sensorHealth
-    );
+    if (!flightManager.peekLatest(d)) return;
+    blackbox.log(d.roll, d.pitch, d.yaw, d.gyroX, d.gyroY, d.gyroZ,
+                 d.throttle, d.aileron, d.elevator, d.rudder, d.failsafe, d.sensorHealth);
 }
 
 static void runBlackboxDrain() { blackbox.drain(2); }
@@ -245,14 +212,10 @@ static void runHealthReport() {
     lastPreflightResult = evaluatePreflight();
     BatteryStatus battery = batteryMonitor.evaluate();
     latestBatteryCritical = battery.configured && battery.brownout;
-    runtimeHealth.sensorStackHighWaterWords = sensorTaskHandle
-        ? clampStackWords(uxTaskGetStackHighWaterMark(sensorTaskHandle)) : 0;
-    runtimeHealth.flightStackHighWaterWords = flightTaskHandle
-        ? clampStackWords(uxTaskGetStackHighWaterMark(flightTaskHandle)) : 0;
-    runtimeHealth.telemetryStackHighWaterWords = telemetryTaskHandle
-        ? clampStackWords(uxTaskGetStackHighWaterMark(telemetryTaskHandle)) : 0;
-    runtimeHealth.eventQueueDrops = systemEventBus.droppedCount() > 0xFFFFu
-        ? 0xFFFFu : (uint16_t)systemEventBus.droppedCount();
+    runtimeHealth.sensorStackHighWaterWords = sensorTaskHandle ? clampStackWords(uxTaskGetStackHighWaterMark(sensorTaskHandle)) : 0;
+    runtimeHealth.flightStackHighWaterWords = flightTaskHandle ? clampStackWords(uxTaskGetStackHighWaterMark(flightTaskHandle)) : 0;
+    runtimeHealth.telemetryStackHighWaterWords = telemetryTaskHandle ? clampStackWords(uxTaskGetStackHighWaterMark(telemetryTaskHandle)) : 0;
+    runtimeHealth.eventQueueDrops = systemEventBus.droppedCount() > 0xFFFFu ? 0xFFFFu : (uint16_t)systemEventBus.droppedCount();
 
     if (!lastPreflightResult.canArm) {
         mavlink.sendStatusText(lastPreflightResult.firstFailureReason);
@@ -260,11 +223,7 @@ static void runHealthReport() {
 
     if (battery.configured && !battery.healthy && !batteryWarningLatched) {
         batteryWarningLatched = true;
-        systemEventBus.publish({
-            SystemEventType::BatteryWarning,
-            micros(),
-            battery.brownout ? 2u : 1u
-        });
+        systemEventBus.publish({SystemEventType::BatteryWarning, micros(), battery.brownout ? 2u : 1u});
         mavlink.sendStatusText(battery.reason);
     } else if (battery.configured && battery.healthy) {
         batteryWarningLatched = false;
@@ -282,22 +241,15 @@ static void runHealthReport() {
         TimingBudgetStatus status = SystemTimer::getTimingBudgetStatus();
         blackbox.logTimingBudget(status);
         mavlink.sendStatusText("Timing budget exceeded");
-        systemEventBus.publish({
-            SystemEventType::TimingOverrun,
-            micros(),
-            ((uint32_t)status.totalDeadlineMisses << 16) | status.totalLoadPermille
-        });
+        systemEventBus.publish({SystemEventType::TimingOverrun, micros(),
+                                ((uint32_t)status.totalDeadlineMisses << 16) | status.totalLoadPermille});
     }
     const uint32_t droppedBlackbox = blackbox.droppedRecords();
     runtimeHealth.blackboxDrops = droppedBlackbox > 0xFFFFu ? 0xFFFFu : (uint16_t)droppedBlackbox;
     blackbox.logRuntimeHealth(runtimeHealth);
     if (droppedBlackbox != lastBlackboxDroppedRecords) {
         lastBlackboxDroppedRecords = droppedBlackbox;
-        systemEventBus.publish({
-            SystemEventType::BlackboxDrop,
-            micros(),
-            droppedBlackbox
-        });
+        systemEventBus.publish({SystemEventType::BlackboxDrop, micros(), droppedBlackbox});
         mavlink.sendStatusText("Blackbox records dropped");
     }
     SystemTimer::requestTimingWindowReset();
@@ -362,16 +314,11 @@ void setup() {
     Serial.println("[AEROPICO] USB smoke mode");
     Serial.println("[AEROPICO] No sensors, no FreeRTOS, no MAVLink, no PWM");
     Serial.println("[AEROPICO] If this stays visible, USB and bootloader are healthy.");
-    uint32_t lastPrintMs = 0;
-    uint32_t lastBlinkMs = 0;
+    uint32_t lastPrintMs = 0, lastBlinkMs = 0;
     bool ledState = false;
     while (true) {
         const uint32_t nowMs = millis();
-        if (nowMs - lastBlinkMs >= 250) {
-            lastBlinkMs = nowMs;
-            ledState = !ledState;
-            digitalWrite(LED_BUILTIN, ledState ? HIGH : LOW);
-        }
+        if (nowMs - lastBlinkMs >= 250) { lastBlinkMs = nowMs; ledState = !ledState; digitalWrite(LED_BUILTIN, ledState ? HIGH : LOW); }
         if (nowMs - lastPrintMs >= 1000) {
             lastPrintMs = nowMs;
             Serial.printf("[AEROPICO] alive %lu ms\n", (unsigned long)nowMs);
@@ -416,13 +363,9 @@ void setup() {
             BootLogger::ok("Calibration Load");
         } else if (sensorManager.runBootCalibration()) {
             BootLogger::ok("Gyro/Accel Bias Cal");
-            CalibrationBlob savedCalibration = CalibrationStorage::makeBlob(sensorManager.getImuCalibration(),
-                                                                            sensorManager.getMagCalibration());
-            if (calibrationStorage.save(savedCalibration)) {
-                BootLogger::ok("Calibration Save");
-            } else {
-                BootLogger::warn("Calibration Save", "Flash kaydi basarisiz");
-            }
+            CalibrationBlob savedCalibration = CalibrationStorage::makeBlob(sensorManager.getImuCalibration(), sensorManager.getMagCalibration());
+            if (calibrationStorage.save(savedCalibration)) BootLogger::ok("Calibration Save");
+            else BootLogger::warn("Calibration Save", "Flash kaydi basarisiz");
         } else {
             BootLogger::warn("Gyro/Accel Bias Cal", "Yetersiz ornek veya basarisiz");
         }
@@ -433,11 +376,8 @@ void setup() {
 
 #ifdef USE_GY87
     sensorCapabilities = sensorManager.capabilities();
-    if (sensorCapabilities.baroAvailable) BootLogger::ok("BMP085");
-    else BootLogger::fail("BMP085", "Barometre bulunamadi");
-
-    if (sensorCapabilities.magAvailable) BootLogger::ok("HMC5883L");
-    else BootLogger::fail("HMC5883L", "Manyetometre bulunamadi");
+    if (sensorCapabilities.baroAvailable) BootLogger::ok("BMP085"); else BootLogger::fail("BMP085", "Barometre bulunamadi");
+    if (sensorCapabilities.magAvailable) BootLogger::ok("HMC5883L"); else BootLogger::fail("HMC5883L", "Manyetometre bulunamadi");
 #endif
 
     gpsManager.init(nullptr, GPS_MODULE_ENABLED, GPS_UART_BAUD);
@@ -451,24 +391,17 @@ void setup() {
 #endif
 
     MavlinkServiceContext serviceContext = {};
-    serviceContext.sensors = &sensorManager;
-    serviceContext.receiver = &rxManager;
-    serviceContext.calibrationStorage = &calibrationStorage;
-    serviceContext.magCalibrationActive = &magCalibrationActive;
-    serviceContext.isArmed = provideArmState;
-    serviceContext.evaluatePreflight = evaluatePreflight;
-    serviceContext.requestServoTest = SystemTimer::requestServoTest;
-    serviceContext.lastPreflightResult = &lastPreflightResult;
+    serviceContext.sensors = &sensorManager; serviceContext.receiver = &rxManager;
+    serviceContext.calibrationStorage = &calibrationStorage; serviceContext.magCalibrationActive = &magCalibrationActive;
+    serviceContext.isArmed = provideArmState; serviceContext.evaluatePreflight = evaluatePreflight;
+    serviceContext.requestServoTest = SystemTimer::requestServoTest; serviceContext.lastPreflightResult = &lastPreflightResult;
     serviceContext.mailbox = &serviceCommandMailbox;
     mavlinkServiceCommands.init(serviceContext);
 
     ServiceCommandProcessorContext serviceProcessorContext = {};
-    serviceProcessorContext.sensors = &sensorManager;
-    serviceProcessorContext.calibrationStorage = &calibrationStorage;
-    serviceProcessorContext.magCalibrationActive = &magCalibrationActive;
-    serviceProcessorContext.isArmed = provideArmState;
-    serviceProcessorContext.requestServoTest = SystemTimer::requestServoTest;
-    serviceProcessorContext.mailbox = &serviceCommandMailbox;
+    serviceProcessorContext.sensors = &sensorManager; serviceProcessorContext.calibrationStorage = &calibrationStorage;
+    serviceProcessorContext.magCalibrationActive = &magCalibrationActive; serviceProcessorContext.isArmed = provideArmState;
+    serviceProcessorContext.requestServoTest = SystemTimer::requestServoTest; serviceProcessorContext.mailbox = &serviceCommandMailbox;
     serviceCommandProcessor.init(serviceProcessorContext);
 
     mavlink.setFlightDataProvider(provideFlightData);

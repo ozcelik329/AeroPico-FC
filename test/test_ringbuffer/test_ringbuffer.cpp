@@ -64,11 +64,59 @@ void test_ringbuffer_wraps_power_of_two_capacity() {
     TEST_ASSERT_TRUE(buf.isEmpty());
 }
 
+void test_ringbuffer_wraps_non_power_of_two_capacity() {
+    ThreadSafeRingBuffer<Sample, 5> buf;
+    TEST_ASSERT_EQUAL_UINT8(4, buf.capacity());
+    for (int i = 0; i < 4; ++i) {
+        TEST_ASSERT_TRUE(buf.push({i}));
+    }
+    TEST_ASSERT_TRUE(buf.isFull());
+
+    Sample out;
+    for (int i = 0; i < 2; ++i) {
+        TEST_ASSERT_TRUE(buf.pop(out));
+        TEST_ASSERT_EQUAL_INT(i, out.value);
+    }
+
+    TEST_ASSERT_TRUE(buf.push({4}));
+    TEST_ASSERT_TRUE(buf.push({5}));
+    TEST_ASSERT_EQUAL_UINT8(4, buf.pending());
+
+    for (int expected : {2, 3, 4, 5}) {
+        TEST_ASSERT_TRUE(buf.peek(out));
+        TEST_ASSERT_EQUAL_INT(expected, out.value);
+        TEST_ASSERT_TRUE(buf.pop(out));
+        TEST_ASSERT_EQUAL_INT(expected, out.value);
+    }
+    TEST_ASSERT_TRUE(buf.isEmpty());
+}
+
+void test_ringbuffer_reset_after_wrap_clears_indices() {
+    ThreadSafeRingBuffer<Sample, 4> buf;
+    TEST_ASSERT_TRUE(buf.push({1}));
+    TEST_ASSERT_TRUE(buf.push({2}));
+    Sample out;
+    TEST_ASSERT_TRUE(buf.pop(out));
+    TEST_ASSERT_TRUE(buf.push({3}));
+    TEST_ASSERT_TRUE(buf.push({4}));
+    TEST_ASSERT_TRUE(buf.isFull());
+
+    buf.reset();
+    TEST_ASSERT_TRUE(buf.isEmpty());
+    TEST_ASSERT_EQUAL_UINT8(0, buf.pending());
+    TEST_ASSERT_FALSE(buf.pop(out));
+    TEST_ASSERT_TRUE(buf.push({9}));
+    TEST_ASSERT_TRUE(buf.pop(out));
+    TEST_ASSERT_EQUAL_INT(9, out.value);
+}
+
 int main() {
     UNITY_BEGIN();
     RUN_TEST(test_ringbuffer_push_pop_single_consumer);
     RUN_TEST(test_ringbuffer_peek_does_not_consume);
     RUN_TEST(test_ringbuffer_full_rejects_push);
     RUN_TEST(test_ringbuffer_wraps_power_of_two_capacity);
+    RUN_TEST(test_ringbuffer_wraps_non_power_of_two_capacity);
+    RUN_TEST(test_ringbuffer_reset_after_wrap_clears_indices);
     return UNITY_END();
 }

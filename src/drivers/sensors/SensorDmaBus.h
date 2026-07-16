@@ -17,9 +17,10 @@ class SensorDmaBus {
     bool hasMpuChannels() const { return _mpuRxChan >= 0 && _mpuTxChan >= 0; }
     bool hasAuxChannel() const { return _auxRxChan >= 0 && _auxTxChan >= 0; }
 
-    void startMpuRead(RP2350I2C& bus, uint8_t address, uint8_t reg, uint32_t nowUs);
+    bool startMpuRead(RP2350I2C& bus, uint8_t address, uint8_t reg, uint32_t nowUs);
     bool isMpuReady() const;
     bool mpuTimedOut(uint32_t nowUs, uint32_t timeoutUs) const;
+    void finishMpu();
     void abortMpu();
 
     const uint8_t* mpuBuffer() const { return _mpuRx; }
@@ -55,6 +56,7 @@ class SensorDmaBus {
     uint16_t _auxCmd[AUX_MAX_LEN] = {};
     uint32_t _mpuStartUs = 0;
     uint32_t _auxStartUs = 0;
+    bool _mpuActive = false;
     bool _auxActive = false;
 
     void prepareMpuCommands(uint8_t reg);
