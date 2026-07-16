@@ -15,6 +15,10 @@ bool SensorAuxBus::configure(SensorDmaBus& dmaBus,
                              bool& hasMag,
                              bool& hasBaro,
                              SensorFaultCode& faultCode) {
+    _auxDmaEnabled = true;
+    _auxDmaTimeoutStreak = 0;
+    _auxDmaTimeouts = 0;
+    _auxPollingRecoveries = 0;
     _hasMag = initMag(bus, faultCode);
     _hasBaro = initBaro(dmaBus, bus, baroDriver, faultCode);
     hasMag = _hasMag;
@@ -68,6 +72,14 @@ bool SensorAuxBus::writeReg(RP2350I2C& bus,
     return true;
 }
 
+bool SensorAuxBus::readRegsNoFault(RP2350I2C& bus,
+                                   uint8_t address,
+                                   uint8_t reg,
+                                   uint8_t* dest,
+                                   size_t len) {
+    return dest && len > 0 && bus.readRegisters(address, reg, dest, len);
+}
+
 bool SensorAuxBus::readRegsDma(SensorDmaBus& dmaBus,
                                RP2350I2C& bus,
                                uint8_t address,
@@ -107,16 +119,101 @@ bool SensorAuxBus::startRegsDma(SensorDmaBus& dmaBus,
                                 size_t len,
                                 AuxReadKind kind,
                                 SensorFaultCode& faultCode) {
+    if (!_auxDmaEnabled) {
+        (void)dmaBus;
+        (void)bus;
+        (void)address;
+        (void)reg;
+        (void)dest;
+        (void)len;
+        (void)kind;
+        (void)faultCode;
+        return false;
+    }
     if (!dmaBus.hasAuxChannel()) {
         setFaultIfNeeded(faultCode, SensorFaultCode::DmaChannelClaimFailed);
         return false;
     }
     if (!dmaBus.startAuxRead(bus, address, reg, dest, len, micros())) {
-        setFaultIfNeeded(faultCode, SensorFaultCode::AuxDmaTransferTimeout);
+        _auxDmaEnabled = false;
         return false;
     }
     _auxReadKind = kind;
     return true;
+}
+
+bool SensorAuxBus::finishReadFromBuffer(AuxReadKind kind,
+                                        MagDriver& magDriver,
+                                        BaroDriver& baroDriver,
+                                        SensorBuffer& buffer,
+                                        SensorFaultCode& faultCode) {
+    if (kind == AUX_MAG) {
+        const int16_t mx = (int16_t)(_hmcDmaBuf[0] << 8 | _hmcDmaBuf[1]);
+        const int16_t my = (int16_t)(_hmcDmaBuf[4] << 8 | _hmcDmaBuf[5]);
+        const int16_t mz = (int16_t)(_hmcDmaBuf[2] << 8 | _hmcDmaBuf[3]);
+        magDriver.applySample(mx, my, mz, buffer);
+        return true;
+    }
+
+    if (kind == AUX_BARO_TEMP) {
+        baroDriver.setRawTemperature((int32_t)(_bmpDmaBuf[0] << 8) | _bmpDmaBuf[1]);
+        _bmpState = BMP_TEMP_READ;
+        return true;
+    }
+
+    if (kind == AUX_BARO_PRESSURE) {
+        const int32_t up = ((int32_t)_bmpDmaBuf[0] << 16 |
+                            (int32_t)_bmpDmaBuf[1] << 8 |
+                            _bmpDmaBuf[2]) >> (8 - 3);
+        if (!baroDriver.applyRawPressure(up, buffer)) {
+            setFaultIfNeeded(faultCode, SensorFaultCode::BaroReadFailed);
+            return false;
+        }
+        _bmpState = BMP_IDLE;
+        return true;
+    }
+
+    return true;
+}
+
+bool SensorAuxBus::recoverTimedOutRead(RP2350I2C& bus,
+                                       AuxReadKind kind,
+                                       MagDriver& magDriver,
+                                       BaroDriver& baroDriver,
+                                       SensorBuffer& buffer,
+                                       SensorFaultCode& faultCode) {
+    bool recovered = false;
+    if (kind == AUX_MAG && _magProfile) {
+        recovered = readRegsPolling(bus, _magProfile->address, _magProfile->dataReg,
+                                    _hmcDmaBuf, _magProfile->sampleLen, faultCode) &&
+                    finishReadFromBuffer(kind, magDriver, baroDriver, buffer, faultCode);
+        if (!recovered) {
+            buffer.mx = buffer.my = buffer.mz = 0.0f;
+            setFaultIfNeeded(faultCode, SensorFaultCode::MagReadFailed);
+        }
+    } else if (_baroProfile && (kind == AUX_BARO_TEMP || kind == AUX_BARO_PRESSURE)) {
+        const size_t len = kind == AUX_BARO_TEMP ? 2 : 3;
+        recovered = readRegsPolling(bus, _baroProfile->address, _baroProfile->resultReg,
+                                    _bmpDmaBuf, len, faultCode) &&
+                    finishReadFromBuffer(kind, magDriver, baroDriver, buffer, faultCode);
+        if (!recovered) {
+            buffer.baroValid = false;
+            buffer.pressureHpa = 0.0f;
+            setFaultIfNeeded(faultCode, SensorFaultCode::BaroReadFailed);
+        }
+    }
+
+    if (recovered) {
+        _auxPollingRecoveries++;
+        _auxDmaTimeoutStreak++;
+        if (_auxDmaTimeoutStreak >= 1) {
+            _auxDmaEnabled = false;
+        }
+    } else {
+        _auxDmaTimeoutStreak++;
+        setFaultIfNeeded(faultCode, SensorFaultCode::AuxDmaTransferTimeout);
+    }
+    return recovered;
 }
 
 bool SensorAuxBus::processPendingRead(SensorDmaBus& dmaBus,
@@ -131,40 +228,10 @@ bool SensorAuxBus::processPendingRead(SensorDmaBus& dmaBus,
 
     const uint32_t nowUs = micros();
     if (dmaBus.auxTimedOut(nowUs, I2C_DMA_TIMEOUT_US)) {
+        const AuxReadKind timedOutKind = _auxReadKind;
         dmaBus.abortAux();
-        setFaultIfNeeded(faultCode, SensorFaultCode::AuxDmaTransferTimeout);
-        if (_auxReadKind == AUX_MAG) {
-            if (_magProfile &&
-                readRegsPolling(bus, _magProfile->address, _magProfile->dataReg,
-                                _hmcDmaBuf, _magProfile->sampleLen, faultCode)) {
-                const int16_t mx = (int16_t)(_hmcDmaBuf[0] << 8 | _hmcDmaBuf[1]);
-                const int16_t my = (int16_t)(_hmcDmaBuf[4] << 8 | _hmcDmaBuf[5]);
-                const int16_t mz = (int16_t)(_hmcDmaBuf[2] << 8 | _hmcDmaBuf[3]);
-                magDriver.applySample(mx, my, mz, buffer);
-            } else {
-                buffer.mx = buffer.my = buffer.mz = 0.0f;
-                setFaultIfNeeded(faultCode, SensorFaultCode::MagReadFailed);
-            }
-        } else {
-            if (_baroProfile &&
-                readRegsPolling(bus, _baroProfile->address, _baroProfile->resultReg,
-                                _bmpDmaBuf, _auxReadKind == AUX_BARO_TEMP ? 2 : 3, faultCode)) {
-                if (_auxReadKind == AUX_BARO_TEMP) {
-                    baroDriver.setRawTemperature((int32_t)(_bmpDmaBuf[0] << 8) | _bmpDmaBuf[1]);
-                    _bmpState = BMP_TEMP_READ;
-                } else {
-                    const int32_t up = ((int32_t)_bmpDmaBuf[0] << 16 | (int32_t)_bmpDmaBuf[1] << 8 | _bmpDmaBuf[2]) >> (8 - 3);
-                    if (!baroDriver.applyRawPressure(up, buffer)) {
-                        setFaultIfNeeded(faultCode, SensorFaultCode::BaroReadFailed);
-                    }
-                    _bmpState = BMP_IDLE;
-                }
-            } else {
-                buffer.baroValid = false;
-                buffer.pressureHpa = 0.0f;
-                setFaultIfNeeded(faultCode, SensorFaultCode::BaroReadFailed);
-            }
-        }
+        _auxDmaTimeouts++;
+        recoverTimedOutRead(bus, timedOutKind, magDriver, baroDriver, buffer, faultCode);
         _auxReadKind = AUX_NONE;
         return true;
     }
@@ -173,21 +240,8 @@ bool SensorAuxBus::processPendingRead(SensorDmaBus& dmaBus,
         return false;
     }
 
-    if (_auxReadKind == AUX_MAG) {
-        const int16_t mx = (int16_t)(_hmcDmaBuf[0] << 8 | _hmcDmaBuf[1]);
-        const int16_t my = (int16_t)(_hmcDmaBuf[4] << 8 | _hmcDmaBuf[5]);
-        const int16_t mz = (int16_t)(_hmcDmaBuf[2] << 8 | _hmcDmaBuf[3]);
-        magDriver.applySample(mx, my, mz, buffer);
-    } else if (_auxReadKind == AUX_BARO_TEMP) {
-        baroDriver.setRawTemperature((int32_t)(_bmpDmaBuf[0] << 8) | _bmpDmaBuf[1]);
-        _bmpState = BMP_TEMP_READ;
-    } else if (_auxReadKind == AUX_BARO_PRESSURE) {
-        const int32_t up = ((int32_t)_bmpDmaBuf[0] << 16 | (int32_t)_bmpDmaBuf[1] << 8 | _bmpDmaBuf[2]) >> (8 - 3);
-        if (!baroDriver.applyRawPressure(up, buffer)) {
-            setFaultIfNeeded(faultCode, SensorFaultCode::BaroReadFailed);
-        }
-        _bmpState = BMP_IDLE;
-    }
+    finishReadFromBuffer(_auxReadKind, magDriver, baroDriver, buffer, faultCode);
+    _auxDmaTimeoutStreak = 0;
 
     dmaBus.finishAux();
     _auxReadKind = AUX_NONE;
@@ -195,8 +249,28 @@ bool SensorAuxBus::processPendingRead(SensorDmaBus& dmaBus,
 }
 
 bool SensorAuxBus::initMag(RP2350I2C& bus, SensorFaultCode& faultCode) {
+    _unsupportedMagDetected = false;
+    _unsupportedMagAddress = 0;
+
     _magProfile = &SensorBackendRegistry::hmc5883l();
     const MagDeviceProfile& profile = *_magProfile;
+
+    uint8_t probe[3] = {};
+    if (!readRegsNoFault(bus, profile.address, profile.dataReg, probe, sizeof(probe))) {
+        uint8_t qmcFamilyId = 0xFF;
+        if (readRegsNoFault(bus, 0x2C, 0x00, &qmcFamilyId, 1)) {
+            _unsupportedMagDetected = true;
+            _unsupportedMagAddress = 0x2C;
+            _magProfile = nullptr;
+            setFaultIfNeeded(faultCode, SensorFaultCode::MagUnsupported);
+            return false;
+        }
+
+        _magProfile = nullptr;
+        setFaultIfNeeded(faultCode, SensorFaultCode::MagReadFailed);
+        return false;
+    }
+
     bool ok = true;
     ok &= writeReg(bus, profile.address, profile.configAReg, profile.configAValue, faultCode);
     ok &= writeReg(bus, profile.address, profile.configBReg, profile.configBValue, faultCode);

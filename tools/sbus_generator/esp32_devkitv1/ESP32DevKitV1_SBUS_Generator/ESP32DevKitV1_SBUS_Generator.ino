@@ -39,9 +39,9 @@ static uint32_t lastFrameUs = 0;
 static uint32_t lastPrintMs = 0;
 
 static uint16_t clampSbus(int value) {
-  if (value < (int)SBUS_MIN) return SBUS_MIN;
-  if (value > (int)SBUS_MAX) return SBUS_MAX;
-  return (uint16_t)value;
+  if (value < static_cast<int>(SBUS_MIN)) return SBUS_MIN;
+  if (value > static_cast<int>(SBUS_MAX)) return SBUS_MAX;
+  return static_cast<uint16_t>(value);
 }
 
 static void packSbusFrame(bool failsafe) {
@@ -50,12 +50,12 @@ static void packSbusFrame(bool failsafe) {
 
   uint16_t bitIndex = 0;
   for (uint8_t ch = 0; ch < 16; ++ch) {
-    uint16_t value = channels[ch] & 0x07FF;
+    const uint16_t value = channels[ch] & 0x07FF;
     for (uint8_t bit = 0; bit < 11; ++bit) {
       if (value & (1U << bit)) {
         const uint16_t byteIndex = 1 + ((bitIndex + bit) >> 3);
         const uint8_t bitOffset = (bitIndex + bit) & 0x07;
-        sbusFrame[byteIndex] |= (uint8_t)(1U << bitOffset);
+        sbusFrame[byteIndex] |= static_cast<uint8_t>(1U << bitOffset);
       }
     }
     bitIndex += 11;
@@ -67,20 +67,20 @@ static void packSbusFrame(bool failsafe) {
 
 static void updateChannels(uint32_t nowMs) {
   const uint32_t phase = nowMs % 30000UL;
-  const float sweep = sinf((float)(nowMs % 6000UL) * (2.0f * PI / 6000.0f));
+  const float sweep = sinf(static_cast<float>(nowMs % 6000UL) * (2.0f * PI / 6000.0f));
 
   for (uint8_t i = 0; i < 16; ++i) channels[i] = SBUS_MID;
 
-  channels[0] = clampSbus((int)SBUS_MID + (int)(sweep * 420.0f)); // roll
-  channels[1] = SBUS_MID;                                        // pitch
+  channels[0] = clampSbus(static_cast<int>(SBUS_MID) + static_cast<int>(sweep * 420.0f)); // roll
+  channels[1] = SBUS_MID;                                                                // pitch
   channels[2] = phase < 9000UL ? SBUS_LOW_THROTTLE
               : phase < 18000UL ? SBUS_HALF_THROTTLE
-                                : SBUS_LOW_THROTTLE;             // throttle
-  channels[3] = SBUS_MID;                                        // yaw
-  channels[4] = phase < 15000UL ? SBUS_MIN : SBUS_MAX;           // mode
+                                : SBUS_LOW_THROTTLE;                                     // throttle
+  channels[3] = SBUS_MID;                                                                // yaw
+  channels[4] = phase < 15000UL ? SBUS_MIN : SBUS_MAX;                                   // mode
   channels[5] = phase < 10000UL ? SBUS_MIN
               : phase < 20000UL ? SBUS_MID
-                                : SBUS_MAX;                      // aux
+                                : SBUS_MAX;                                              // aux
 }
 
 static bool inFailsafeGap(uint32_t nowMs) {
@@ -104,7 +104,7 @@ void setup() {
 
 void loop() {
   const uint32_t nowUs = micros();
-  if ((uint32_t)(nowUs - lastFrameUs) < SBUS_PERIOD_US) {
+  if (static_cast<uint32_t>(nowUs - lastFrameUs) < SBUS_PERIOD_US) {
     return;
   }
   lastFrameUs += SBUS_PERIOD_US;

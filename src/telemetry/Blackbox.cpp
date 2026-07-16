@@ -9,6 +9,9 @@ void Blackbox::init() {
     _sequence = 0;
     _lastLogMs = 0;
     _droppedRecords = 0;
+    _backpressureRecords = 0;
+    _backpressureDrainStreak = 0;
+    _transportBackpressured = false;
     _queue.reset();
     Serial.println("[BLACKBOX] Baslatildi.");
 }
@@ -56,10 +59,17 @@ void Blackbox::logRuntimeHealth(const RuntimeHealthStatus& status) {
 uint8_t Blackbox::drain(uint8_t maxRecords) {
     if (!_enabled) return 0;
 
+    constexpr uint8_t BACKPRESSURE_STREAK_LIMIT = 3;
     uint8_t drained = 0;
     Frame frame;
     while (drained < maxRecords && _queue.peek(frame)) {
         if (espUart.availableForWrite() < frame.size) {
+            if (++_backpressureDrainStreak >= BACKPRESSURE_STREAK_LIMIT) {
+                _transportBackpressured = true;
+                if (_queue.pop(frame)) {
+                    _backpressureRecords++;
+                }
+            }
             break;
         }
         if (espUart.write(frame.bytes, frame.size) != frame.size) {
@@ -67,6 +77,8 @@ uint8_t Blackbox::drain(uint8_t maxRecords) {
             break;
         }
         _queue.pop(frame);
+        _backpressureDrainStreak = 0;
+        _transportBackpressured = false;
         drained++;
     }
     return drained;
@@ -94,6 +106,11 @@ bool Blackbox::writeRecord(BlackboxRecordType type, const void* payload, uint16_
         return false;
     }
 
+    if (_transportBackpressured) {
+        _backpressureRecords++;
+        return false;
+    }
+
     BlackboxRecordHeader header = {
         MAGIC, VERSION, (uint8_t)type, payloadSize, _sequence++, (uint32_t)millis()
     };
@@ -106,7 +123,8 @@ bool Blackbox::writeRecord(BlackboxRecordType type, const void* payload, uint16_
     frame.size = (uint16_t)(bodySize + sizeof(crc));
 
     if (!_queue.push(frame)) {
-        _droppedRecords++;
+        _backpressureRecords++;
+        _transportBackpressured = true;
         return false;
     }
     return true;

@@ -48,6 +48,7 @@ class Blackbox {
     void logRuntimeHealth(const RuntimeHealthStatus& status);
     uint8_t drain(uint8_t maxRecords = QUEUE_SLOTS);
     uint32_t droppedRecords() const { return _droppedRecords; }
+    uint32_t backpressureRecords() const { return _backpressureRecords; }
     uint8_t queuedRecords() const { return _queue.pending(); }
     static uint16_t crc16(const uint8_t* data, size_t length);
 
@@ -62,6 +63,9 @@ class Blackbox {
     uint32_t _lastLogMs = 0;
     uint32_t _sequence = 0;
     uint32_t _droppedRecords = 0;
+    uint32_t _backpressureRecords = 0;
+    uint8_t _backpressureDrainStreak = 0;
+    bool _transportBackpressured = false;
     ThreadSafeRingBuffer<Frame, QUEUE_SLOTS> _queue;
 
     bool writeRecord(BlackboxRecordType type, const void* payload, uint16_t payloadSize);

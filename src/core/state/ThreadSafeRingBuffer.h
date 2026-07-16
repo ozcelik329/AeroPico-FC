@@ -33,8 +33,7 @@ class ThreadSafeRingBuffer {
     bool peek(T& item) const {
         std::lock_guard<std::mutex> g(_mtx);
         if (_head == _tail) return false;
-        uint8_t last = (_head == 0) ? (SIZE - 1) : (_head - 1);
-        item = _buf[last];
+        item = _buf[_tail];
         return true;
     }
 
@@ -96,8 +95,7 @@ class ThreadSafeRingBuffer {
     bool peek(T& item) const {
         mutex_enter_blocking(&_mutex);
         if (_head == _tail) { mutex_exit(&_mutex); return false; }
-        uint8_t last = (_head == 0) ? (SIZE - 1) : (_head - 1);
-        item = _buf[last];
+        item = _buf[_tail];
         mutex_exit(&_mutex);
         return true;
     }

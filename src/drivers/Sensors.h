@@ -7,6 +7,7 @@
 #include "IDrivers.h"
 #include "sensors/SensorHealthMonitor.h"
 #include "sensors/SensorCalibration.h"
+#include "sensors/SensorBusProbe.h"
 #include "sensors/SensorBackendRegistry.h"
 #include "sensors/SensorDmaBus.h"
 #include "sensors/SensorAuxBus.h"
@@ -40,6 +41,8 @@ class SensorManager : public IImuDriver, public IMagDriver, public IBaroDriver, 
     bool isImuAvailable() const override;
     bool isDmaOk() const override;
     SensorCapabilityStatus capabilities() const;
+    SensorBusProbeSnapshot busProbeSnapshot() const;
+    void formatBusProbeSummary(char* dest, size_t len) const;
     SensorFaultCode getFaultCode() const;
     const char* getFaultText() const;
     uint8_t getLastWhoAmI() const { return _lastWhoAmI; }
@@ -53,6 +56,8 @@ class SensorManager : public IImuDriver, public IMagDriver, public IBaroDriver, 
     // Driver capability queries
     bool hasMag() const override;
     bool hasBaro() const override;
+    bool hasUnsupportedMag() const;
+    uint8_t unsupportedMagAddress() const;
     void beginMagCalibration();
     bool observeMagCalibrationSample(float mx, float my, float mz);
     MagCalibration finishMagCalibration();
@@ -80,6 +85,7 @@ class SensorManager : public IImuDriver, public IMagDriver, public IBaroDriver, 
     MagDriver _magDriver;
     BaroDriver _baroDriver;
     SensorHealthMonitor _healthMonitor;
+    SensorBusProbeSnapshot _busProbe = {};
     SensorCalibration _calibration;
     enum class ImuCalibrationState : uint8_t {
         Idle = 0,

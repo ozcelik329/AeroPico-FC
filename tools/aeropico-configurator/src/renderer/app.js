@@ -645,7 +645,7 @@
 
       row.append(title, meta, badge);
       row.addEventListener("click", () => {
-        state.portDisplay.name = port.portName || port.displayName || port.portId || null;
+        state.portDisplay.name = port.displayName || port.portName || port.portId || null;
         state.portDisplay.vid = port.vendorId || null;
         state.portDisplay.pid = port.productId || null;
         updatePortInfoDisplay();
@@ -654,7 +654,6 @@
         if (window.aeropicoBridge && typeof window.aeropicoBridge.nativeConnect !== "function") {
           window.aeropicoBridge.chooseSerialPort(port.portId || "");
         } else {
-          window.aeropicoBridge.chooseSerialPort("");
           setTimeout(() => {
             if (!state.connected) connect();
           }, 100);

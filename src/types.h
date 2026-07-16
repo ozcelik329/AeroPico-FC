@@ -25,6 +25,7 @@ enum class SensorFaultCode : uint8_t {
     AuxDmaTransferTimeout,
     AuxPollingFallbackFailed,
     MagReadFailed,
+    MagUnsupported,
     BaroReadFailed
 };
 
@@ -41,6 +42,30 @@ struct SensorCapabilityStatus {
     bool magAvailable;
     bool baroAvailable;
     bool gpsAvailable;
+};
+
+enum class SensorBusDeviceRole : uint8_t {
+    Unknown = 0,
+    Imu,
+    Baro,
+    Mag,
+    UnsupportedMag
+};
+
+struct SensorBusDevice {
+    uint8_t address;
+    SensorBusDeviceRole role;
+};
+
+struct SensorBusProbeSnapshot {
+    static constexpr uint8_t MAX_DEVICES = 12;
+    SensorBusDevice mainDevices[MAX_DEVICES];
+    SensorBusDevice auxDevices[MAX_DEVICES];
+    uint8_t mainCount;
+    uint8_t auxCount;
+    bool mainOverflow;
+    bool auxOverflow;
+    bool bypassEnabled;
 };
 
 static inline bool hasSensorCapability(uint16_t mask, SensorCapabilityBits bit) {

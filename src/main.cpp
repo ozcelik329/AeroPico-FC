@@ -60,6 +60,7 @@ static char sensorPreflightReason[72] = "Sensor not evaluated";
 static uint32_t lastWatchdogBlockLogMs = 0;
 static constexpr uint32_t CONTROL_LOOP_HZ = 1000000UL / FLIGHT_LOOP_PERIOD_US;
 static uint32_t lastBlackboxDroppedRecords = 0;
+static SensorFaultCode lastReportedSensorFault = SensorFaultCode::None;
 static bool batteryWarningLatched = false;
 static bool latestBatteryCritical = false;
 static bool magCalibrationActive = false;
@@ -269,8 +270,12 @@ static void runHealthReport() {
         batteryWarningLatched = false;
     }
 
-    if (sensorManager.getFaultCode() != SensorFaultCode::None) {
+    const SensorFaultCode sensorFault = sensorManager.getFaultCode();
+    if (sensorFault != SensorFaultCode::None && sensorFault != lastReportedSensorFault) {
+        lastReportedSensorFault = sensorFault;
         mavlink.sendStatusText(sensorManager.getFaultText());
+    } else if (sensorFault == SensorFaultCode::None) {
+        lastReportedSensorFault = SensorFaultCode::None;
     }
 
     if (!SystemTimer::checkTimingBudgets()) {

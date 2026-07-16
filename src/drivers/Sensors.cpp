@@ -96,6 +96,72 @@ bool SensorManager::_readRawFrame(uint8_t raw[GyroAccelDriver::RAW_LEN]) {
 bool SensorManager::isImuAvailable() const { return _imuAvailable; }
 bool SensorManager::isDmaOk() const { return _dmaBus.hasMpuChannels(); }
 
+SensorBusProbeSnapshot SensorManager::busProbeSnapshot() const {
+    return _busProbe;
+}
+
+static const char* sensorBusRoleText(SensorBusDeviceRole role) {
+    switch (role) {
+        case SensorBusDeviceRole::Imu: return "IMU";
+        case SensorBusDeviceRole::Baro: return "BARO";
+        case SensorBusDeviceRole::Mag: return "MAG";
+        case SensorBusDeviceRole::UnsupportedMag: return "MAG?";
+        default: return "UNK";
+    }
+}
+
+static void appendProbeList(char* dest,
+                            size_t len,
+                            const char* prefix,
+                            const SensorBusDevice* devices,
+                            uint8_t count,
+                            bool overflow) {
+    if (!dest || len == 0) {
+        return;
+    }
+    auto boundedLen = [](const char* text, size_t maxLen) -> size_t {
+        size_t n = 0;
+        while (n < maxLen && text[n] != '\0') {
+            ++n;
+        }
+        return n;
+    };
+
+    size_t used = boundedLen(dest, len);
+    if (used >= len) {
+        return;
+    }
+    int written = snprintf(dest + used, len - used, "%s", prefix);
+    if (written < 0) {
+        return;
+    }
+    used = boundedLen(dest, len);
+    for (uint8_t i = 0; i < count && used < len; ++i) {
+        written = snprintf(dest + used, len - used, "0x%02X/%s%s",
+                           devices[i].address,
+                           sensorBusRoleText(devices[i].role),
+                           i + 1 == count ? "" : ",");
+        if (written < 0) {
+            return;
+        }
+        used = boundedLen(dest, len);
+    }
+    if (overflow && used < len) {
+        snprintf(dest + used, len - used, "+");
+    }
+}
+
+void SensorManager::formatBusProbeSummary(char* dest, size_t len) const {
+    if (!dest || len == 0) {
+        return;
+    }
+    dest[0] = '\0';
+    appendProbeList(dest, len, "I2C:", _busProbe.mainDevices, _busProbe.mainCount, _busProbe.mainOverflow);
+    if (_busProbe.bypassEnabled) {
+        appendProbeList(dest, len, " AUX:", _busProbe.auxDevices, _busProbe.auxCount, _busProbe.auxOverflow);
+    }
+}
+
 SensorCapabilityStatus SensorManager::capabilities() const {
     SensorCapabilityStatus status = {};
     status.imuAvailable = _imuAvailable;
@@ -126,6 +192,7 @@ const char* SensorManager::getFaultText() const {
         case SensorFaultCode::AuxDmaTransferTimeout: return "Aux DMA transfer timeout";
         case SensorFaultCode::AuxPollingFallbackFailed: return "Aux polling fallback failed";
         case SensorFaultCode::MagReadFailed: return "Mag read failed";
+        case SensorFaultCode::MagUnsupported: return "Unsupported magnetometer detected";
         case SensorFaultCode::BaroReadFailed: return "Baro read failed";
         default: return "Unknown sensor fault";
     }
@@ -245,6 +312,7 @@ void SensorManager::init() {
     _gyroAccelDriver.resetFilters();
 
     _bus().init(PIN_SDA, PIN_SCL, 400000);
+    _busProbe = SensorBusProbe::scanMain(_bus());
 
     uint8_t whoami = 0;
     const ImuDeviceProfile& imu = *_imuProfile;
@@ -280,6 +348,19 @@ void SensorManager::init() {
     _mpu_write_reg(imu.gyroConfigReg, imu.gyroConfigValue);
     // DLPF: 21Hz bant genişliği
     _mpu_write_reg(imu.dlpfReg, imu.dlpfValue);
+    // GY-87 manyetometresi MPU6050 aux I2C hattindadir; bypass acik olmadan
+    // HMC/QMC adaylari ana I2C bus'ta gorunmez.
+    _mpu_write_reg(0x6A, 0x00);
+    _mpu_write_reg(0x37, 0x02);
+    SensorBusProbe::scanAux(_bus(), _busProbe);
+
+    char probeLine[160];
+    formatBusProbeSummary(probeLine, sizeof(probeLine));
+    if (probeLine[0] != '\0') {
+        char logLine[180];
+        snprintf(logLine, sizeof(logLine), "[SENSOR] %s", probeLine);
+        Logger::log(logLine);
+    }
 
     Logger::log("[SENSOR] MPU6050 (ham I2C+DMA) hazir.");
 
@@ -298,8 +379,17 @@ void SensorManager::init() {
             _hasBaro = false;
         } else {
             _auxBus.configure(_dmaBus, *rpBus, _baroDriver, _hasMag, _hasBaro, _faultCode);
-            if (!_hasMag) Logger::log("[SENSOR] HMC5883L bulunamadi!");
-            else          Logger::log("[SENSOR] HMC5883L hazir.");
+            if (_hasMag) {
+                Logger::log("[SENSOR] HMC5883L hazir.");
+            } else if (_auxBus.hasUnsupportedMag()) {
+                char line[96];
+                snprintf(line, sizeof(line),
+                         "[SENSOR] Desteklenmeyen manyetometre algilandi: 0x%02X (6DOF fallback)",
+                         _auxBus.unsupportedMagAddress());
+                Logger::log(line);
+            } else {
+                Logger::log("[SENSOR] HMC5883L bulunamadi! 6DOF fallback aktif.");
+            }
 
             if (!_hasBaro) Logger::log("[SENSOR] BMP085 bulunamadi!");
             else           Logger::log("[SENSOR] BMP085 hazir.");
@@ -320,6 +410,7 @@ void SensorManager::initBenchDisabled() {
     _dmaFastPath = false;
     _faultCode = SensorFaultCode::None;
     _lastWhoAmI = 0;
+    _busProbe = {};
     _buf[0] = {};
     _buf[1] = {};
     _buf[0].valid = false;
@@ -433,7 +524,13 @@ void SensorManager::update() {
 
     #ifdef USE_GY87
         if (RP2350I2C* rpBus = _rpBus()) {
+            const SensorFaultCode previousFault = _faultCode;
             _auxBus.update(_dmaBus, *rpBus, _magDriver, _baroDriver, buf, _faultCode);
+            if (_faultCode == SensorFaultCode::AuxDmaTransferTimeout && buf.baroValid) {
+                _faultCode = previousFault == SensorFaultCode::AuxDmaTransferTimeout
+                    ? SensorFaultCode::None
+                    : previousFault;
+            }
         }
     #endif
 
@@ -470,7 +567,11 @@ SensorBuffer SensorManager::getLatest() {
 #ifdef USE_GY87
 bool SensorManager::hasMag() const { return _hasMag; }
 bool SensorManager::hasBaro() const { return _hasBaro; }
+bool SensorManager::hasUnsupportedMag() const { return _auxBus.hasUnsupportedMag(); }
+uint8_t SensorManager::unsupportedMagAddress() const { return _auxBus.unsupportedMagAddress(); }
 #else
 bool SensorManager::hasMag() const { return false; }
 bool SensorManager::hasBaro() const { return false; }
+bool SensorManager::hasUnsupportedMag() const { return false; }
+uint8_t SensorManager::unsupportedMagAddress() const { return 0; }
 #endif

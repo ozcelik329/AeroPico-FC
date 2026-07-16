@@ -26,6 +26,8 @@ class SensorAuxBus {
                 BaroDriver& baroDriver,
                 SensorBuffer& buffer,
                 SensorFaultCode& faultCode);
+    bool hasUnsupportedMag() const { return _unsupportedMagDetected; }
+    uint8_t unsupportedMagAddress() const { return _unsupportedMagAddress; }
 
   private:
     enum BmpState : uint8_t {
@@ -53,8 +55,15 @@ class SensorAuxBus {
     bool _hasMag = false;
     bool _hasBaro = false;
     bool _magTurn = true;
+    bool _unsupportedMagDetected = false;
+    uint8_t _unsupportedMagAddress = 0;
+    bool _auxDmaEnabled = true;
+    uint8_t _auxDmaTimeoutStreak = 0;
+    uint32_t _auxDmaTimeouts = 0;
+    uint32_t _auxPollingRecoveries = 0;
 
     bool writeReg(RP2350I2C& bus, uint8_t address, uint8_t reg, uint8_t value, SensorFaultCode& faultCode);
+    bool readRegsNoFault(RP2350I2C& bus, uint8_t address, uint8_t reg, uint8_t* dest, size_t len);
     bool readRegsDma(SensorDmaBus& dmaBus,
                      RP2350I2C& bus,
                      uint8_t address,
@@ -82,6 +91,17 @@ class SensorAuxBus {
                             BaroDriver& baroDriver,
                             SensorBuffer& buffer,
                             SensorFaultCode& faultCode);
+    bool finishReadFromBuffer(AuxReadKind kind,
+                              MagDriver& magDriver,
+                              BaroDriver& baroDriver,
+                              SensorBuffer& buffer,
+                              SensorFaultCode& faultCode);
+    bool recoverTimedOutRead(RP2350I2C& bus,
+                             AuxReadKind kind,
+                             MagDriver& magDriver,
+                             BaroDriver& baroDriver,
+                             SensorBuffer& buffer,
+                             SensorFaultCode& faultCode);
     bool initMag(RP2350I2C& bus, SensorFaultCode& faultCode);
     bool initBaro(SensorDmaBus& dmaBus, RP2350I2C& bus, BaroDriver& baroDriver, SensorFaultCode& faultCode);
     void readMag(SensorDmaBus& dmaBus,

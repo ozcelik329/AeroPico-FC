@@ -7,9 +7,10 @@ let nativeSerial = null;
 
 function serialDevicePath(name) {
   if (typeof name !== "string" || name.length === 0) return "";
+  if (/^COM\d+$/i.test(name)) return name;
   if (name.startsWith("/dev/")) return name;
   if (/^(cu|tty)\./.test(name)) return `/dev/${name}`;
-  return "";
+  return name;
 }
 
 function openSerialPortWithTimeout(port, timeoutMs = 1500) {
@@ -45,22 +46,47 @@ function closeNativeSerial() {
 }
 
 async function listNativeSerialPorts() {
+  const ports = await SerialPort.list();
+  const normalized = ports
+    .filter((port) => port && port.path)
+    .map((port) => {
+      const baseName = path.basename(port.path);
+      return {
+        portId: port.path,
+        portName: baseName || port.path,
+        vendorId: port.vendorId || null,
+        productId: port.productId || null,
+        serialNumber: port.serialNumber || null,
+        displayName: port.path,
+        manufacturer: port.manufacturer || null
+      };
+    });
+
+  if (normalized.length > 0 || process.platform !== "darwin") {
+    return normalized.sort(sortSerialPorts);
+  }
+
   const entries = fs.readdirSync("/dev");
   return entries
     .filter((name) => /^cu\.(usb|modem|serial|wch|SLAB|debug)/i.test(name))
-    .sort((a, b) => {
-      const aUsb = /usbmodem/i.test(a) ? 0 : 1;
-      const bUsb = /usbmodem/i.test(b) ? 0 : 1;
-      return aUsb - bUsb || a.localeCompare(b);
-    })
     .map((name) => ({
-      portId: name,
+      portId: `/dev/${name}`,
       portName: name,
       vendorId: null,
       productId: null,
       serialNumber: null,
-      displayName: `/dev/${name}`
-    }));
+      displayName: `/dev/${name}`,
+      manufacturer: null
+    }))
+    .sort(sortSerialPorts);
+}
+
+function sortSerialPorts(a, b) {
+  const aText = `${a.portName || ""} ${a.displayName || ""} ${a.manufacturer || ""}`;
+  const bText = `${b.portName || ""} ${b.displayName || ""} ${b.manufacturer || ""}`;
+  const aScore = /usbmodem|pico|rp2350|aeropico/i.test(aText) ? 0 : /usbserial|cp210|ch340|wch|slab/i.test(aText) ? 1 : 2;
+  const bScore = /usbmodem|pico|rp2350|aeropico/i.test(bText) ? 0 : /usbserial|cp210|ch340|wch|slab/i.test(bText) ? 1 : 2;
+  return aScore - bScore || String(a.displayName || a.portName).localeCompare(String(b.displayName || b.portName));
 }
 
 function createWindow() {
