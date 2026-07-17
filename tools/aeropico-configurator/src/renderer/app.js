@@ -98,6 +98,14 @@
     PREFLIGHT_CHECK: 7
   });
 
+  const MAV_SENSOR = Object.freeze({
+    GYRO: 1 << 0,
+    ACCEL: 1 << 1,
+    MAG: 1 << 2,
+    ABS_PRESSURE: 1 << 3,
+    GPS: 1 << 5
+  });
+
   const SERVICE_LABELS = Object.freeze({
     CAL_IMU: "IMU kalibrasyon",
     CAL_MAG: "Mag kalibrasyon",
@@ -900,8 +908,6 @@
     if (message.type === "heartbeat") {
       state.lastHeartbeatMs = Date.now();
       state.armed = (message.baseMode & 0x80) !== 0;
-      state.modules.imu = "ok";
-      state.modules.rc = "ok";
       els.preflightText.textContent = `Heartbeat alindi. System status: ${message.systemStatus}. Parametreleri okuyup preflight sonucunu kontrol et.`;
       renderModules();
       updateButtons();
@@ -919,6 +925,20 @@
     }
 
     if (message.type === "sysStatus") {
+      const present = message.sensorsPresent >>> 0;
+      const health = message.sensorsHealth >>> 0;
+      const imuPresent = (present & MAV_SENSOR.GYRO) !== 0 && (present & MAV_SENSOR.ACCEL) !== 0;
+      const imuHealthy = (health & MAV_SENSOR.GYRO) !== 0 && (health & MAV_SENSOR.ACCEL) !== 0;
+      state.modules.imu = imuPresent ? (imuHealthy ? "ok" : "bad") : "unknown";
+      state.modules.baro = (present & MAV_SENSOR.ABS_PRESSURE) !== 0
+        ? ((health & MAV_SENSOR.ABS_PRESSURE) !== 0 ? "ok" : "bad")
+        : "unknown";
+      state.modules.mag = (present & MAV_SENSOR.MAG) !== 0
+        ? ((health & MAV_SENSOR.MAG) !== 0 ? "ok" : "bad")
+        : "unknown";
+      state.modules.gps = (present & MAV_SENSOR.GPS) !== 0
+        ? ((health & MAV_SENSOR.GPS) !== 0 ? "ok" : "bad")
+        : "unknown";
       state.modules.battery = message.voltageBatteryMv > 0 && message.voltageBatteryMv < 65535 ? "ok" : "bad";
       renderModules();
       renderConfigAudit();
@@ -948,6 +968,7 @@
       if (text.includes("GPS")) state.modules.gps = text.includes("FIX") || text.includes("HAZIR") ? "ok" : "bad";
       if (text.includes("RC_MONITOR_OK")) state.modules.rc = "ok";
       if (text.includes("RC_MONITOR_FAIL")) state.modules.rc = "bad";
+      if (text.includes("RC SIGNAL INVALID") || text.includes("RC INVALID")) state.modules.rc = "bad";
       if (text.includes("SENSOR_CHECK_PARTIAL")) {
         state.modules.imu = "ok";
         els.preflightText.textContent = "Sensor kontrolu kismi basarili: opsiyonel sensorlerden biri eksik.";

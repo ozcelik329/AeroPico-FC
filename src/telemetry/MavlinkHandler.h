@@ -23,6 +23,7 @@ class MavlinkHandler {
     using ArmCommandHandler = bool (*)(bool arm, bool force, char* reason, size_t reasonLen);
     using ServiceCommandHandler = uint8_t (*)(uint16_t action, float p2, float p3, float p4,
                                               char* reason, size_t reasonLen);
+    using SensorCapabilityProvider = SensorCapabilityStatus (*)();
     using RCOverrideHandler = void (*)(uint16_t aileron, uint16_t elevator, uint16_t throttle, uint16_t rudder);
     using ClearRCOverrideHandler = void (*)();
 
@@ -32,6 +33,7 @@ class MavlinkHandler {
     void setArmStateProvider(ArmStateProvider provider);
     void setArmCommandHandler(ArmCommandHandler handler);
     void setServiceCommandHandler(ServiceCommandHandler handler);
+    void setSensorCapabilityProvider(SensorCapabilityProvider provider);
     void setRCOverrideHandler(RCOverrideHandler handler);
     void setClearRCOverrideHandler(ClearRCOverrideHandler handler);
     void setRCOverrideEnabled(bool enabled);
@@ -76,6 +78,7 @@ class MavlinkHandler {
     ArmStateProvider _armStateProvider = nullptr;
     ArmCommandHandler _armCommandHandler = nullptr;
     ServiceCommandHandler _serviceCommandHandler = nullptr;
+    SensorCapabilityProvider _sensorCapabilityProvider = nullptr;
     RCOverrideHandler _rcOverrideHandler = nullptr;
     ClearRCOverrideHandler _clearRCOverrideHandler = nullptr;
     bool _rcOverrideEnabled = false;

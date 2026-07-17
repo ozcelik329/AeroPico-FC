@@ -82,6 +82,14 @@ static WatchdogDecision evaluateWatchdogGate() {
 static bool provideFlightData(FlightData& out) { return flightManager.peekLatest(out); }
 static bool provideArmState() { return flightManager.isArmed(); }
 
+static SensorCapabilityStatus provideSensorCapabilities() {
+    SensorCapabilityStatus caps = sensorManager.capabilities();
+    const SensorCapabilityStatus gpsCaps = gpsManager.capabilities();
+    caps.gpsAvailable = gpsCaps.gpsAvailable;
+    caps.functionMask |= gpsCaps.functionMask;
+    return caps;
+}
+
 static bool handleMavlinkArmCommand(bool arm, bool force, char* reason, size_t reasonLen) {
     return flightManager.requestArmFromMavlink(arm, force, reason, reasonLen);
 }
@@ -408,6 +416,7 @@ void setup() {
     mavlink.setArmStateProvider(provideArmState);
     mavlink.setArmCommandHandler(handleMavlinkArmCommand);
     mavlink.setServiceCommandHandler(handleMavlinkServiceCommand);
+    mavlink.setSensorCapabilityProvider(provideSensorCapabilities);
     mavlink.setRCOverrideHandler(applyRCOverride);
     mavlink.setClearRCOverrideHandler(clearRCOverride);
     mavlink.setRCOverrideEnabled(true);

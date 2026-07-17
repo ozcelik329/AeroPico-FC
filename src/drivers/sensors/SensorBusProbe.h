@@ -22,8 +22,7 @@ class SensorBusProbe {
 
   private:
     static bool probeAddress(IHALI2C& bus, uint8_t address) {
-        uint8_t byte = 0;
-        return bus.readRaw(address, &byte, 1, false);
+        return bus.probeAddress(address);
     }
 
     static void scanInto(IHALI2C& bus,

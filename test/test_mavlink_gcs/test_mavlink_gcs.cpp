@@ -18,6 +18,7 @@ static bool armCommandValue;
 static bool armCommandForce;
 static bool serviceCommandCalled;
 static uint16_t serviceAction;
+static SensorCapabilityStatus testCapabilities;
 
 static bool provideArmState() {
     return armedState;
@@ -47,6 +48,10 @@ static uint8_t handleServiceCommand(uint16_t action, float p2, float p3, float p
         reason[reasonLen - 1] = '\0';
     }
     return MAV_RESULT_ACCEPTED;
+}
+
+static SensorCapabilityStatus provideCapabilities() {
+    return testCapabilities;
 }
 
 static bool decodeFirstMessage(mavlink_message_t& out) {
@@ -79,6 +84,7 @@ void setUp() {
     armCommandForce = false;
     serviceCommandCalled = false;
     serviceAction = 0;
+    testCapabilities = {};
 }
 
 void test_heartbeat_reports_safety_armed_bit() {
@@ -241,6 +247,27 @@ void test_mission_request_list_returns_zero_count() {
     TEST_ASSERT_EQUAL_UINT8(1, count.target_component);
 }
 
+void test_sys_status_reports_actual_sensor_capabilities() {
+    MavlinkHandler handler;
+    testCapabilities.imuAvailable = true;
+    testCapabilities.baroAvailable = false;
+    testCapabilities.magAvailable = false;
+    testCapabilities.gpsAvailable = false;
+    handler.setSensorCapabilityProvider(provideCapabilities);
+
+    handler.sendSysStatus(false, false, SensorHealth::Ok);
+
+    mavlink_message_t message;
+    TEST_ASSERT_TRUE(decodeFirstMessage(message));
+    TEST_ASSERT_EQUAL_UINT32(MAVLINK_MSG_ID_SYS_STATUS, message.msgid);
+    mavlink_sys_status_t status;
+    mavlink_msg_sys_status_decode(&message, &status);
+    TEST_ASSERT_TRUE((status.onboard_control_sensors_present & MAV_SYS_STATUS_SENSOR_3D_GYRO) != 0);
+    TEST_ASSERT_TRUE((status.onboard_control_sensors_present & MAV_SYS_STATUS_SENSOR_3D_ACCEL) != 0);
+    TEST_ASSERT_FALSE((status.onboard_control_sensors_present & MAV_SYS_STATUS_SENSOR_ABSOLUTE_PRESSURE) != 0);
+    TEST_ASSERT_FALSE((status.onboard_control_sensors_present & MAV_SYS_STATUS_SENSOR_3D_MAG) != 0);
+}
+
 int main() {
     UNITY_BEGIN();
     RUN_TEST(test_heartbeat_reports_safety_armed_bit);
@@ -251,5 +278,6 @@ int main() {
     RUN_TEST(test_vfr_hud_reports_altitude_climb_heading_and_throttle);
     RUN_TEST(test_gps_raw_int_reports_no_gps);
     RUN_TEST(test_mission_request_list_returns_zero_count);
+    RUN_TEST(test_sys_status_reports_actual_sensor_capabilities);
     return UNITY_END();
 }

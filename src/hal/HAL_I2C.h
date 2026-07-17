@@ -9,6 +9,10 @@ class IHALI2C {
     virtual void init(uint8_t sdaPin, uint8_t sclPin, uint32_t baudHz) = 0;
     virtual bool writeRaw(uint8_t address, const uint8_t* data, size_t length, bool nostop) = 0;
     virtual bool readRaw(uint8_t address, uint8_t* data, size_t length, bool nostop) = 0;
+    virtual bool probeAddress(uint8_t address) {
+        uint8_t byte = 0;
+        return readRaw(address, &byte, 1, false);
+    }
     virtual bool writeRegister(uint8_t address, uint8_t reg, uint8_t value) {
         const uint8_t bytes[2] = {reg, value};
         return writeRaw(address, bytes, sizeof(bytes), false);

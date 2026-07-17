@@ -26,6 +26,10 @@ void MavlinkHandler::setServiceCommandHandler(ServiceCommandHandler handler) {
     _serviceCommandHandler = handler;
 }
 
+void MavlinkHandler::setSensorCapabilityProvider(SensorCapabilityProvider provider) {
+    _sensorCapabilityProvider = provider;
+}
+
 void MavlinkHandler::setRCOverrideHandler(RCOverrideHandler handler) {
     _rcOverrideHandler = handler;
 }
@@ -344,11 +348,24 @@ void MavlinkHandler::sendSysStatus(bool armed, bool failsafe, SensorHealth senso
     // Batarya izleme yok — MAVLink sentinel: bilinmiyor (-1)
     const int8_t battery_remaining = -1;
     const int16_t battery_current  = -1;
-    const uint32_t sensorBits =
-        MAV_SYS_STATUS_SENSOR_3D_GYRO |
-        MAV_SYS_STATUS_SENSOR_3D_ACCEL |
-        MAV_SYS_STATUS_SENSOR_ABSOLUTE_PRESSURE |
-        MAV_SYS_STATUS_SENSOR_3D_MAG;
+    SensorCapabilityStatus caps = {};
+    if (_sensorCapabilityProvider) {
+        caps = _sensorCapabilityProvider();
+    }
+    uint32_t sensorBits = 0;
+    if (caps.imuAvailable) {
+        sensorBits |= MAV_SYS_STATUS_SENSOR_3D_GYRO |
+                      MAV_SYS_STATUS_SENSOR_3D_ACCEL;
+    }
+    if (caps.baroAvailable) {
+        sensorBits |= MAV_SYS_STATUS_SENSOR_ABSOLUTE_PRESSURE;
+    }
+    if (caps.magAvailable) {
+        sensorBits |= MAV_SYS_STATUS_SENSOR_3D_MAG;
+    }
+    if (caps.gpsAvailable) {
+        sensorBits |= MAV_SYS_STATUS_SENSOR_GPS;
+    }
     const bool sensorsHealthy = sensorHealth == SensorHealth::Ok;
     const uint32_t healthBits = (sensorsHealthy && !failsafe) ? sensorBits : 0;
     const uint16_t loadPermille = armed ? 500 : 0;
