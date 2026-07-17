@@ -3,6 +3,16 @@
 Bu klasor, kumanda/verici olmadan AeroPico-FC'nin SBUS girisini bench ortaminda
 test etmek icin Arduino IDE ile yuklenebilen iki ornek icerir.
 
+Daha gelismis, iki joystickli WiFi web arayuzu icin su araci kullan:
+
+```text
+tools/virtual_rc/esp32_devkitv1/AeroPicoVirtualRC/
+```
+
+Bu arac ESP32 uzerinde `AeroPico-VirtualRC` adli WiFi agi acar ve telefondan
+iki joystick + mod secici ile SBUS frame uretir. Gercek kumanda yerine gecmez;
+yalnizca bench test icindir.
+
 ## Onerilen Donanim
 
 1. **ESP32 DevKit v1 / NodeMCU-32S**  
