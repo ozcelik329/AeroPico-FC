@@ -2,7 +2,7 @@ import { releaseChecks } from "../data/siteData.js";
 
 export default function ReleaseGate() {
   return (
-    <section id="release" className="site-container py-16 border-t border-slate-900/80 relative z-10">
+    <section id="release" className="site-container reveal-section py-16 border-t border-slate-900/80 relative z-10">
       <div className="mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="text-xs uppercase font-mono text-cyan-400 font-semibold tracking-wider bg-cyan-500/10 border border-cyan-500/20 px-3 py-1 rounded-full inline-block">
@@ -16,14 +16,14 @@ export default function ReleaseGate() {
       </div>
 
       <div className="grid lg:grid-cols-12 gap-6 items-start">
-        <div className="lg:col-span-4 glass-card p-6 rounded-2xl space-y-3">
+        <div className="lg:col-span-4 flat-card p-6 rounded-2xl space-y-3">
           <h4 className="text-amber-400 font-bold text-lg font-mono">v1.0.0-rc1</h4>
           <p className="text-slate-400 text-sm leading-relaxed">
             Gerçek uçuş veya ticari kullanımdan önce bench doğrulama, HIL kanıtı, airframe tuning ve saha test kayıtları tamamlanmalıdır.
           </p>
         </div>
 
-        <div className="lg:col-span-8 glass-card p-6 rounded-2xl grid sm:grid-cols-2 gap-4">
+        <div className="lg:col-span-8 flat-card p-6 rounded-2xl grid sm:grid-cols-2 gap-4">
           {releaseChecks.map((check) => (
             <div className="bg-slate-950/60 border border-slate-800/80 p-4 rounded-xl flex items-center gap-3" key={check}>
               <span className="bg-emerald-500/10 text-emerald-400 font-mono text-xs px-2.5 py-1 rounded font-bold border border-emerald-500/20">

@@ -14,7 +14,6 @@ export default function Home() {
       <div className="absolute inset-0 opacity-[0.08] bg-[linear-gradient(rgba(255,255,255,0.08)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.08)_1px,transparent_1px)] bg-[size:44px_44px] pointer-events-none" />
 
       <Header />
-      <div className="h-20 md:h-20" />
       <Hero />
       <QuickStart />
       <Architecture />
