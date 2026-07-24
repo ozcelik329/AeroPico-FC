@@ -1,8 +1,11 @@
 import configuratorPreview from "../assets/aeropico-configurator-dark.webp";
+import { useLanguage } from "../context/LanguageContext.jsx";
 import { configuratorChecks, repoUrl } from "../data/siteData.js";
 import { externalLinkProps } from "../utils/externalLinkProps.js";
 
 export default function Configurator() {
+  const { content } = useLanguage();
+
   return (
     <section
       id="configurator"
@@ -10,12 +13,11 @@ export default function Configurator() {
     >
       <div className="space-y-6">
         <div className="text-xs font-mono text-cyan-400 uppercase tracking-wider bg-cyan-500/10 border border-cyan-500/20 px-3.5 py-1.5 rounded-full inline-block font-semibold">
-          AEROPICO CONFIGURATOR
+          {content.configurator.eyebrow}
         </div>
-        <h2 className="text-3xl md:text-4xl font-extrabold text-white leading-tight">Kurulum, kalibrasyon ve bench komutları tek arayüzde.</h2>
+        <h2 className="text-3xl md:text-4xl font-extrabold text-white leading-tight">{content.configurator.title}</h2>
         <p className="text-slate-400 text-sm leading-relaxed">
-          Configurator, firmware ile ACK-gated MAVLink servis komutları üzerinden konuşur. Parametreleri okur, flash üzerine kaydeder, sensör sağlığını
-          kontrol eder ve güvenli testleri sadece disarmed durumda çalıştırır.
+          {content.configurator.description}
         </p>
 
         <div className="grid sm:grid-cols-2 gap-3 pt-2">
@@ -33,7 +35,7 @@ export default function Configurator() {
             className="border border-cyan-500/35 bg-cyan-500/10 hover:bg-cyan-500/15 active:scale-95 text-cyan-200 font-bold px-6 py-3.5 rounded-xl transition-all duration-150 inline-flex items-center gap-2 text-sm"
             {...externalLinkProps}
           >
-            Configurator İndir (.zip)
+            {content.configurator.action}
           </a>
         </div>
       </div>

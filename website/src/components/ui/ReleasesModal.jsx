@@ -1,7 +1,9 @@
+import { useEffect, useState } from "react";
 import { modalNames } from "../../context/ModalContext.jsx";
+import { useLanguage } from "../../context/LanguageContext.jsx";
 import { repoUrl } from "../../data/siteData.js";
 import { useModal } from "../../hooks/useModal.js";
-import { getReleaseDownloads } from "../../services/releaseService.js";
+import { getLiveReleaseDownloads, getReleaseDownloads } from "../../services/releaseService.js";
 import { cn } from "../../utils/cn.js";
 import { externalLinkProps } from "../../utils/externalLinkProps.js";
 import Modal from "./Modal.jsx";
@@ -16,27 +18,58 @@ const badgeClasses = {
 
 export default function ReleasesModal() {
   const { activeModal, closeModal } = useModal();
-  const releases = getReleaseDownloads();
+  const { content } = useLanguage();
+  const [releases, setReleases] = useState(getReleaseDownloads);
+  const [status, setStatus] = useState("idle");
   const open = activeModal === modalNames.releases;
 
+  useEffect(() => {
+    if (!open || status !== "idle") {
+      return;
+    }
+
+    let cancelled = false;
+    setStatus("loading");
+
+    getLiveReleaseDownloads()
+      .then((items) => {
+        if (!cancelled && items.length) {
+          setReleases(items);
+          setStatus("live");
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setReleases(getReleaseDownloads());
+          setStatus("fallback");
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [open, status]);
+
   return (
-    <Modal ariaLabel="Yazılım sürümleri" open={open} onClose={closeModal}>
+    <Modal ariaLabel={content.modals.releasesTitle} open={open} onClose={closeModal}>
       <div className="flex justify-between items-center pb-4 border-b border-slate-800">
         <div>
-          <h3 className="text-xl font-extrabold text-white">Yazılım Sürümleri (Releases)</h3>
-          <p className="text-slate-400 text-xs mt-1">Kararlı ve geliştirme aşamasındaki paket listesi.</p>
+          <h3 className="text-xl font-extrabold text-white">{content.modals.releasesTitle}</h3>
+          <p className="text-slate-400 text-xs mt-1">{content.modals.releasesDescription}</p>
         </div>
         <button
           type="button"
           onClick={closeModal}
           className="w-8 h-8 rounded-full bg-slate-900 border border-slate-800 text-slate-400 hover:text-white flex items-center justify-center font-bold transition cursor-pointer"
-          aria-label="Sürümler penceresini kapat"
+          aria-label={content.modals.closeReleases}
         >
           ×
         </button>
       </div>
 
       <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
+        {status === "loading" ? <div className="rounded-xl border border-slate-800 bg-slate-900/70 p-4 text-xs text-slate-400">{content.modals.loading}</div> : null}
+        {status === "fallback" ? <div className="rounded-xl border border-amber-500/20 bg-amber-500/10 p-4 text-xs text-amber-200">{content.modals.fallback}</div> : null}
         {releases.map((release) => (
           <article
             className="bg-slate-900/80 border border-slate-800 p-5 rounded-2xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 hover:border-cyan-500/40 transition"
@@ -56,7 +89,7 @@ export default function ReleasesModal() {
                 className="bg-cyan-500 hover:bg-cyan-400 active:scale-95 text-slate-950 font-bold text-xs px-4 py-2.5 rounded-xl transition flex-1 sm:flex-initial text-center shadow-md shadow-cyan-500/20"
                 {...externalLinkProps}
               >
-                {release.actionLabel}
+                {content.header.releases}
               </a>
               <a
                 href={release.downloadHref}
@@ -71,9 +104,9 @@ export default function ReleasesModal() {
       </div>
 
       <div className="pt-2 border-t border-slate-800 flex justify-between items-center text-xs text-slate-500">
-        <span>Kaynak kod deposu</span>
+        <span>{content.modals.source}</span>
         <a href={repoUrl} className="text-cyan-400 hover:underline" {...externalLinkProps}>
-          GitHub'da Görüntüle →
+          {content.modals.viewGithub}
         </a>
       </div>
     </Modal>
