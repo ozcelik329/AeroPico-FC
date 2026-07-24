@@ -1,4 +1,3 @@
-import { quickStartOptions } from "../data/siteData.js";
 import { useLanguage } from "../context/LanguageContext.jsx";
 import { useModal } from "../hooks/useModal.js";
 import { cn } from "../utils/cn.js";
@@ -83,7 +82,7 @@ export default function QuickStart() {
       />
 
       <div className="grid md:grid-cols-2 gap-8">
-        {quickStartOptions.map((option) => (
+        {content.quickStart.options.map((option) => (
           <QuickStartCard option={option} key={option.id} />
         ))}
       </div>
