@@ -1,4 +1,5 @@
 import { quickStartOptions } from "../data/siteData.js";
+import { useLanguage } from "../context/LanguageContext.jsx";
 import { useModal } from "../hooks/useModal.js";
 import { cn } from "../utils/cn.js";
 import { externalLinkProps } from "../utils/externalLinkProps.js";
@@ -71,12 +72,14 @@ function QuickStartCard({ option }) {
 }
 
 export default function QuickStart() {
+  const { content } = useLanguage();
+
   return (
     <section id="quickstart" className="site-container reveal-section py-16 border-t border-slate-900/80 relative z-10">
       <SectionHeading
-        eyebrow="HIZLI BAŞLANGIÇ KILAVUZU"
-        title="Yazılımı Kurun ve Pico 2'ye Yükleyin"
-        description="Projeyi kendi bilgisayarınızda derleyip yüklemek ya da hazır derlenmiş sürümle anında başlamak için iki farklı yöntem sunuyoruz."
+        eyebrow={content.quickStart.eyebrow}
+        title={content.quickStart.title}
+        description={content.quickStart.description}
       />
 
       <div className="grid md:grid-cols-2 gap-8">

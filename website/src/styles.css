@@ -65,6 +65,7 @@ a {
 }
 
 .header-shell {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -122,6 +123,40 @@ a {
 
 .header-nav-link:hover {
   color: #22d3ee;
+}
+
+.mobile-menu-button,
+.mobile-menu-panel {
+  display: none;
+}
+
+.mobile-menu-panel {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  right: 0;
+  width: min(18rem, calc(100vw - 1.5rem));
+  padding: 0.5rem;
+  border: 1px solid rgba(51, 65, 85, 0.95);
+  border-radius: 1rem;
+  background: rgba(2, 6, 23, 0.94);
+  box-shadow: 0 24px 70px -34px rgba(14, 165, 233, 0.45);
+  backdrop-filter: blur(18px);
+}
+
+.mobile-menu-item {
+  display: block;
+  width: 100%;
+  padding: 0.75rem 0.85rem;
+  border-radius: 0.75rem;
+  color: #cbd5e1;
+  font-size: 0.82rem;
+  font-weight: 700;
+  text-align: left;
+}
+
+.mobile-menu-item:hover {
+  background: rgba(15, 23, 42, 0.9);
+  color: #67e8f9;
 }
 
 .configurator-band {
@@ -213,6 +248,14 @@ a {
 
   .header-nav {
     display: none;
+  }
+
+  .mobile-menu-button {
+    display: inline-flex;
+  }
+
+  .mobile-menu-panel.is-open {
+    display: block;
   }
 
   .hero-logo-wrap {

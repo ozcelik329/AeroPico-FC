@@ -1,13 +1,16 @@
 import { architectureCards } from "../data/siteData.js";
+import { useLanguage } from "../context/LanguageContext.jsx";
 import SectionHeading from "./ui/SectionHeading.jsx";
 
 export default function Architecture() {
+  const { content } = useLanguage();
+
   return (
     <section id="architecture" className="site-container reveal-section py-16 border-t border-slate-900/80 relative z-10">
       <SectionHeading
-        eyebrow="SİSTEM ÖZELLİKLERİ"
-        title="Çekirdek Tasarım ve Güvenceler"
-        description="Gereksiz karmaşadan arındırılmış, deterministik ve modüler uçuş yazılımı mimarisi."
+        eyebrow={content.architecture.eyebrow}
+        title={content.architecture.title}
+        description={content.architecture.description}
       />
 
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
