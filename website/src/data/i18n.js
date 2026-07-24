@@ -46,6 +46,20 @@ export const content = {
       secondary: "Specifications",
       note: "Uçuş öncesi masaüstü doğrulaması zorunludur.",
     },
+    home: {
+      overviewEyebrow: "PROJE HARİTASI",
+      overviewTitle: "Detaylar ayrı sayfalarda, ana akış burada.",
+      overviewDescription: "AeroPico-FC ana sayfası hızlı karar vermek için kısa tutulur; donanım, mimari, sürümler ve dokümanlar kendi sayfalarında daha rahat incelenir.",
+      cards: [
+        { title: "Desteklenen Donanım", text: "Pico 2, sensörler, RC ve GCS uyumluluk listesini tablo düzeninde inceleyin.", href: "/hardware", action: "Donanımı Aç" },
+        { title: "Mimari", text: "Kontrol yolu, sensör rolleri, kalıcı ayarlar ve release gate yaklaşımı.", href: "/architecture", action: "Mimariye Git" },
+        { title: "Sürümler", text: "GitHub release kayıtları, ZIP indirmeleri ve uçuş öncesi kabul koşulları.", href: "/releases", action: "Sürümleri Aç" },
+        { title: "Dökümanlar", text: "Geliştirici kılavuzu, RCI release notları ve bench test checklist bağlantıları.", href: "/docs", action: "Dökümanlara Git" },
+      ],
+      statusTitle: "Kısa Teknik Durum",
+      releaseTitle: "Güncel Release",
+      releaseAction: "Release Sayfası",
+    },
     quickStart: {
       eyebrow: "HIZLI BAŞLANGIÇ",
       title: "Yazılımı Kurun ve Pico 2'ye Yükleyin",
@@ -319,6 +333,20 @@ export const content = {
       primary: "Download",
       secondary: "Specifications",
       note: "Desktop validation is required before flight.",
+    },
+    home: {
+      overviewEyebrow: "PROJECT MAP",
+      overviewTitle: "Details live on separate pages; the main flow stays here.",
+      overviewDescription: "The AeroPico-FC home page stays focused for quick decisions, while hardware, architecture, releases, and documentation each have room on their own pages.",
+      cards: [
+        { title: "Supported Hardware", text: "Review Pico 2, sensors, RC input, and GCS compatibility in a list layout.", href: "/hardware", action: "Open Hardware" },
+        { title: "Architecture", text: "Control path, sensor roles, persistent settings, and release-gate strategy.", href: "/architecture", action: "Open Architecture" },
+        { title: "Releases", text: "GitHub releases, ZIP downloads, and preflight acceptance conditions.", href: "/releases", action: "Open Releases" },
+        { title: "Docs", text: "Developer guide, RCI release notes, and bench test checklist links.", href: "/docs", action: "Open Docs" },
+      ],
+      statusTitle: "Technical Snapshot",
+      releaseTitle: "Current Release",
+      releaseAction: "Release Page",
     },
     quickStart: {
       eyebrow: "QUICK START",
