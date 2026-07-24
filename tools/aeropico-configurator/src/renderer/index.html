@@ -120,6 +120,18 @@
             </svg>
             Pin Mapper
           </button>
+          <button id="profileManagerBtn">
+            <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <path d="M4 5h16" />
+              <path d="M4 12h16" />
+              <path d="M4 19h16" />
+              <circle cx="8" cy="5" r="2" />
+              <circle cx="14" cy="12" r="2" />
+              <circle cx="10" cy="19" r="2" />
+            </svg>
+            Profiller
+          </button>
           <button id="exportBtn">
             <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
               stroke-linecap="round" stroke-linejoin="round">
@@ -137,6 +149,15 @@
               <line x1="12" y1="3" x2="12" y2="15" />
             </svg>
             JSON İçeri Al
+          </button>
+          <button id="factoryResetBtn">
+            <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 12a9 9 0 1 0 3-6.7" />
+              <path d="M3 4v6h6" />
+              <path d="M12 8v4l3 2" />
+            </svg>
+            Fabrika Ayarları
           </button>
           <input id="importInput" type="file" accept="application/json" hidden>
         </div>
@@ -166,24 +187,6 @@
       </section>
 
       <section class="settings-grid" id="settingsGrid"></section>
-
-      <section class="terminal-panel" aria-label="Teşhis terminali">
-        <div class="terminal-header">
-          <div class="terminal-tabs" role="tablist" aria-label="Terminal görünümü">
-            <button id="terminalPreflightBtn" class="terminal-tab active" type="button">Preflight</button>
-            <button id="terminalLogBtn" class="terminal-tab" type="button">Olay Kaydı</button>
-          </div>
-          <button id="clearLogBtn" class="small">Temizle</button>
-        </div>
-        <div class="terminal-body">
-          <div id="preflightPane" class="terminal-pane active">
-            <div id="preflightText" class="terminal-preflight">Cihazdan durum bekleniyor.</div>
-          </div>
-          <div id="logPane" class="terminal-pane">
-            <div id="log" class="log"></div>
-          </div>
-        </div>
-      </section>
     </main>
 
     <aside class="rightbar">
@@ -272,6 +275,40 @@
             </svg>
             Preflight Kontrol
           </button>
+          <button id="telemetryTestBtn" type="button">
+            <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 12h4l3-8 4 16 3-8h4" />
+            </svg>
+            Canlı IMU Görsel Test
+          </button>
+          <button data-arm-command="arm">
+            <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <path d="M7 11V7a5 5 0 0 1 9.9-1" />
+              <rect x="5" y="11" width="14" height="10" rx="2" />
+              <path d="M12 15v2" />
+            </svg>
+            Manuel Arm
+          </button>
+          <button data-arm-command="force-arm">
+            <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <path d="M7 11V7a5 5 0 0 1 9.9-1" />
+              <rect x="5" y="11" width="14" height="10" rx="2" />
+              <path d="M9 16h6" />
+            </svg>
+            Bench Force Arm
+          </button>
+          <button data-arm-command="disarm">
+            <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+              stroke-linecap="round" stroke-linejoin="round">
+              <rect x="5" y="11" width="14" height="10" rx="2" />
+              <path d="M8 11V7a4 4 0 0 1 8 0v4" />
+              <path d="M12 15v2" />
+            </svg>
+            Disarm
+          </button>
           <p class="hint">Pervane mutlaka sökülü olmalıdır.</p>
         </div>
       </section>
@@ -298,6 +335,108 @@
       </section>
 
     </aside>
+
+    <section id="terminalPanel" class="terminal-panel terminal-dock" aria-label="Teşhis terminali">
+      <div class="terminal-header">
+        <div class="terminal-tabs" role="tablist" aria-label="Terminal görünümü">
+          <button id="terminalPreflightBtn" class="terminal-tab active" type="button">Preflight</button>
+          <button id="terminalLogBtn" class="terminal-tab" type="button">Olay Kaydı</button>
+        </div>
+        <div class="terminal-actions">
+          <button id="clearLogBtn" class="small">Temizle</button>
+          <button id="terminalToggleBtn" class="small" type="button">Gizle</button>
+        </div>
+      </div>
+      <div class="terminal-body">
+        <div id="preflightPane" class="terminal-pane active">
+          <div id="preflightText" class="terminal-preflight">Cihazdan durum bekleniyor.</div>
+        </div>
+        <div id="logPane" class="terminal-pane">
+          <div id="log" class="log"></div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div class="modal-overlay hidden" id="telemetryTestModal">
+    <div class="modal modal-telemetry">
+      <div class="modal-header">
+        <h3>Canlı IMU Görsel Test</h3>
+        <button class="icon-btn modal-close" data-close-modal="telemetryTestModal" aria-label="Kapat">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+            stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body telemetry-modal-body">
+        <article class="attitude-card">
+          <div class="attitude-horizon" aria-label="Suni ufuk">
+            <div id="horizonRoll" class="horizon-roll">
+              <div id="horizonPitch" class="horizon-pitch">
+                <div class="sky"></div>
+                <div class="ground"></div>
+                <div class="horizon-line"></div>
+              </div>
+            </div>
+            <div class="aircraft-marker"></div>
+          </div>
+          <div class="attitude-readout">
+            <span>Roll <strong id="rollValue">0.0</strong><em>deg</em></span>
+            <span>Pitch <strong id="pitchValue">0.0</strong><em>deg</em></span>
+            <span>Yaw <strong id="yawValue">0</strong><em>deg</em></span>
+          </div>
+        </article>
+        <article class="plot-card">
+          <header>
+            <span>Telemetry Plot</span>
+            <strong id="plotValue">Bekliyor</strong>
+          </header>
+          <canvas id="telemetryPlot" width="760" height="160" aria-label="Roll pitch altitude plot"></canvas>
+        </article>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay hidden" id="serviceCommandModal">
+    <div class="modal modal-service">
+      <div class="modal-header">
+        <h3 id="serviceModalTitle">Servis Komutu</h3>
+        <button class="icon-btn modal-close" data-close-modal="serviceCommandModal" aria-label="Kapat">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+            stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body service-modal-body">
+        <div id="serviceModalSteps" class="service-steps"></div>
+        <div class="modal-actions">
+          <button id="serviceModalCancelBtn" type="button">Vazgeç</button>
+          <button id="serviceModalStartBtn" class="primary" type="button">Başlat</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay hidden" id="profileManagerModal">
+    <div class="modal modal-profile">
+      <div class="modal-header">
+        <h3>Parametre Profilleri</h3>
+        <button class="icon-btn modal-close" data-close-modal="profileManagerModal" aria-label="Kapat">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+            stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body profile-modal-body">
+        <div id="profileList" class="profile-list"></div>
+      </div>
+    </div>
   </div>
 
   <!-- Pin mapper modal: Raspberry Pi Pico 2 pinout -->

@@ -98,6 +98,10 @@
     PREFLIGHT_CHECK: 7
   });
 
+  const MAV_CMD = Object.freeze({
+    COMPONENT_ARM_DISARM: 400
+  });
+
   const MAV_SENSOR = Object.freeze({
     GYRO: 1 << 0,
     ACCEL: 1 << 1,
@@ -113,7 +117,48 @@
     SERVO_TEST: "Servo test",
     RC_MONITOR: "RC kanal kontrol",
     SENSOR_CHECK: "Sensor kontrol",
-    PREFLIGHT_CHECK: "Preflight kontrol"
+    PREFLIGHT_CHECK: "Preflight kontrol",
+    ARM: "Manuel arm",
+    FORCE_ARM: "Bench force arm",
+    DISARM: "Disarm"
+  });
+
+  const SERVICE_STEPS = Object.freeze({
+    CAL_IMU: [
+      "Kartı düz ve titreşimsiz zeminde sabit tut.",
+      "Servo/throttle hattının güvenli ve pervanenin sökülü olduğundan emin ol.",
+      "Başlat sonrası kartı hareket ettirme; sonuç Olay Kaydı ve Komut Durumu alanına düşer."
+    ],
+    CAL_MAG: [
+      "Kartı metal yüzeylerden, motor/ESC kablolarından ve mıknatıslardan uzak tut.",
+      "Başlat sonrası kartı yavaşça farklı yönlere çevir.",
+      "Kalibrasyon sonucu firmware tarafından ACK/STATUSTEXT ile raporlanır."
+    ],
+    CAL_RC: [
+      "RC veya sanal RC sinyalinin bağlı ve hareket ürettiğinden emin ol.",
+      "Stickleri sırayla minimum, maksimum ve merkeze getir.",
+      "Tamamlandığında kanal durumu Komut Durumu ve modül panelinde güncellenir."
+    ],
+    SERVO_TEST: [
+      "Pervane mutlaka sökülü olmalı.",
+      "Servo sinyal hattı ve ortak GND bağlantısı kontrol edilmeli.",
+      "Firmware armed veya güvenli değilse komutu reddeder."
+    ],
+    RC_MONITOR: [
+      "RC/SBUS hattında sinyal olduğundan emin ol.",
+      "Kanal hareketlerini kontrol et.",
+      "Firmware geçerli kanal görürse RC modülü OK olur."
+    ],
+    SENSOR_CHECK: [
+      "IMU, baro ve opsiyonel mag/GPS bağlantılarını sabit tut.",
+      "Firmware bağlı modülleri ve sağlık durumunu raporlar.",
+      "Eksik opsiyonel modüller preflight sebebi olarak açıkça görünür."
+    ],
+    PREFLIGHT_CHECK: [
+      "Pervane sökülü, throttle düşük ve kart sabit olmalı.",
+      "Firmware arm kapısını gerçek sensör/RC/failsafe durumuna göre değerlendirir.",
+      "Red sebebi Preflight panelinde gösterilir."
+    ]
   });
 
   const DEFAULT_WIRING = Object.freeze([
@@ -166,6 +211,83 @@
     MAV_SYS_HZ: { min: 0, max: 50, step: 1, integer: true },
     BB_LOG_HZ: { min: 0, max: 500, step: 1, integer: true }
   });
+
+  const FACTORY_DEFAULTS = Object.freeze({
+    ANGLE_P: 2.0,
+    ANGLE_I: 0.05,
+    ANGLE_D: 0.08,
+    RATE_P: 0.18,
+    RATE_I: 0.02,
+    RATE_D: 0.004,
+    SERVO_MIN: 1000,
+    SERVO_MAX: 2000,
+    TRIM_AIL: 0,
+    TRIM_ELE: 0,
+    TRIM_RUD: 0,
+    TRIM_THR: 0,
+    REV_AIL: 0,
+    REV_ELE: 0,
+    REV_RUD: 0,
+    MIX_ROLL: 1.0,
+    MIX_PITCH: 1.0,
+    MIX_YAW: 0.7,
+    RC_ROLL_CH: 0,
+    RC_PITCH_CH: 1,
+    RC_THR_CH: 2,
+    RC_YAW_CH: 3,
+    RC_MODE_CH: 4,
+    FS_TIMEOUT: 500,
+    PREF_Q_MIN: 55,
+    BATT_CELLS: 3,
+    BATT_NOM_V: 11.1,
+    BATT_CAP_MAH: 3300,
+    BATT_C_RATE: 40,
+    BATT_LOW_V: 10.5,
+    BATT_BRN_V: 9.6,
+    MAV_ATT_HZ: 50,
+    MAV_RC_HZ: 20,
+    MAV_SYS_HZ: 2,
+    BB_LOG_HZ: 50
+  });
+
+  const PARAMETER_PROFILES = Object.freeze([
+    {
+      id: "safe-default",
+      name: "Güvenli Varsayılan",
+      description: "3S 3300 mAh sabit kanat için sakin, bench dostu başlangıç ayarı.",
+      params: FACTORY_DEFAULTS
+    },
+    {
+      id: "trainer-soft",
+      name: "Trainer / Yumuşak",
+      description: "Daha düşük rate kazancı ve yumuşak yaw karışımıyla ilk saha denemeleri.",
+      params: {
+        ...FACTORY_DEFAULTS,
+        ANGLE_P: 1.6,
+        ANGLE_D: 0.05,
+        RATE_P: 0.12,
+        RATE_D: 0.002,
+        MIX_YAW: 0.55,
+        PREF_Q_MIN: 45
+      }
+    },
+    {
+      id: "bench-fast",
+      name: "Bench / Hızlı Tepki",
+      description: "Servo ve IMU görsel testlerinde daha belirgin tepki görmek için.",
+      params: {
+        ...FACTORY_DEFAULTS,
+        ANGLE_P: 2.4,
+        RATE_P: 0.24,
+        RATE_D: 0.006,
+        MAV_ATT_HZ: 50,
+        MAV_RC_HZ: 30,
+        BB_LOG_HZ: 50
+      }
+    }
+  ]);
+
+  const RAD_TO_DEG = 180 / Math.PI;
 
   /* ── Pin Mapper data — Raspberry Pi Pico 2 (RP2350) pinout ──
      Physical layout matches original Pico: 40 castellated edge
@@ -233,6 +355,7 @@
     writer: null,
     nativeSerial: false,
     connected: false,
+    appShell: document.querySelector(".app-shell"),
     activeGroup: "pid",
     params: new Map(),
     expectedParamCount: 0,
@@ -251,7 +374,17 @@
     portDisplay: { name: null, vid: null, pid: null },
     activeBaud: null,
     selectedPin: null,
-    pinMap: new Map() // pinNumber -> role string
+    pinMap: new Map(), // pinNumber -> role string
+    paramFeedback: new Map(),
+    terminalCollapsed: false,
+    telemetry: {
+      rollDeg: 0,
+      pitchDeg: 0,
+      yawDeg: 0,
+      altM: 0,
+      climbMps: 0,
+      samples: []
+    }
   };
 
   const encoder = new window.AeroPicoMavlink.Encoder();
@@ -276,10 +409,21 @@
     preflightText: document.getElementById("preflightText"),
     log: document.getElementById("log"),
     clearLogBtn: document.getElementById("clearLogBtn"),
+    factoryResetBtn: document.getElementById("factoryResetBtn"),
     exportBtn: document.getElementById("exportBtn"),
     importBtn: document.getElementById("importBtn"),
     importInput: document.getElementById("importInput"),
     themeToggleBtn: document.getElementById("themeToggleBtn"),
+    profileManagerBtn: document.getElementById("profileManagerBtn"),
+    profileManagerModal: document.getElementById("profileManagerModal"),
+    profileList: document.getElementById("profileList"),
+    telemetryTestBtn: document.getElementById("telemetryTestBtn"),
+    telemetryTestModal: document.getElementById("telemetryTestModal"),
+    serviceCommandModal: document.getElementById("serviceCommandModal"),
+    serviceModalTitle: document.getElementById("serviceModalTitle"),
+    serviceModalSteps: document.getElementById("serviceModalSteps"),
+    serviceModalCancelBtn: document.getElementById("serviceModalCancelBtn"),
+    serviceModalStartBtn: document.getElementById("serviceModalStartBtn"),
     pinMapperBtn: document.getElementById("pinMapperBtn"),
     pinMapperModal: document.getElementById("pinMapperModal"),
     portPickerModal: document.getElementById("portPickerModal"),
@@ -297,10 +441,19 @@
     armSummary: document.getElementById("armSummary"),
     commandSummary: document.getElementById("commandSummary"),
     commandStatusList: document.getElementById("commandStatusList"),
+    terminalPanel: document.getElementById("terminalPanel"),
+    terminalToggleBtn: document.getElementById("terminalToggleBtn"),
     terminalPreflightBtn: document.getElementById("terminalPreflightBtn"),
     terminalLogBtn: document.getElementById("terminalLogBtn"),
     preflightPane: document.getElementById("preflightPane"),
-    logPane: document.getElementById("logPane")
+    logPane: document.getElementById("logPane"),
+    horizonRoll: document.getElementById("horizonRoll"),
+    horizonPitch: document.getElementById("horizonPitch"),
+    rollValue: document.getElementById("rollValue"),
+    pitchValue: document.getElementById("pitchValue"),
+    yawValue: document.getElementById("yawValue"),
+    plotValue: document.getElementById("plotValue"),
+    telemetryPlot: document.getElementById("telemetryPlot")
   };
 
   const TAB_ICONS = {
@@ -437,7 +590,7 @@
     for (const [id, label, desc] of MODULES) {
       const value = state.modules[id];
       const card = document.createElement("div");
-      card.className = `module ${value === "ok" ? "ok" : value === "bad" ? "bad" : ""}`;
+      card.className = `module ${value === "ok" ? "ok" : value === "bad" ? "bad" : value === "unsupported" ? "warn" : ""}`;
       const icon = MODULE_ICONS[id] || "";
       card.innerHTML = `<strong>${icon} ${label}</strong><span>${desc}<br>${moduleText(value)}</span>`;
       els.moduleGrid.appendChild(card);
@@ -451,8 +604,22 @@
 
   function moduleText(value) {
     if (value === "ok") return "✓ Algılandı";
-    if (value === "bad") return "✗ Yok / pasif";
+    if (value === "bad") return "⚠ Algılandı / sağlıksız";
+    if (value === "unsupported") return "⚠ Bulundu / destek bekliyor";
+    if (value === "missing") return "✗ Yok / pasif";
     return "— Bilinmiyor";
+  }
+
+  function applyBusProbeSummary(text) {
+    const upper = text.toUpperCase();
+    if (!upper.includes("I2C:") && !upper.includes("AUX:")) return false;
+
+    if (upper.includes("0X68/IMU")) state.modules.imu = "ok";
+    if (upper.includes("0X77/BARO")) state.modules.baro = "ok";
+    if (upper.includes("0X2C/MAG?")) state.modules.mag = "unsupported";
+    else if (upper.includes("0X1E/MAG") || upper.includes("0X2C/MAG")) state.modules.mag = "ok";
+    if (upper.includes("0X2C/UNK")) state.modules.mag = "unsupported";
+    return true;
   }
 
   function renderSettings() {
@@ -461,8 +628,9 @@
     els.settingsGrid.innerHTML = "";
     for (const [name, label, description] of group.params) {
       const param = state.params.get(name);
+      const feedback = state.paramFeedback.get(name);
       const card = document.createElement("article");
-      card.className = "setting-card";
+      card.className = `setting-card ${feedback ? `param-${feedback.kind}` : ""}`;
       const meta = param ? `#${param.index + 1}/${param.count || state.expectedParamCount || "?"}` : "Okunmadı";
 
       const header = document.createElement("header");
@@ -476,6 +644,8 @@
       const desc = document.createElement("p");
       desc.textContent = description;
 
+      const preview = group.id === "pid" ? buildPidPreview(name, param ? param.value : FACTORY_DEFAULTS[name]) : null;
+
       const footer = document.createElement("footer");
       const input = document.createElement("input");
       input.type = "number";
@@ -487,19 +657,92 @@
       if (param) input.value = String(param.value);
 
       const button = document.createElement("button");
-      button.textContent = "Yaz";
+      button.textContent = feedback && feedback.kind === "ok" ? "✓" : "Yaz";
       button.disabled = !state.connected;
       footer.append(input, button);
+
+      if (Number.isFinite(rule.min) && Number.isFinite(rule.max)) {
+        const slider = document.createElement("input");
+        slider.className = "param-slider";
+        slider.type = "range";
+        slider.min = String(rule.min);
+        slider.max = String(rule.max);
+        slider.step = String(rule.step || 0.001);
+        slider.value = input.value || String(FACTORY_DEFAULTS[name] ?? rule.min);
+        slider.disabled = !state.connected;
+        slider.addEventListener("input", () => {
+          input.value = slider.value;
+          clearParamFeedback(name);
+        });
+        input.addEventListener("input", () => {
+          if (input.value !== "") slider.value = input.value;
+          clearParamFeedback(name);
+        });
+        footer.appendChild(slider);
+      } else {
+        input.addEventListener("input", () => clearParamFeedback(name));
+      }
 
       const metaEl = document.createElement("div");
       metaEl.className = "value-meta";
       metaEl.textContent = meta;
 
-      card.append(header, desc, footer, metaEl);
+      card.append(header, desc);
+      if (preview) card.appendChild(preview);
+      card.append(footer, metaEl);
+      if (feedback) {
+        const feedbackEl = document.createElement("div");
+        feedbackEl.className = `param-message ${feedback.kind}`;
+        feedbackEl.textContent = feedback.text;
+        card.appendChild(feedbackEl);
+      }
       button.addEventListener("click", () => setParam(name, Number(input.value)));
       els.settingsGrid.appendChild(card);
     }
     renderConfigAudit();
+  }
+
+  function buildPidPreview(name, rawValue) {
+    const value = Number.isFinite(rawValue) ? rawValue : 0;
+    const rule = PARAM_RULES[name] || { min: 0, max: 1 };
+    const span = Math.max(0.001, (rule.max || 1) - (rule.min || 0));
+    const normalized = Math.max(0, Math.min(1, (value - (rule.min || 0)) / span));
+    const damping = name.endsWith("_D") ? 0.62 : name.endsWith("_I") ? 0.32 : 0.46;
+    const lift = 1.0 + normalized * 0.85;
+    const points = [];
+    for (let i = 0; i < 42; i++) {
+      const t = i / 41;
+      const response = 1 - Math.exp(-lift * 4.2 * t) * Math.cos((1.4 + normalized) * Math.PI * t);
+      const y = 26 - Math.max(0, Math.min(1.25, response * damping + normalized * 0.2)) * 20;
+      const x = 2 + t * 96;
+      points.push(`${i === 0 ? "M" : "L"}${x.toFixed(1)} ${y.toFixed(1)}`);
+    }
+
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("class", "pid-preview");
+    svg.setAttribute("viewBox", "0 0 100 34");
+    svg.setAttribute("aria-hidden", "true");
+    svg.innerHTML = `<line class="pid-grid" x1="0" y1="26" x2="100" y2="26"/><line class="pid-grid" x1="0" y1="10" x2="100" y2="10"/><path d="${points.join(" ")}"/>`;
+    return svg;
+  }
+
+  function setParamFeedback(name, kind, text, autoClear = false) {
+    state.paramFeedback.set(name, { kind, text });
+    renderSettings();
+    if (autoClear) {
+      window.setTimeout(() => {
+        const current = state.paramFeedback.get(name);
+        if (current && current.kind === kind && current.text === text) {
+          state.paramFeedback.delete(name);
+          renderSettings();
+        }
+      }, 1600);
+    }
+  }
+
+  function clearParamFeedback(name) {
+    if (!state.paramFeedback.has(name)) return;
+    state.paramFeedback.delete(name);
   }
 
   function updateButtons() {
@@ -511,6 +754,12 @@
       const command = button.dataset.command;
       const dangerousWhileArmed = command === "CAL_IMU" || command === "CAL_MAG" || command === "SERVO_TEST";
       button.disabled = !state.connected || (dangerousWhileArmed && state.armed === true);
+    });
+    document.querySelectorAll("[data-arm-command]").forEach((button) => {
+      const action = button.dataset.armCommand;
+      button.disabled = !state.connected ||
+        ((action === "arm" || action === "force-arm") && state.armed === true) ||
+        (action === "disarm" && state.armed !== true);
     });
     renderSettings();
     renderSummary();
@@ -813,15 +1062,77 @@
   function setParam(name, value) {
     const validation = validateParam(name, value);
     if (!validation.ok) {
+      setParamFeedback(name, "bad", validation.reason);
       log(`${name}: ${validation.reason}`);
       return;
     }
     writeFrame(encoder.paramSet(name, validation.value));
+    setParamFeedback(name, "ok", "Gönderildi", true);
     log(`${name} = ${validation.value} gonderildi.`);
   }
 
   function saveParams() {
     setParam("PARAM_SAVE", 1);
+  }
+
+  async function applyFactoryDefaults() {
+    if (!window.confirm("Fabrika ayarları aktif parametre alanlarına yüklensin ve bağlı cihaza gönderilsin mi?")) {
+      return;
+    }
+
+    await applyParameterProfile("Fabrika ayarları", FACTORY_DEFAULTS);
+  }
+
+  async function applyParameterProfile(label, params) {
+    let sent = 0;
+    for (const [name, value] of Object.entries(params)) {
+      const validation = validateParam(name, value);
+      if (!validation.ok) {
+        setParamFeedback(name, "bad", validation.reason);
+        continue;
+      }
+      state.params.set(name, {
+        name,
+        value: validation.value,
+        index: 0,
+        count: state.expectedParamCount || Object.keys(FACTORY_DEFAULTS).length
+      });
+      if (state.connected) {
+        await writeFrame(encoder.paramSet(name, validation.value));
+        sent++;
+      }
+    }
+    renderSettings();
+    renderSummary();
+    renderConfigAudit();
+    log(state.connected
+      ? `${label} yuklendi; ${sent} PARAM_SET gonderildi.`
+      : `${label} yerel profile yuklendi; cihaza baglaninca yaz.`);
+  }
+
+  function renderProfiles() {
+    if (!els.profileList) return;
+    els.profileList.innerHTML = "";
+    for (const profile of PARAMETER_PROFILES) {
+      const card = document.createElement("article");
+      card.className = "profile-card";
+      const highlights = Object.entries(profile.params)
+        .filter(([name]) => name.startsWith("ANGLE_") || name.startsWith("RATE_") || name.startsWith("BATT_"))
+        .slice(0, 5)
+        .map(([name, value]) => `${name}=${value}`)
+        .join(" · ");
+      card.innerHTML = `<h4>${profile.name}</h4><p>${profile.description}</p><code>${highlights}</code>`;
+      const button = document.createElement("button");
+      button.type = "button";
+      button.textContent = "Profili Yükle";
+      button.addEventListener("click", async () => {
+        if (!window.confirm(`${profile.name} profili aktif parametrelere yüklensin mi?`)) return;
+        await applyParameterProfile(profile.name, profile.params);
+        closeModal(els.profileManagerModal);
+      });
+      card.appendChild(button);
+      els.profileList.appendChild(card);
+    }
   }
 
   function serviceCommandParams(command) {
@@ -847,6 +1158,22 @@
     pushCommandHistory(command, "pending", "ACK bekleniyor");
     updateButtons();
     log(`${SERVICE_LABELS[command] || command} komutu gonderildi.`);
+  }
+
+  function sendArmCommand(action) {
+    const arm = action !== "disarm";
+    const force = action === "force-arm";
+    if (!state.connected || (!state.writer && !state.nativeSerial)) {
+      log(`${force ? "Bench force arm" : arm ? "Manuel arm" : "Disarm"}: once baglan.`);
+      return;
+    }
+
+    const commandKey = force ? "FORCE_ARM" : arm ? "ARM" : "DISARM";
+    writeFrame(encoder.commandLong(MAV_CMD.COMPONENT_ARM_DISARM, [arm ? 1 : 0, force ? 21196 : 0, 0, 0, 0, 0, 0]));
+    state.lastCommand = commandKey;
+    pushCommandHistory(commandKey, "pending", "COMMAND_ACK bekleniyor");
+    updateButtons();
+    log(`${SERVICE_LABELS[commandKey]} komutu gonderildi.`);
   }
 
   function pushCommandHistory(command, stateName, detail) {
@@ -904,6 +1231,102 @@
     }
   }
 
+  function updateAttitudeTelemetry(message) {
+    state.telemetry.rollDeg = message.roll * RAD_TO_DEG;
+    state.telemetry.pitchDeg = message.pitch * RAD_TO_DEG;
+    state.telemetry.yawDeg = message.yaw * RAD_TO_DEG;
+    addTelemetrySample();
+    renderLiveTelemetry();
+  }
+
+  function updateVfrTelemetry(message) {
+    state.telemetry.altM = Number.isFinite(message.alt) ? message.alt : state.telemetry.altM;
+    state.telemetry.climbMps = Number.isFinite(message.climb) ? message.climb : state.telemetry.climbMps;
+    addTelemetrySample();
+    renderLiveTelemetry();
+  }
+
+  function addTelemetrySample() {
+    const samples = state.telemetry.samples;
+    const last = samples[samples.length - 1];
+    const now = performance.now();
+    if (last && now - last.t < 80) return;
+    samples.push({
+      t: now,
+      roll: state.telemetry.rollDeg,
+      pitch: state.telemetry.pitchDeg,
+      alt: state.telemetry.altM
+    });
+    if (samples.length > 140) samples.shift();
+  }
+
+  function renderLiveTelemetry() {
+    const roll = Math.max(-60, Math.min(60, state.telemetry.rollDeg));
+    const pitch = Math.max(-45, Math.min(45, state.telemetry.pitchDeg));
+    if (els.horizonRoll) els.horizonRoll.style.transform = `rotate(${-roll}deg)`;
+    if (els.horizonPitch) els.horizonPitch.style.transform = `translateY(${pitch * 1.55}px)`;
+    if (els.rollValue) els.rollValue.textContent = state.telemetry.rollDeg.toFixed(1);
+    if (els.pitchValue) els.pitchValue.textContent = state.telemetry.pitchDeg.toFixed(1);
+    if (els.yawValue) els.yawValue.textContent = String(Math.round(normalizeDegrees(state.telemetry.yawDeg)));
+    if (els.plotValue) {
+      els.plotValue.textContent = `R ${state.telemetry.rollDeg.toFixed(1)} / P ${state.telemetry.pitchDeg.toFixed(1)} / Alt ${state.telemetry.altM.toFixed(1)} m`;
+    }
+    drawTelemetryPlot();
+  }
+
+  function normalizeDegrees(value) {
+    let out = value % 360;
+    if (out < 0) out += 360;
+    return out;
+  }
+
+  function drawTelemetryPlot() {
+    const canvas = els.telemetryPlot;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    const width = Math.max(1, Math.round(rect.width * dpr));
+    const height = Math.max(1, Math.round(rect.height * dpr));
+    if (canvas.width !== width || canvas.height !== height) {
+      canvas.width = width;
+      canvas.height = height;
+    }
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.clearRect(0, 0, width, height);
+    ctx.lineWidth = Math.max(1, dpr);
+    ctx.strokeStyle = getCssColor("--line");
+    for (let i = 1; i < 4; i++) {
+      const y = (height * i) / 4;
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(width, y);
+      ctx.stroke();
+    }
+    drawTelemetrySeries(ctx, width, height, "roll", 60, "#2f6feb");
+    drawTelemetrySeries(ctx, width, height, "pitch", 45, "#16a34a");
+    drawTelemetrySeries(ctx, width, height, "alt", 20, "#f59e0b");
+  }
+
+  function drawTelemetrySeries(ctx, width, height, field, span, color) {
+    const samples = state.telemetry.samples;
+    if (samples.length < 2) return;
+    ctx.strokeStyle = color;
+    ctx.beginPath();
+    samples.forEach((sample, index) => {
+      const x = (index / (samples.length - 1)) * width;
+      const value = field === "alt" ? sample[field] % span : sample[field];
+      const y = height * 0.5 - Math.max(-span, Math.min(span, value)) / span * height * 0.42;
+      if (index === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+  }
+
+  function getCssColor(name) {
+    return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || "#d8e0ee";
+  }
+
   function handleMavlinkMessage(message) {
     if (message.type === "heartbeat") {
       state.lastHeartbeatMs = Date.now();
@@ -929,20 +1352,47 @@
       const health = message.sensorsHealth >>> 0;
       const imuPresent = (present & MAV_SENSOR.GYRO) !== 0 && (present & MAV_SENSOR.ACCEL) !== 0;
       const imuHealthy = (health & MAV_SENSOR.GYRO) !== 0 && (health & MAV_SENSOR.ACCEL) !== 0;
-      state.modules.imu = imuPresent ? (imuHealthy ? "ok" : "bad") : "unknown";
+      state.modules.imu = imuPresent ? (imuHealthy ? "ok" : "bad") : "missing";
       state.modules.baro = (present & MAV_SENSOR.ABS_PRESSURE) !== 0
         ? ((health & MAV_SENSOR.ABS_PRESSURE) !== 0 ? "ok" : "bad")
-        : "unknown";
+        : "missing";
       state.modules.mag = (present & MAV_SENSOR.MAG) !== 0
         ? ((health & MAV_SENSOR.MAG) !== 0 ? "ok" : "bad")
-        : "unknown";
+        : "missing";
       state.modules.gps = (present & MAV_SENSOR.GPS) !== 0
         ? ((health & MAV_SENSOR.GPS) !== 0 ? "ok" : "bad")
         : "unknown";
-      state.modules.battery = message.voltageBatteryMv > 0 && message.voltageBatteryMv < 65535 ? "ok" : "bad";
+      if (message.voltageBatteryMv > 0 && message.voltageBatteryMv < 65535) {
+        state.modules.battery = "ok";
+      } else if (message.voltageBatteryMv === 65535 || message.voltageBatteryMv === 0) {
+        state.modules.battery = "unknown";
+      } else {
+        state.modules.battery = "bad";
+      }
       renderModules();
       renderConfigAudit();
       renderSummary();
+      return;
+    }
+
+    if (message.type === "rcChannels") {
+      const usableChannels = message.channels
+        .slice(0, Math.max(0, Math.min(message.channelCount, 16)))
+        .filter((value) => value >= 800 && value <= 2200);
+      state.modules.rc = usableChannels.length >= 4 ? "ok" : "bad";
+      renderModules();
+      renderConfigAudit();
+      renderSummary();
+      return;
+    }
+
+    if (message.type === "attitude") {
+      updateAttitudeTelemetry(message);
+      return;
+    }
+
+    if (message.type === "vfrHud") {
+      updateVfrTelemetry(message);
       return;
     }
 
@@ -960,11 +1410,12 @@
     if (message.type === "statusText") {
       log(`FC: ${message.text}`);
       const text = message.text.toUpperCase();
+      const parsedBusProbe = applyBusProbeSummary(text);
       if (text.includes("IMU CALIBRATION SAVED") || text.includes("SENSOR_CHECK_OK") || text.includes("PREFLIGHT_OK")) state.modules.imu = "ok";
       if (text.includes("IMU MISSING") || text.includes("WHOAMI")) state.modules.imu = "bad";
-      if (text.includes("BMP") || text.includes("BARO")) state.modules.baro = text.includes("HAZIR") || text.includes("OK") ? "ok" : "bad";
-      if (text.includes("MAG")) state.modules.mag = text.includes("MISSING") || text.includes("FAILED") ? "bad" : "ok";
-      if (text.includes("HMC")) state.modules.mag = text.includes("HAZIR") || text.includes("OK") ? "ok" : "bad";
+      if (!parsedBusProbe && (text.includes("BMP") || text.includes("BARO"))) state.modules.baro = text.includes("HAZIR") || text.includes("OK") ? "ok" : "bad";
+      if (!parsedBusProbe && text.includes("MAG")) state.modules.mag = text.includes("MISSING") || text.includes("FAILED") ? "bad" : "ok";
+      if (!parsedBusProbe && text.includes("HMC")) state.modules.mag = text.includes("HAZIR") || text.includes("OK") ? "ok" : "bad";
       if (text.includes("GPS")) state.modules.gps = text.includes("FIX") || text.includes("HAZIR") ? "ok" : "bad";
       if (text.includes("RC_MONITOR_OK")) state.modules.rc = "ok";
       if (text.includes("RC_MONITOR_FAIL")) state.modules.rc = "bad";
@@ -975,6 +1426,10 @@
       }
       if (text.includes("PREFLIGHT_OK")) els.preflightText.textContent = "Preflight OK: sistem arm icin yazilim tarafinda hazir.";
       if (text.includes("PREFLIGHT") && !text.includes("OK")) els.preflightText.textContent = message.text;
+      if (text.includes("ARM") || text.includes("RC SIGNAL") || text.includes("FAILSAFE") ||
+          text.includes("BATTERY") || text.includes("ACTUATOR") || text.includes("TIMING")) {
+        els.preflightText.textContent = message.text;
+      }
       if (state.commandHistory[0] && state.commandHistory[0].state !== "pending") {
         state.commandHistory[0].detail = message.text;
         renderCommandStatus();
@@ -1310,6 +1765,70 @@
     els.logPane.classList.toggle("active", showLog);
   }
 
+  function toggleTerminalDrawer() {
+    state.terminalCollapsed = !state.terminalCollapsed;
+    state.appShell.classList.toggle("terminal-collapsed", state.terminalCollapsed);
+    els.terminalPanel.classList.toggle("collapsed", state.terminalCollapsed);
+    els.terminalToggleBtn.textContent = state.terminalCollapsed ? "Aç" : "Gizle";
+  }
+
+  function openServiceCommandModal(command) {
+    const label = SERVICE_LABELS[command] || command;
+    const steps = SERVICE_STEPS[command] || ["Firmware servis komutu gönderilecek."];
+    els.serviceModalTitle.textContent = label;
+    els.serviceModalSteps.innerHTML = "";
+    steps.forEach((step, index) => {
+      const row = document.createElement("div");
+      row.className = "service-step";
+      row.innerHTML = `<strong>${index + 1}</strong><span>${step}</span>`;
+      els.serviceModalSteps.appendChild(row);
+    });
+    els.serviceModalStartBtn.onclick = () => {
+      closeModal(els.serviceCommandModal);
+      sendServiceCommand(command);
+    };
+    openModal(els.serviceCommandModal);
+  }
+
+  function bindHoldToConfirm(button, callback) {
+    let timer = null;
+    const textNode = Array.from(button.childNodes).find((node) => node.nodeType === Node.TEXT_NODE && node.textContent.trim());
+    const original = textNode ? textNode.textContent.trim() : button.textContent.trim();
+    const setLabel = (value) => {
+      if (textNode) textNode.textContent = ` ${value}`;
+      else button.textContent = value;
+    };
+
+    const reset = () => {
+      if (timer) window.clearTimeout(timer);
+      timer = null;
+      button.classList.remove("holding");
+      setLabel(original);
+    };
+
+    const start = (event) => {
+      if (button.disabled || timer) return;
+      event.preventDefault();
+      button.classList.add("holding");
+      setLabel("Basılı tut");
+      timer = window.setTimeout(() => {
+        timer = null;
+        button.classList.remove("holding");
+        setLabel(original);
+        callback();
+      }, 2000);
+    };
+
+    button.addEventListener("pointerdown", start);
+    button.addEventListener("pointerup", reset);
+    button.addEventListener("pointerleave", reset);
+    button.addEventListener("pointercancel", reset);
+    button.addEventListener("keydown", (event) => {
+      if (event.key === " " || event.key === "Enter") start(event);
+    });
+    button.addEventListener("keyup", reset);
+  }
+
   function bind() {
     els.connectBtn.addEventListener("click", connect);
     els.disconnectBtn.addEventListener("click", disconnect);
@@ -1320,19 +1839,33 @@
     });
     els.terminalPreflightBtn.addEventListener("click", () => showTerminalPane("preflight"));
     els.terminalLogBtn.addEventListener("click", () => showTerminalPane("log"));
+    els.terminalToggleBtn.addEventListener("click", toggleTerminalDrawer);
+    els.profileManagerBtn.addEventListener("click", () => {
+      renderProfiles();
+      openModal(els.profileManagerModal);
+    });
+    els.telemetryTestBtn.addEventListener("click", () => {
+      openModal(els.telemetryTestModal);
+      renderLiveTelemetry();
+    });
     els.exportBtn.addEventListener("click", exportParams);
     els.importBtn.addEventListener("click", () => els.importInput.click());
+    els.factoryResetBtn.addEventListener("click", applyFactoryDefaults);
     els.importInput.addEventListener("change", () => {
       if (els.importInput.files[0]) importParams(els.importInput.files[0]).catch((error) => log(error.message));
     });
     for (const button of document.querySelectorAll("[data-command]")) {
-      button.addEventListener("click", () => sendServiceCommand(button.dataset.command));
+      button.addEventListener("click", () => openServiceCommandModal(button.dataset.command));
+    }
+    for (const button of document.querySelectorAll("[data-arm-command]")) {
+      bindHoldToConfirm(button, () => sendArmCommand(button.dataset.armCommand));
     }
     els.themeToggleBtn.addEventListener("click", toggleTheme);
     els.cancelPortPickBtn.addEventListener("click", () => {
       closeModal(els.portPickerModal);
       if (window.aeropicoBridge) window.aeropicoBridge.chooseSerialPort("");
     });
+    els.serviceModalCancelBtn.addEventListener("click", () => closeModal(els.serviceCommandModal));
     if (els.applyDefaultPinsBtn) {
       els.applyDefaultPinsBtn.addEventListener("click", () => {
         applyDefaultPinMap(true);

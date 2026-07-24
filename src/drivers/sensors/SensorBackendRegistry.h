@@ -26,7 +26,23 @@ class SensorBackendRegistry {
             0x01, 0xA0,
             0x02, 0x00,
             0x03,
-            6
+            6,
+            MagSampleLayout::Hmc5883XzyBigEndian,
+            0.92f
+        };
+        return profile;
+    }
+
+    static const MagDeviceProfile& qmc5883pCompat() {
+        static const MagDeviceProfile profile = {
+            0x2C,
+            0x0A, 0x40,
+            0x0B, 0x01,
+            0x09, 0x18,
+            0x01,
+            6,
+            MagSampleLayout::QmcXyzLittleEndian,
+            0.35f
         };
         return profile;
     }

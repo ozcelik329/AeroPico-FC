@@ -17,6 +17,10 @@
 #define AEROPICO_USB_SMOKE_MODE 0
 #endif
 
+#ifndef AEROPICO_BENCH_FORCE_ARM_ENABLED
+#define AEROPICO_BENCH_FORCE_ARM_ENABLED AEROPICO_BENCH_MODE
+#endif
+
 // --- UART Pin Atamaları ---
 #define SBUS_UART_INDEX  0   // 0: Serial1/UART0, 1: Serial2/UART1
 #define PIN_SBUS_RX     1   // UART0 RX — SBUS alıcı (transistör ile invert)

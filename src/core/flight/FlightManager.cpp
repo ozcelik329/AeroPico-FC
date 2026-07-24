@@ -179,6 +179,23 @@ bool FlightManager::requestArmFromMavlink(bool arm, bool force, char* reason, si
     return accepted;
 }
 
+bool FlightManager::requestBenchForceArm(char* reason, size_t reasonLen) {
+    const char* localReason = "";
+    const bool accepted = _controlPipeline.requestArm(true, false, _rcState.throttle, &localReason);
+    __atomic_store_n(&_armedShared, _controlPipeline.isArmed() ? 1u : 0u, __ATOMIC_RELEASE);
+    if (reason && reasonLen > 0) {
+        reason[0] = '\0';
+        strncpy(reason, accepted ? "bench force armed" : localReason, reasonLen - 1);
+        reason[reasonLen - 1] = '\0';
+    }
+    systemEventBus.publish({
+        accepted ? SystemEventType::ArmStateChanged : SystemEventType::ArmDenied,
+        _vehicleState.timestampUs,
+        _controlPipeline.isArmed() ? 1u : 0u
+    });
+    return accepted;
+}
+
 void FlightManager::setSystemFaults(bool timingExceeded, bool batteryCritical, bool actuatorFault) {
     _timingExceeded = timingExceeded;
     _batteryCritical = batteryCritical;

@@ -3,6 +3,11 @@
 
 #include <Arduino.h>
 
+enum class MagSampleLayout : uint8_t {
+    Hmc5883XzyBigEndian = 0,
+    QmcXyzLittleEndian
+};
+
 struct ImuDeviceProfile {
     uint8_t address;
     uint8_t powerReg;
@@ -29,6 +34,8 @@ struct MagDeviceProfile {
     uint8_t modeValue;
     uint8_t dataReg;
     uint8_t sampleLen;
+    MagSampleLayout layout;
+    float scaleMilliGaussPerCount;
 };
 
 struct BaroDeviceProfile {

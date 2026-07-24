@@ -18,6 +18,7 @@
 #include "utils/Logger.h"
 #include "utils/BootLogger.h"
 #include "app/MavlinkServiceCommands.h"
+#include "app/ArmCommandGate.h"
 #include "app/ServiceCommandMailbox.h"
 #include "app/ServiceCommandProcessor.h"
 #include "telemetry/MavlinkHandler.h"
@@ -62,6 +63,7 @@ static constexpr uint32_t CONTROL_LOOP_HZ = 1000000UL / FLIGHT_LOOP_PERIOD_US;
 static uint32_t lastBlackboxDroppedRecords = 0;
 static SensorFaultCode lastReportedSensorFault = SensorFaultCode::None;
 static bool batteryWarningLatched = false, latestBatteryCritical = false, magCalibrationActive = false;
+static bool sensorProbeStatusSent = false;
 static MavlinkServiceCommands mavlinkServiceCommands;
 static ServiceCommandMailbox serviceCommandMailbox;
 static ServiceCommandProcessor serviceCommandProcessor;
@@ -74,8 +76,7 @@ static PreflightResult evaluatePreflight();
 static uint16_t clampStackWords(UBaseType_t value) { return value > 0xFFFFu ? 0xFFFFu : (uint16_t)value; }
 
 static WatchdogDecision evaluateWatchdogGate() {
-    return WatchdogGate::evaluate(micros(), SystemTimer::getCore1HeartbeatUs(),
-                                  SystemTimer::is_running, SystemTimer::checkTimingBudgets(),
+    return WatchdogGate::evaluate(micros(), SystemTimer::getCore1HeartbeatUs(), SystemTimer::is_running, SystemTimer::checkTimingBudgets(),
                                   CORE1_STALE_THRESHOLD_US);
 }
 
@@ -91,7 +92,8 @@ static SensorCapabilityStatus provideSensorCapabilities() {
 }
 
 static bool handleMavlinkArmCommand(bool arm, bool force, char* reason, size_t reasonLen) {
-    return flightManager.requestArmFromMavlink(arm, force, reason, reasonLen);
+    return ArmCommandGate::request(flightManager, lastPreflightResult,
+                                   evaluatePreflight, arm, force, reason, reasonLen);
 }
 
 static uint8_t handleMavlinkServiceCommand(uint16_t action, float p2, float p3, float p4, char* reason, size_t reasonLen) {
@@ -139,15 +141,17 @@ static PreflightResult evaluatePreflight() {
     uint32_t freeHeap = rp2040.getFreeHeap();
     bool sensorOk = evaluateSensorPreflight();
     latestBatteryCritical = battery.configured && battery.brownout;
+    const RcInputState rcState = flightManager.getRcState();
+    const bool rcOk = !rcState.failsafe;
 
     preflightHealth.reset();
     preflightHealth.setCheck(PreflightCheckId::Boot, true, true, "");
     preflightHealth.setCheck(PreflightCheckId::Sensor, true, sensorOk, sensorPreflightReason);
-    preflightHealth.setCheck(PreflightCheckId::RC, true, rxManager.isValid() && !rxManager.isFailsafe(), "RC signal invalid");
+    preflightHealth.setCheck(PreflightCheckId::RC, true, rcOk, "RC signal invalid");
     preflightHealth.setCheck(PreflightCheckId::Battery, battery.configured, battery.healthy, battery.reason);
     preflightHealth.setCheck(PreflightCheckId::Memory, true, freeHeap >= PREFLIGHT_MIN_FREE_HEAP_BYTES, "Free heap too low");
     preflightHealth.setCheck(PreflightCheckId::Actuator, true, SystemTimer::outputsReady(), "Actuator output not ready");
-    preflightHealth.setCheck(PreflightCheckId::Failsafe, true, !rxManager.isFailsafe(), "RC failsafe active");
+    preflightHealth.setCheck(PreflightCheckId::Failsafe, true, !rcState.failsafe, "RC failsafe active");
     preflightHealth.setCheck(PreflightCheckId::Scheduler, true, SystemTimer::checkTimingBudgets(), "Timing budget exceeded");
     preflightHealth.setCheck(PreflightCheckId::GPS, false, false, "GPS not configured");
     return preflightHealth.evaluate();
@@ -170,18 +174,14 @@ static void runStatePublish() {
 static void runWatchdogGate() {
     WatchdogDecision watchdogDecision = evaluateWatchdogGate();
     if (watchdogDecision.shouldFeed) {
-        if (watchdogHardwareEnabled) {
-            watchdog_update();
-        }
+        if (watchdogHardwareEnabled) watchdog_update();
         return;
     }
 
     uint32_t nowMs = millis();
     if (nowMs - lastWatchdogBlockLogMs >= WATCHDOG_BLOCK_LOG_PERIOD_MS) {
         lastWatchdogBlockLogMs = nowMs;
-        Serial.printf("[WATCHDOG] Besleme durduruldu: %s age=%uus\n",
-                      watchdogDecision.reason,
-                      watchdogDecision.heartbeatAgeUs);
+        Serial.printf("[WATCHDOG] Besleme durduruldu: %s age=%uus\n", watchdogDecision.reason, watchdogDecision.heartbeatAgeUs);
     }
 }
 
@@ -194,12 +194,9 @@ static void runMavlinkTelemetry() {
     ServiceCommandCompletion completion = {};
     while (serviceCommandMailbox.takeCompletion(completion)) {
         if (completion.reason[0] != '\0') {
-            mavlink.sendStatusText(
-                completion.reason,
-                completion.result == MAV_RESULT_ACCEPTED || completion.result == MAV_RESULT_IN_PROGRESS
-                    ? MAV_SEVERITY_INFO
-                    : MAV_SEVERITY_WARNING
-            );
+            mavlink.sendStatusText(completion.reason,
+                                   completion.result == MAV_RESULT_ACCEPTED || completion.result == MAV_RESULT_IN_PROGRESS
+                                       ? MAV_SEVERITY_INFO : MAV_SEVERITY_WARNING);
         }
     }
 #ifdef MAVLINK_PARAMS_ENABLED
@@ -225,9 +222,14 @@ static void runHealthReport() {
     runtimeHealth.telemetryStackHighWaterWords = telemetryTaskHandle ? clampStackWords(uxTaskGetStackHighWaterMark(telemetryTaskHandle)) : 0;
     runtimeHealth.eventQueueDrops = systemEventBus.droppedCount() > 0xFFFFu ? 0xFFFFu : (uint16_t)systemEventBus.droppedCount();
 
-    if (!lastPreflightResult.canArm) {
-        mavlink.sendStatusText(lastPreflightResult.firstFailureReason);
+    if (!sensorProbeStatusSent) {
+        sensorProbeStatusSent = true;
+        char probeSummary[96];
+        sensorManager.formatBusProbeSummary(probeSummary, sizeof(probeSummary));
+        if (probeSummary[0] != '\0') mavlink.sendStatusText(probeSummary, MAV_SEVERITY_INFO);
     }
+
+    if (!lastPreflightResult.canArm) mavlink.sendStatusText(lastPreflightResult.firstFailureReason);
 
     if (battery.configured && !battery.healthy && !batteryWarningLatched) {
         batteryWarningLatched = true;
@@ -253,12 +255,20 @@ static void runHealthReport() {
                                 ((uint32_t)status.totalDeadlineMisses << 16) | status.totalLoadPermille});
     }
     const uint32_t droppedBlackbox = blackbox.droppedRecords();
-    runtimeHealth.blackboxDrops = droppedBlackbox > 0xFFFFu ? 0xFFFFu : (uint16_t)droppedBlackbox;
+    const uint32_t backpressuredBlackbox = blackbox.backpressureRecords();
+    const uint32_t blackboxEvents = droppedBlackbox + backpressuredBlackbox;
+    runtimeHealth.blackboxDrops = blackboxEvents > 0xFFFFu ? 0xFFFFu : (uint16_t)blackboxEvents;
     blackbox.logRuntimeHealth(runtimeHealth);
-    if (droppedBlackbox != lastBlackboxDroppedRecords) {
-        lastBlackboxDroppedRecords = droppedBlackbox;
-        systemEventBus.publish({SystemEventType::BlackboxDrop, micros(), droppedBlackbox});
-        mavlink.sendStatusText("Blackbox records dropped");
+    if (blackboxEvents != lastBlackboxDroppedRecords) {
+        lastBlackboxDroppedRecords = blackboxEvents;
+        systemEventBus.publish({SystemEventType::BlackboxDrop, micros(), blackboxEvents});
+        char blackboxText[50];
+        if (backpressuredBlackbox > 0) {
+            snprintf(blackboxText, sizeof(blackboxText), "Blackbox backpressure %lu", (unsigned long)backpressuredBlackbox);
+        } else {
+            snprintf(blackboxText, sizeof(blackboxText), "Blackbox dropped %lu", (unsigned long)droppedBlackbox);
+        }
+        mavlink.sendStatusText(blackboxText);
     }
     SystemTimer::requestTimingWindowReset();
 }
@@ -306,10 +316,8 @@ void taskTelemetry(void* pvParameters) {
 }
 
 void setup() {
-    pinMode(LED_BUILTIN, OUTPUT);
-    digitalWrite(LED_BUILTIN, LOW);
-    Serial.begin(115200);
-    Serial.ignoreFlowControl(true);
+    pinMode(LED_BUILTIN, OUTPUT); digitalWrite(LED_BUILTIN, LOW);
+    Serial.begin(115200); Serial.ignoreFlowControl(true);
     const uint32_t serialStartMs = millis();
     while (!Serial && (millis() - serialStartMs) < USB_STARTUP_WAIT_MS) {
         delay(10);
@@ -317,8 +325,7 @@ void setup() {
     delay(100);
 
 #if AEROPICO_USB_SMOKE_MODE
-    pinMode(LED_BUILTIN, OUTPUT);
-    Serial.println();
+    pinMode(LED_BUILTIN, OUTPUT); Serial.println();
     Serial.println("[AEROPICO] USB smoke mode");
     Serial.println("[AEROPICO] No sensors, no FreeRTOS, no MAVLink, no PWM");
     Serial.println("[AEROPICO] If this stays visible, USB and bootloader are healthy.");
@@ -338,9 +345,7 @@ void setup() {
 
     BootLogger::printBanner();
 
-    if (watchdog_caused_reboot()) {
-        BootLogger::warn("Watchdog", "Onceki oturum watchdog ile resetlendi");
-    }
+    if (watchdog_caused_reboot()) BootLogger::warn("Watchdog", "Onceki oturum watchdog ile resetlendi");
 
     Logger::init();
 #if BATTERY_ADC_ENABLED
@@ -363,7 +368,6 @@ void setup() {
         char whoamiText[16];
         snprintf(whoamiText, sizeof(whoamiText), "WHOAMI=0x%02X", sensorManager.getLastWhoAmI());
         BootLogger::okWithValue("MPU6050", whoamiText);
-
         CalibrationBlob calibrationBlob = {};
         if (calibrationStorage.load(calibrationBlob)) {
             sensorManager.setImuCalibration(calibrationBlob.imu);
@@ -372,8 +376,7 @@ void setup() {
         } else if (sensorManager.runBootCalibration()) {
             BootLogger::ok("Gyro/Accel Bias Cal");
             CalibrationBlob savedCalibration = CalibrationStorage::makeBlob(sensorManager.getImuCalibration(), sensorManager.getMagCalibration());
-            if (calibrationStorage.save(savedCalibration)) BootLogger::ok("Calibration Save");
-            else BootLogger::warn("Calibration Save", "Flash kaydi basarisiz");
+            if (calibrationStorage.save(savedCalibration)) BootLogger::ok("Calibration Save"); else BootLogger::warn("Calibration Save", "Flash kaydi basarisiz");
         } else {
             BootLogger::warn("Gyro/Accel Bias Cal", "Yetersiz ornek veya basarisiz");
         }
@@ -385,12 +388,11 @@ void setup() {
 #ifdef USE_GY87
     sensorCapabilities = sensorManager.capabilities();
     if (sensorCapabilities.baroAvailable) BootLogger::ok("BMP085"); else BootLogger::fail("BMP085", "Barometre bulunamadi");
-    if (sensorCapabilities.magAvailable) BootLogger::ok("HMC5883L"); else BootLogger::fail("HMC5883L", "Manyetometre bulunamadi");
+    if (sensorCapabilities.magAvailable) BootLogger::ok("MAG"); else BootLogger::fail("MAG", "Manyetometre bulunamadi");
 #endif
 
     gpsManager.init(nullptr, GPS_MODULE_ENABLED, GPS_UART_BAUD);
-    if (GPS_MODULE_ENABLED) BootLogger::warn("GPS", "UART baglantisi bekleniyor");
-    else BootLogger::warn("GPS", "Kapali; takili degilse navigation devreye girmez");
+    if (GPS_MODULE_ENABLED) BootLogger::warn("GPS", "UART baglantisi bekleniyor"); else BootLogger::warn("GPS", "Kapali; takili degilse navigation devreye girmez");
 
 #if AEROPICO_BENCH_MODE
     BootLogger::warn("RC Receiver", "Bench mode: SBUS init kapali");
@@ -457,22 +459,10 @@ void setup() {
     sensorCapabilities = sensorManager.capabilities();
     SensorCapabilityStatus gpsCapabilities = gpsManager.capabilities();
     const uint16_t functionMask = sensorCapabilities.functionMask | gpsCapabilities.functionMask;
-    bool baroOk = hasSensorCapability(functionMask, SENSOR_CAP_BARO);
-    bool magOk  = hasSensorCapability(functionMask, SENSOR_CAP_MAG);
-    bool dmaOk  = sensorManager.isDmaOk();
-    bool rxOk   = true;
+    bool baroOk = hasSensorCapability(functionMask, SENSOR_CAP_BARO), magOk = hasSensorCapability(functionMask, SENSOR_CAP_MAG);
+    bool dmaOk = sensorManager.isDmaOk(), rxOk = true;
 
-    BootLogger::printHealthReport(
-        CONTROL_LOOP_HZ,
-        imuOk,
-        baroOk,
-        magOk,
-        rxOk,
-        dmaOk,
-        false,
-        false,
-        rp2040.getFreeHeap()
-    );
+    BootLogger::printHealthReport(CONTROL_LOOP_HZ, imuOk, baroOk, magOk, rxOk, dmaOk, false, false, rp2040.getFreeHeap());
     BootLogger::printReadyMessage();
 
     const AppTaskHandles taskHandles = AppTasks::create(taskSensor, taskFlight, taskTelemetry);

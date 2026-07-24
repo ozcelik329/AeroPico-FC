@@ -39,11 +39,6 @@ RcInputState RCPipeline::update() {
         clearOverride();
     }
 
-    if (AEROPICO_UNLIKELY(!_rx || !_rx->isValid() || _rx->isFailsafe())) {
-        _state = failsafeState(nowMs);
-        return _state;
-    }
-
     if (_overrideActive) {
         _state.aileron = _overrideAileron;
         _state.elevator = _overrideElevator;
@@ -53,6 +48,11 @@ RcInputState RCPipeline::update() {
         _state.failsafe = false;
         _state.overrideActive = true;
         _state.timestampMs = nowMs;
+        return _state;
+    }
+
+    if (AEROPICO_UNLIKELY(!_rx || !_rx->isValid() || _rx->isFailsafe())) {
+        _state = failsafeState(nowMs);
         return _state;
     }
 

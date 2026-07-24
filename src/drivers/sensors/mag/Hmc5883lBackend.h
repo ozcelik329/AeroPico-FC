@@ -13,6 +13,14 @@ class Hmc5883lBackend {
                   float& mx,
                   float& my,
                   float& mz) const;
+
+    void scaleRaw(int16_t rawX,
+                  int16_t rawY,
+                  int16_t rawZ,
+                  float scaleMilliGaussPerCount,
+                  float& mx,
+                  float& my,
+                  float& mz) const;
 };
 
 #endif

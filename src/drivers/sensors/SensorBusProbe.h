@@ -51,7 +51,7 @@ class SensorBusProbe {
         for (uint8_t i = 0; i < count; ++i) {
             switch (devices[i].address) {
                 case 0x2C:
-                    devices[i].role = SensorBusDeviceRole::UnsupportedMag;
+                    devices[i].role = SensorBusDeviceRole::Mag;
                     break;
                 default:
                     if (devices[i].address == imuAddr) {

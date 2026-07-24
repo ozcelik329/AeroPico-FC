@@ -64,6 +64,23 @@ void test_rc_pipeline_uses_failsafe_values_when_rx_invalid() {
     TEST_ASSERT_EQUAL((int)ControlMode::Manual, (int)state.controlMode);
 }
 
+void test_rc_pipeline_allows_fresh_override_without_receiver() {
+    RCPipeline pipeline;
+    pipeline.init(nullptr);
+
+    setMockMillis(100);
+    pipeline.setOverride(1650, 1350, 1000, 1500);
+
+    RcInputState state = pipeline.update();
+
+    TEST_ASSERT_FALSE(state.failsafe);
+    TEST_ASSERT_TRUE(state.overrideActive);
+    TEST_ASSERT_EQUAL_UINT16(1650, state.aileron);
+    TEST_ASSERT_EQUAL_UINT16(1350, state.elevator);
+    TEST_ASSERT_EQUAL_UINT16(1000, state.throttle);
+    TEST_ASSERT_EQUAL_UINT16(1500, state.rudder);
+}
+
 void test_rc_pipeline_override_times_out() {
     FakeRxDriver rx;
     RCPipeline pipeline;
@@ -139,6 +156,7 @@ int main() {
     UNITY_BEGIN();
     RUN_TEST(test_rc_pipeline_reads_receiver_channels);
     RUN_TEST(test_rc_pipeline_uses_failsafe_values_when_rx_invalid);
+    RUN_TEST(test_rc_pipeline_allows_fresh_override_without_receiver);
     RUN_TEST(test_rc_pipeline_override_times_out);
     RUN_TEST(test_rc_pipeline_applies_runtime_channel_mapping);
     RUN_TEST(test_rc_pipeline_clamps_runtime_channel_mapping);

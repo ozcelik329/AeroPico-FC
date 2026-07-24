@@ -131,7 +131,7 @@ bool SensorAuxBus::startRegsDma(SensorDmaBus& dmaBus,
         return false;
     }
     if (!dmaBus.hasAuxChannel()) {
-        setFaultIfNeeded(faultCode, SensorFaultCode::DmaChannelClaimFailed);
+        (void)faultCode;
         return false;
     }
     if (!dmaBus.startAuxRead(bus, address, reg, dest, len, micros())) {
@@ -148,11 +148,7 @@ bool SensorAuxBus::finishReadFromBuffer(AuxReadKind kind,
                                         SensorBuffer& buffer,
                                         SensorFaultCode& faultCode) {
     if (kind == AUX_MAG) {
-        const int16_t mx = (int16_t)(_hmcDmaBuf[0] << 8 | _hmcDmaBuf[1]);
-        const int16_t my = (int16_t)(_hmcDmaBuf[4] << 8 | _hmcDmaBuf[5]);
-        const int16_t mz = (int16_t)(_hmcDmaBuf[2] << 8 | _hmcDmaBuf[3]);
-        magDriver.applySample(mx, my, mz, buffer);
-        return true;
+        return applyMagSampleFromBuffer(magDriver, buffer, faultCode);
     }
 
     if (kind == AUX_BARO_TEMP) {
@@ -173,6 +169,38 @@ bool SensorAuxBus::finishReadFromBuffer(AuxReadKind kind,
         return true;
     }
 
+    return true;
+}
+
+bool SensorAuxBus::applyMagSampleFromBuffer(MagDriver& magDriver,
+                                            SensorBuffer& buffer,
+                                            SensorFaultCode& faultCode) {
+    if (!_magProfile) {
+        setFaultIfNeeded(faultCode, SensorFaultCode::MagReadFailed);
+        return false;
+    }
+
+    auto be16 = [](uint8_t hi, uint8_t lo) -> int16_t {
+        return (int16_t)((hi << 8) | lo);
+    };
+    auto le16 = [](uint8_t lo, uint8_t hi) -> int16_t {
+        return (int16_t)((hi << 8) | lo);
+    };
+
+    int16_t mx = 0;
+    int16_t my = 0;
+    int16_t mz = 0;
+    if (_magProfile->layout == MagSampleLayout::QmcXyzLittleEndian) {
+        mx = le16(_hmcDmaBuf[0], _hmcDmaBuf[1]);
+        my = le16(_hmcDmaBuf[2], _hmcDmaBuf[3]);
+        mz = le16(_hmcDmaBuf[4], _hmcDmaBuf[5]);
+    } else {
+        mx = be16(_hmcDmaBuf[0], _hmcDmaBuf[1]);
+        mz = be16(_hmcDmaBuf[2], _hmcDmaBuf[3]);
+        my = be16(_hmcDmaBuf[4], _hmcDmaBuf[5]);
+    }
+
+    magDriver.applySample(mx, my, mz, buffer, _magProfile->scaleMilliGaussPerCount);
     return true;
 }
 
@@ -252,22 +280,30 @@ bool SensorAuxBus::initMag(RP2350I2C& bus, SensorFaultCode& faultCode) {
     _unsupportedMagDetected = false;
     _unsupportedMagAddress = 0;
 
+    uint8_t probe[3] = {};
     _magProfile = &SensorBackendRegistry::hmc5883l();
     const MagDeviceProfile& profile = *_magProfile;
-
-    uint8_t probe[3] = {};
     if (!readRegsNoFault(bus, profile.address, profile.dataReg, probe, sizeof(probe))) {
-        uint8_t qmcFamilyId = 0xFF;
-        if (readRegsNoFault(bus, 0x2C, 0x00, &qmcFamilyId, 1)) {
+        const MagDeviceProfile& qmc = SensorBackendRegistry::qmc5883pCompat();
+        if (readRegsNoFault(bus, qmc.address, qmc.dataReg, probe, sizeof(probe))) {
+            _magProfile = &qmc;
+            bool qmcOk = true;
+            qmcOk &= writeReg(bus, qmc.address, qmc.configAReg, qmc.configAValue, faultCode);
+            qmcOk &= writeReg(bus, qmc.address, qmc.configBReg, qmc.configBValue, faultCode);
+            qmcOk &= writeReg(bus, qmc.address, qmc.modeReg, qmc.modeValue, faultCode);
+            if (qmcOk) {
+                _unsupportedMagDetected = false;
+                _unsupportedMagAddress = 0;
+                return true;
+            }
             _unsupportedMagDetected = true;
-            _unsupportedMagAddress = 0x2C;
-            _magProfile = nullptr;
-            setFaultIfNeeded(faultCode, SensorFaultCode::MagUnsupported);
-            return false;
+            _unsupportedMagAddress = qmc.address;
         }
 
         _magProfile = nullptr;
-        setFaultIfNeeded(faultCode, SensorFaultCode::MagReadFailed);
+        setFaultIfNeeded(faultCode, _unsupportedMagDetected
+                                      ? SensorFaultCode::MagUnsupported
+                                      : SensorFaultCode::MagReadFailed);
         return false;
     }
 
@@ -312,10 +348,7 @@ void SensorAuxBus::readMag(SensorDmaBus& dmaBus,
         if (_magProfile &&
             readRegsPolling(bus, _magProfile->address, _magProfile->dataReg,
                             _hmcDmaBuf, _magProfile->sampleLen, faultCode)) {
-            const int16_t mx = (int16_t)(_hmcDmaBuf[0] << 8 | _hmcDmaBuf[1]);
-            const int16_t my = (int16_t)(_hmcDmaBuf[4] << 8 | _hmcDmaBuf[5]);
-            const int16_t mz = (int16_t)(_hmcDmaBuf[2] << 8 | _hmcDmaBuf[3]);
-            magDriver.applySample(mx, my, mz, buffer);
+            applyMagSampleFromBuffer(magDriver, buffer, faultCode);
         } else {
             buffer.mx = buffer.my = buffer.mz = 0.0f;
             setFaultIfNeeded(faultCode, SensorFaultCode::MagReadFailed);

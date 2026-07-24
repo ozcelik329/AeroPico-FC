@@ -8,9 +8,12 @@
   const MSG = {
     HEARTBEAT: 0,
     SYS_STATUS: 1,
+    ATTITUDE: 30,
     PARAM_REQUEST_LIST: 21,
     PARAM_VALUE: 22,
     PARAM_SET: 23,
+    RC_CHANNELS: 65,
+    VFR_HUD: 74,
     COMMAND_LONG: 76,
     COMMAND_ACK: 77,
     STATUSTEXT: 253
@@ -19,9 +22,12 @@
   const CRC_EXTRA = {
     0: 50,
     1: 124,
+    30: 39,
     21: 159,
     22: 220,
     23: 168,
+    65: 118,
+    74: 20,
     76: 152,
     77: 143,
     253: 83
@@ -206,6 +212,48 @@
           voltageBatteryMv: view.getUint16(14, true),
           currentBatteryCa: view.getInt16(16, true),
           batteryRemaining: view.getInt8(30)
+        });
+        return;
+      }
+
+      if (msgId === MSG.RC_CHANNELS && payload.length >= 42) {
+        const channels = [];
+        for (let i = 0; i < 18; i++) {
+          channels.push(view.getUint16(5 + i * 2, true));
+        }
+        this.onMessage({
+          type: "rcChannels",
+          timeBootMs: view.getUint32(0, true),
+          channelCount: view.getUint8(4),
+          channels,
+          rssi: view.getUint8(41)
+        });
+        return;
+      }
+
+      if (msgId === MSG.ATTITUDE && payload.length >= 28) {
+        this.onMessage({
+          type: "attitude",
+          timeBootMs: view.getUint32(0, true),
+          roll: view.getFloat32(4, true),
+          pitch: view.getFloat32(8, true),
+          yaw: view.getFloat32(12, true),
+          rollspeed: view.getFloat32(16, true),
+          pitchspeed: view.getFloat32(20, true),
+          yawspeed: view.getFloat32(24, true)
+        });
+        return;
+      }
+
+      if (msgId === MSG.VFR_HUD && payload.length >= 20) {
+        this.onMessage({
+          type: "vfrHud",
+          airspeed: view.getFloat32(0, true),
+          groundspeed: view.getFloat32(4, true),
+          heading: view.getInt16(8, true),
+          throttle: view.getUint16(10, true),
+          alt: view.getFloat32(12, true),
+          climb: view.getFloat32(16, true)
         });
         return;
       }

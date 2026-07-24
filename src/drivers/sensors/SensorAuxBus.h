@@ -96,6 +96,9 @@ class SensorAuxBus {
                               BaroDriver& baroDriver,
                               SensorBuffer& buffer,
                               SensorFaultCode& faultCode);
+    bool applyMagSampleFromBuffer(MagDriver& magDriver,
+                                  SensorBuffer& buffer,
+                                  SensorFaultCode& faultCode);
     bool recoverTimedOutRead(RP2350I2C& bus,
                              AuxReadKind kind,
                              MagDriver& magDriver,

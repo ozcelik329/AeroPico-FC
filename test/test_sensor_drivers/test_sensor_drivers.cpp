@@ -3,6 +3,7 @@
 #include "drivers/sensors/baro/BaroDriver.h"
 #include "drivers/sensors/gyro/GyroAccelDriver.h"
 #include "drivers/sensors/gyro/Mpu6050Backend.h"
+#include "drivers/sensors/SensorBackendRegistry.h"
 #include "drivers/sensors/mag/Hmc5883lBackend.h"
 #include "drivers/sensors/mag/MagDriver.h"
 
@@ -100,6 +101,24 @@ void test_hmc5883l_backend_scales_raw_counts() {
     TEST_ASSERT_FLOAT_WITHIN(0.001f, 27.6f, mz);
 }
 
+void test_mag_driver_accepts_profile_scale() {
+    MagDriver driver;
+    SensorBuffer buffer = {};
+    driver.applySample(100, -50, 25, buffer, 0.35f);
+    TEST_ASSERT_FLOAT_WITHIN(0.001f, 35.0f, buffer.mx);
+    TEST_ASSERT_FLOAT_WITHIN(0.001f, -17.5f, buffer.my);
+    TEST_ASSERT_FLOAT_WITHIN(0.001f, 8.75f, buffer.mz);
+}
+
+void test_qmc_compatible_profile_matches_detected_hw290_variant() {
+    const MagDeviceProfile& profile = SensorBackendRegistry::qmc5883pCompat();
+    TEST_ASSERT_EQUAL_HEX8(0x2C, profile.address);
+    TEST_ASSERT_EQUAL_HEX8(0x01, profile.dataReg);
+    TEST_ASSERT_EQUAL_UINT8(6, profile.sampleLen);
+    TEST_ASSERT_EQUAL((int)MagSampleLayout::QmcXyzLittleEndian, (int)profile.layout);
+    TEST_ASSERT_FLOAT_WITHIN(0.0001f, 0.35f, profile.scaleMilliGaussPerCount);
+}
+
 void test_baro_driver_rejects_pressure_without_calibration() {
     BaroDriver driver;
     SensorBuffer buffer = {};
@@ -142,6 +161,8 @@ int main() {
     RUN_TEST(test_mag_driver_applies_hard_iron_calibration);
     RUN_TEST(test_mag_driver_collects_hard_iron_calibration);
     RUN_TEST(test_hmc5883l_backend_scales_raw_counts);
+    RUN_TEST(test_mag_driver_accepts_profile_scale);
+    RUN_TEST(test_qmc_compatible_profile_matches_detected_hw290_variant);
     RUN_TEST(test_baro_driver_rejects_pressure_without_calibration);
     RUN_TEST(test_baro_driver_computes_pressure_with_calibration);
     RUN_TEST(test_baro_driver_rejects_zero_temperature_denominator);

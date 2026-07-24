@@ -221,8 +221,8 @@ void MavlinkHandler::_handleCommandLong(const mavlink_message_t& msg) {
     }
 
     sendCommandAck(command.command, accepted ? MAV_RESULT_ACCEPTED : MAV_RESULT_DENIED);
-    if (!accepted && reason[0] != '\0') {
-        sendStatusText(reason, MAV_SEVERITY_WARNING);
+    if (reason[0] != '\0') {
+        sendStatusText(reason, accepted ? MAV_SEVERITY_INFO : MAV_SEVERITY_WARNING);
     }
 }
 
@@ -353,21 +353,27 @@ void MavlinkHandler::sendSysStatus(bool armed, bool failsafe, SensorHealth senso
         caps = _sensorCapabilityProvider();
     }
     uint32_t sensorBits = 0;
+    uint32_t healthBits = 0;
     if (caps.imuAvailable) {
-        sensorBits |= MAV_SYS_STATUS_SENSOR_3D_GYRO |
-                      MAV_SYS_STATUS_SENSOR_3D_ACCEL;
+        const uint32_t imuBits = MAV_SYS_STATUS_SENSOR_3D_GYRO |
+                                 MAV_SYS_STATUS_SENSOR_3D_ACCEL;
+        sensorBits |= imuBits;
+        if (sensorHealth == SensorHealth::Ok) {
+            healthBits |= imuBits;
+        }
     }
     if (caps.baroAvailable) {
         sensorBits |= MAV_SYS_STATUS_SENSOR_ABSOLUTE_PRESSURE;
+        healthBits |= MAV_SYS_STATUS_SENSOR_ABSOLUTE_PRESSURE;
     }
     if (caps.magAvailable) {
         sensorBits |= MAV_SYS_STATUS_SENSOR_3D_MAG;
+        healthBits |= MAV_SYS_STATUS_SENSOR_3D_MAG;
     }
     if (caps.gpsAvailable) {
         sensorBits |= MAV_SYS_STATUS_SENSOR_GPS;
+        healthBits |= MAV_SYS_STATUS_SENSOR_GPS;
     }
-    const bool sensorsHealthy = sensorHealth == SensorHealth::Ok;
-    const uint32_t healthBits = (sensorsHealthy && !failsafe) ? sensorBits : 0;
     const uint16_t loadPermille = armed ? 500 : 0;
     const uint16_t commDropPermille = failsafe ? 1000 : 0;
 

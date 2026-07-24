@@ -11,7 +11,11 @@ class MagDriver {
     MagCalibration finishCalibration();
     MagCalibration getCalibration() const;
     void setCalibration(const MagCalibration& calibration);
-    void applySample(int16_t rawX, int16_t rawY, int16_t rawZ, SensorBuffer& buffer);
+    void applySample(int16_t rawX,
+                     int16_t rawY,
+                     int16_t rawZ,
+                     SensorBuffer& buffer,
+                     float scaleMilliGaussPerCount = Hmc5883lBackend::SCALE_MILLI_GAUSS_PER_COUNT);
 
   private:
     Hmc5883lBackend _backend;

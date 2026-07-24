@@ -27,7 +27,7 @@
 #endif
 
 #ifndef SBUS_TX_INVERTED
-#define SBUS_TX_INVERTED 1
+#define SBUS_TX_INVERTED 0
 #endif
 
 static constexpr const char* AP_SSID = "AeroPico-VirtualRC";

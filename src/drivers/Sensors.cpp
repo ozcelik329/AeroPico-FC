@@ -267,15 +267,14 @@ void SensorManager::init() {
     }
 
     #ifdef USE_GY87
-        if (!_dmaFastPath || !_dmaBus.configureAuxRx(*rpBus)) {
-            _setFault(SensorFaultCode::DmaChannelClaimFailed);
-            Logger::log("[SENSOR] Yardimci I2C DMA kanali alinamadi.");
-            _hasMag = false;
-            _hasBaro = false;
-        } else {
+        const bool auxDmaOk = rpBus && _dmaBus.configureAuxRx(*rpBus);
+        if (!auxDmaOk) {
+            Logger::log("[SENSOR] Yardimci I2C DMA yok; mag/baro polling fallback aktif.");
+        }
+        if (rpBus) {
             _auxBus.configure(_dmaBus, *rpBus, _baroDriver, _hasMag, _hasBaro, _faultCode);
             if (_hasMag) {
-                Logger::log("[SENSOR] HMC5883L hazir.");
+                Logger::log("[SENSOR] Manyetometre hazir.");
             } else if (_auxBus.hasUnsupportedMag()) {
                 char line[96];
                 snprintf(line, sizeof(line),
@@ -283,7 +282,7 @@ void SensorManager::init() {
                          _auxBus.unsupportedMagAddress());
                 Logger::log(line);
             } else {
-                Logger::log("[SENSOR] HMC5883L bulunamadi! 6DOF fallback aktif.");
+                Logger::log("[SENSOR] Manyetometre bulunamadi! 6DOF fallback aktif.");
             }
 
             if (!_hasBaro) Logger::log("[SENSOR] BMP085 bulunamadi!");

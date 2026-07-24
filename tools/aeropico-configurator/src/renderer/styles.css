@@ -262,8 +262,13 @@ input[type="number"]::-webkit-inner-spin-button {
 .app-shell {
   display: grid;
   grid-template-columns: 306px minmax(500px, 1fr) 308px;
+  grid-template-rows: minmax(0, 1fr) 150px;
   height: 100vh;
   overflow: hidden;
+}
+
+.app-shell.terminal-collapsed {
+  grid-template-rows: minmax(0, 1fr) 40px;
 }
 
 .sidebar,
@@ -271,6 +276,7 @@ input[type="number"]::-webkit-inner-spin-button {
 .workspace {
   min-width: 0;
   min-height: 0;
+  grid-row: 1;
 }
 
 /* ── Sidebar & Rightbar ───────────────────── */
@@ -281,7 +287,7 @@ input[type="number"]::-webkit-inner-spin-button {
   flex-direction: column;
   gap: 10px;
   padding: 16px 14px;
-  overflow: hidden;
+  overflow: auto;
   border-right: 1px solid var(--line);
   background: color-mix(in srgb, var(--surface-2) 72%, transparent);
 }
@@ -683,6 +689,15 @@ input[type="number"]::-webkit-inner-spin-button {
   color: var(--danger);
 }
 
+.module.warn {
+  border-color: rgba(237, 181, 79, 0.36);
+  background: var(--warn-dim);
+}
+
+.module.warn strong {
+  color: var(--warn);
+}
+
 /* ── Command Status ───────────────────────── */
 
 .command-panel {
@@ -841,12 +856,18 @@ input[type="number"]::-webkit-inner-spin-button {
 
 .topbar-actions {
   display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   gap: 8px;
-  flex: 0 0 auto;
+  flex: 1 1 auto;
+  min-width: 280px;
 }
 
 .topbar-actions button {
   background: var(--surface-1);
+  min-height: 34px;
+  padding: 0 10px;
+  white-space: nowrap;
 }
 
 .topbar-actions button:hover:not(:disabled) {
@@ -1030,6 +1051,161 @@ input[type="number"]::-webkit-inner-spin-button {
   background: var(--danger);
 }
 
+/* ── Live Telemetry ───────────────────────── */
+
+.telemetry-modal-body {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.7fr) minmax(380px, 1.3fr);
+  gap: 12px;
+  min-width: min(860px, calc(100vw - 56px));
+}
+
+.attitude-card,
+.plot-card {
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--glass-strong) 86%, var(--surface-solid));
+  box-shadow: var(--shadow-sm), inset 0 1px 0 var(--glass-shine);
+  min-width: 0;
+}
+
+.attitude-card {
+  display: grid;
+  grid-template-columns: 128px 1fr;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+}
+
+.attitude-horizon {
+  position: relative;
+  width: 116px;
+  height: 116px;
+  overflow: hidden;
+  border: 1px solid var(--line-strong);
+  border-radius: 50%;
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.45);
+}
+
+.horizon-roll,
+.horizon-pitch {
+  position: absolute;
+  inset: -42px;
+  transition: transform 0.16s ease-out;
+  will-change: transform;
+}
+
+.sky,
+.ground {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  height: 50%;
+}
+
+.sky {
+  top: 0;
+  background: linear-gradient(180deg, #4388d6, #9dc9f4);
+}
+
+.ground {
+  bottom: 0;
+  background: linear-gradient(180deg, #b7834a, #73502d);
+}
+
+.horizon-line {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 100%;
+  height: 2px;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 0 0 1px rgba(12, 25, 42, 0.18);
+}
+
+.aircraft-marker {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 56px;
+  height: 18px;
+  transform: translate(-50%, -50%);
+  border-top: 3px solid #111827;
+  border-left: 3px solid #111827;
+  border-right: 3px solid #111827;
+  border-radius: 3px 3px 0 0;
+}
+
+.aircraft-marker::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: -5px;
+  width: 5px;
+  height: 5px;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  background: #111827;
+}
+
+.attitude-readout {
+  display: grid;
+  gap: 6px;
+  font-family: 'SF Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  color: var(--text-secondary);
+}
+
+.attitude-readout span {
+  display: grid;
+  grid-template-columns: 44px minmax(52px, 1fr) 30px;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 11px;
+}
+
+.attitude-readout strong {
+  color: var(--text);
+  font-size: 18px;
+  font-weight: 800;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.attitude-readout em {
+  color: var(--muted);
+  font-style: normal;
+}
+
+.plot-card {
+  padding: 10px 12px 8px;
+}
+
+.plot-card header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 6px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 750;
+  text-transform: uppercase;
+}
+
+.plot-card header strong {
+  color: var(--text-secondary);
+  font-family: 'SF Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px;
+  text-transform: none;
+}
+
+#telemetryPlot {
+  display: block;
+  width: 100%;
+  height: 136px;
+}
+
 /* ── Settings Grid ────────────────────────── */
 
 .settings-grid {
@@ -1046,15 +1222,30 @@ input[type="number"]::-webkit-inner-spin-button {
 /* ── Terminal Panel ───────────────────────── */
 
 .terminal-panel {
-  margin: 0 24px 18px;
   border: 1px solid var(--glass-border);
   border-radius: 10px;
   background: color-mix(in srgb, var(--glass-strong) 84%, var(--surface-solid));
   box-shadow: var(--shadow-sm), inset 0 1px 0 var(--glass-shine);
   overflow: hidden;
-  flex: 0 0 178px;
   display: flex;
   flex-direction: column;
+}
+
+.terminal-dock {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  margin: 0 14px 14px;
+  min-height: 0;
+  border-radius: 10px;
+}
+
+.terminal-dock.collapsed {
+  align-self: end;
+  height: 40px;
+}
+
+.terminal-dock.collapsed .terminal-body {
+  display: none;
 }
 
 .terminal-header {
@@ -1065,6 +1256,12 @@ input[type="number"]::-webkit-inner-spin-button {
   padding: 8px 10px;
   border-bottom: 1px solid var(--line);
   background: color-mix(in srgb, var(--surface-2) 76%, transparent);
+}
+
+.terminal-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .terminal-tabs {
@@ -1136,6 +1333,16 @@ input[type="number"]::-webkit-inner-spin-button {
   transition: border-color 0.18s ease, box-shadow 0.18s ease;
 }
 
+.setting-card.param-ok {
+  border-color: color-mix(in srgb, var(--ok) 46%, var(--glass-border));
+  box-shadow: 0 0 0 3px var(--ok-dim), var(--shadow-sm), inset 0 1px 0 var(--glass-shine);
+}
+
+.setting-card.param-bad {
+  border-color: color-mix(in srgb, var(--danger) 58%, var(--glass-border));
+  box-shadow: 0 0 0 3px var(--danger-dim), var(--shadow-sm), inset 0 1px 0 var(--glass-shine);
+}
+
 .setting-card:hover {
   border-color: color-mix(in srgb, var(--accent) 30%, var(--glass-border));
   box-shadow: 0 4px 16px rgba(19, 41, 66, 0.10), inset 0 1px 0 var(--glass-shine);
@@ -1184,6 +1391,58 @@ input[type="number"]::-webkit-inner-spin-button {
   box-shadow: 0 4px 12px rgba(47, 111, 235, 0.14);
 }
 
+.setting-card.param-ok footer button {
+  background: var(--ok-dim);
+  border-color: color-mix(in srgb, var(--ok) 32%, var(--glass-border));
+  color: var(--ok);
+}
+
+.setting-card.param-bad footer button {
+  background: var(--danger-dim);
+  border-color: color-mix(in srgb, var(--danger) 34%, var(--glass-border));
+  color: var(--danger);
+}
+
+.param-message {
+  margin-top: 6px;
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.param-message.ok {
+  color: var(--ok);
+}
+
+.param-message.bad {
+  color: var(--danger);
+}
+
+.param-slider {
+  grid-column: 1 / -1;
+  width: 100%;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.pid-preview {
+  display: block;
+  width: 100%;
+  height: 34px;
+  margin: 4px 0 10px;
+}
+
+.pid-preview path {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+  vector-effect: non-scaling-stroke;
+}
+
+.pid-preview .pid-grid {
+  stroke: var(--line);
+  stroke-width: 1;
+}
+
 .value-meta {
   color: color-mix(in srgb, var(--muted) 80%, var(--accent));
   font-size: 11px;
@@ -1206,16 +1465,51 @@ input[type="number"]::-webkit-inner-spin-button {
   white-space: pre-wrap;
 }
 
+.terminal-panel.collapsed .terminal-body {
+  display: none;
+}
+
+.terminal-panel.collapsed .terminal-header {
+  height: 40px;
+  border-bottom: 0;
+}
+
+[data-arm-command] {
+  position: relative;
+  overflow: hidden;
+}
+
+[data-arm-command].holding::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 3px;
+  width: 100%;
+  background: var(--warn);
+  transform-origin: left center;
+  animation: hold-confirm 2s linear forwards;
+}
+
+@keyframes hold-confirm {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
 /* ── Calibration / Bench Test Buttons ─────── */
 
-.rightbar .panel button[data-command] {
+.rightbar .panel button[data-command],
+.rightbar .panel button[data-arm-command],
+.rightbar .panel #telemetryTestBtn {
   width: 100%;
   justify-content: flex-start;
   margin-bottom: 5px;
   min-height: 32px;
 }
 
-.rightbar .panel button[data-command]:hover:not(:disabled) {
+.rightbar .panel button[data-command]:hover:not(:disabled),
+.rightbar .panel button[data-arm-command]:hover:not(:disabled),
+.rightbar .panel #telemetryTestBtn:hover:not(:disabled) {
   border-color: rgba(47, 111, 235, 0.30);
   background: var(--accent-dim);
   color: var(--accent);
@@ -1260,6 +1554,99 @@ input[type="number"]::-webkit-inner-spin-button {
   backdrop-filter: blur(28px) saturate(140%);
   box-shadow: var(--shadow-lg);
   animation: modal-in 0.22s cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.modal-service {
+  width: min(560px, 92vw);
+}
+
+.modal-profile {
+  width: min(760px, 92vw);
+}
+
+.profile-modal-body {
+  padding-top: 14px;
+}
+
+.profile-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.profile-card {
+  display: grid;
+  gap: 8px;
+  align-content: start;
+  min-height: 180px;
+  padding: 12px;
+  border: 1px solid var(--glass-border);
+  border-radius: 10px;
+  background: var(--surface-2);
+}
+
+.profile-card h4 {
+  margin: 0;
+  font-size: 13px;
+}
+
+.profile-card p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 11.5px;
+  line-height: 1.45;
+}
+
+.profile-card code {
+  color: var(--accent);
+  font-family: 'SF Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 10.5px;
+}
+
+.profile-card button {
+  margin-top: auto;
+  justify-content: center;
+}
+
+.service-modal-body {
+  display: grid;
+  gap: 14px;
+}
+
+.service-steps {
+  display: grid;
+  gap: 8px;
+}
+
+.service-step {
+  display: grid;
+  grid-template-columns: 24px 1fr;
+  gap: 10px;
+  align-items: start;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-2);
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.service-step strong {
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--accent-dim);
+  color: var(--accent);
+  font-size: 11px;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
 }
 
 @keyframes modal-in {
