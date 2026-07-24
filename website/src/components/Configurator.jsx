@@ -1,6 +1,6 @@
 import configuratorPreview from "../assets/aeropico-configurator-dark.webp";
 import { useLanguage } from "../context/LanguageContext.jsx";
-import { configuratorChecks, repoUrl } from "../data/siteData.js";
+import { repoUrl } from "../data/siteData.js";
 import { externalLinkProps } from "../utils/externalLinkProps.js";
 
 export default function Configurator() {
@@ -21,7 +21,7 @@ export default function Configurator() {
         </p>
 
         <div className="grid sm:grid-cols-2 gap-3 pt-2">
-          {configuratorChecks.map((check) => (
+          {content.configurator.checks.map((check) => (
             <div className="bg-slate-900/80 border border-slate-800 hover:border-cyan-500/40 p-4 rounded-xl flex items-center gap-3 transition" key={check}>
               <span className="bg-emerald-500/10 text-emerald-400 font-mono text-xs px-2 py-1 rounded font-bold border border-emerald-500/20">OK</span>
               <span className="text-slate-200 text-xs font-semibold">{check}</span>
@@ -44,7 +44,7 @@ export default function Configurator() {
         <div className="rounded-2xl overflow-hidden border border-slate-800/80 bg-slate-950 aspect-[4/3] flex items-center justify-center relative">
           <img
             src={configuratorPreview}
-            alt="AeroPico Configurator arayüzü"
+            alt={content.configurator.previewAlt}
             loading="lazy"
             decoding="async"
             className="w-full h-full object-cover group-hover:scale-105 transition duration-500"

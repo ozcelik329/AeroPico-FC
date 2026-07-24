@@ -18,20 +18,26 @@ const badgeClasses = {
 
 export default function ReleasesModal() {
   const { activeModal, closeModal } = useModal();
-  const { content } = useLanguage();
-  const [releases, setReleases] = useState(getReleaseDownloads);
+  const { content, language } = useLanguage();
+  const fallbackReleases = content.release.downloads;
+  const [releases, setReleases] = useState(fallbackReleases);
   const [status, setStatus] = useState("idle");
   const open = activeModal === modalNames.releases;
 
   useEffect(() => {
-    if (!open || status !== "idle") {
+    setReleases(getReleaseDownloads(fallbackReleases));
+    setStatus("idle");
+  }, [fallbackReleases]);
+
+  useEffect(() => {
+    if (!open) {
       return;
     }
 
     let cancelled = false;
     setStatus("loading");
 
-    getLiveReleaseDownloads()
+    getLiveReleaseDownloads(language)
       .then((items) => {
         if (!cancelled && items.length) {
           setReleases(items);
@@ -40,7 +46,7 @@ export default function ReleasesModal() {
       })
       .catch(() => {
         if (!cancelled) {
-          setReleases(getReleaseDownloads());
+          setReleases(getReleaseDownloads(fallbackReleases));
           setStatus("fallback");
         }
       });
@@ -48,7 +54,7 @@ export default function ReleasesModal() {
     return () => {
       cancelled = true;
     };
-  }, [open, status]);
+  }, [fallbackReleases, language, open]);
 
   return (
     <Modal ariaLabel={content.modals.releasesTitle} open={open} onClose={closeModal}>
