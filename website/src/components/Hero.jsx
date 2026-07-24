@@ -1,4 +1,5 @@
 import logo from "../assets/aeropico-logo-hero.webp";
+import { useLanguage } from "../context/LanguageContext.jsx";
 import { heroStats, telemetryRows } from "../data/siteData.js";
 import { useModal } from "../hooks/useModal.js";
 
@@ -47,6 +48,7 @@ function TelemetryPanel() {
 
 export default function Hero() {
   const { openReleases, openSpecs } = useModal();
+  const { content } = useLanguage();
 
   return (
     <main id="top" className="site-container py-8 sm:py-12 md:py-20 relative z-10">
@@ -63,17 +65,16 @@ export default function Hero() {
         <section className="hero-copy space-y-4 md:space-y-6 relative z-10" aria-labelledby="hero-title">
           <div className="inline-flex items-center gap-2 bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-xs px-3.5 py-1.5 rounded-full font-semibold">
             <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
-            Sabit kanat uçuş kontrol yazılımı
+            {content.hero.eyebrow}
           </div>
 
           <h1 id="hero-title" className="text-3xl sm:text-4xl md:text-6xl font-extrabold tracking-tight leading-tight">
-            Küçük Kart <br />
-            <span className="text-cyan-400">Ciddi Mimari</span>
+            {content.hero.titleA} <br />
+            <span className="text-cyan-400">{content.hero.titleB}</span>
           </h1>
 
           <p className="text-slate-400 text-sm sm:text-base md:text-lg leading-relaxed">
-            RP2350 / Raspberry Pi Pico 2 için FreeRTOS, PIO, DMA ve MAVLink temelli okunabilir uçuş kontrol yazılımı. Manuel ve stabilize altyapı;
-            masaüstü, HIL ve mühendislik testleri için hazır.
+            {content.hero.description}
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 pt-2">
@@ -82,20 +83,20 @@ export default function Hero() {
               onClick={openReleases}
               className="bg-cyan-500 hover:bg-cyan-400 active:scale-95 text-slate-950 font-bold px-6 py-3.5 rounded-xl text-center transition-all duration-150 shadow-lg shadow-cyan-500/20 cursor-pointer"
             >
-              İndir
+              {content.hero.primary}
             </button>
             <button
               type="button"
               onClick={openSpecs}
               className="border border-slate-800 hover:border-cyan-500/50 bg-slate-900/50 hover:bg-slate-900 active:scale-95 text-slate-300 font-semibold px-6 py-3.5 rounded-xl text-center transition-all duration-150 cursor-pointer flex items-center justify-center gap-2"
             >
-              <span>Specifications</span>
+              <span>{content.hero.secondary}</span>
               <span className="text-cyan-400 font-mono text-xs">→</span>
             </button>
           </div>
 
           <p className="hero-note text-xs text-amber-400/90 font-medium bg-amber-500/10 border border-amber-500/20 px-3 py-1.5 rounded-lg inline-block">
-            Uçuş öncesi masaüstü doğrulaması zorunludur.
+            {content.hero.note}
           </p>
         </section>
 

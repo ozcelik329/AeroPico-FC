@@ -4,6 +4,7 @@ import Docs from "../components/Docs.jsx";
 import Hero from "../components/Hero.jsx";
 import QuickStart from "../components/QuickStart.jsx";
 import ReleaseGate from "../components/ReleaseGate.jsx";
+import SupportedHardware from "../components/SupportedHardware.jsx";
 import Footer from "../components/layout/Footer.jsx";
 import Header from "../components/layout/Header.jsx";
 
@@ -16,6 +17,7 @@ export default function Home() {
       <Header />
       <Hero />
       <QuickStart />
+      <SupportedHardware />
       <Architecture />
       <Configurator />
       <Docs />

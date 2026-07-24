@@ -1,15 +1,18 @@
 import { docCards } from "../data/siteData.js";
+import { useLanguage } from "../context/LanguageContext.jsx";
 import { externalLinkProps } from "../utils/externalLinkProps.js";
 
 export default function Docs() {
+  const { content } = useLanguage();
+
   return (
     <section id="docs" className="site-container reveal-section py-16 border-t border-slate-900/80 relative z-10">
       <div className="mb-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="text-xs uppercase font-mono text-cyan-400 font-semibold tracking-wider bg-cyan-500/10 border border-cyan-500/20 px-3 py-1 rounded-full inline-block">
-            DÖKÜMANTASYON & PDF
+            {content.docs.eyebrow}
           </div>
-          <h3 className="text-2xl md:text-3xl font-extrabold text-white mt-2">Teknik Raporlar ve Kullanım Kılavuzları</h3>
+          <h3 className="text-2xl md:text-3xl font-extrabold text-white mt-2">{content.docs.title}</h3>
         </div>
       </div>
 

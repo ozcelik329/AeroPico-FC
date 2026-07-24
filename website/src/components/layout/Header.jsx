@@ -1,10 +1,17 @@
+import { useState } from "react";
 import logo from "../../assets/aeropico-logo-full.webp";
-import { navItems, repoUrl } from "../../data/siteData.js";
+import { useLanguage } from "../../context/LanguageContext.jsx";
+import { repoUrl } from "../../data/siteData.js";
 import { useModal } from "../../hooks/useModal.js";
 import { externalLinkProps } from "../../utils/externalLinkProps.js";
 
 export default function Header() {
   const { openReleases, openSpecs } = useModal();
+  const { content, toggleLanguage } = useLanguage();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const navItems = content.navItems;
+
+  const closeMenu = () => setMenuOpen(false);
 
   return (
     <header className="site-container header-shell sticky top-3 md:top-4 mt-3 md:mt-4 bg-slate-950/35 border border-white/10 shadow-2xl shadow-black/35 backdrop-blur-2xl rounded-3xl z-50">
@@ -22,7 +29,7 @@ export default function Header() {
           className="header-nav-item hover:text-cyan-400 transition cursor-pointer font-semibold text-cyan-300 bg-cyan-500/10 border border-cyan-500/20 rounded-xl shadow-sm flex items-center gap-2 group"
         >
           <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
-          Özellikler
+          {content.header.features}
         </button>
         {navItems.map((item) => (
           <a
@@ -36,20 +43,48 @@ export default function Header() {
       </nav>
 
       <div className="header-actions">
+        <button
+          type="button"
+          onClick={toggleLanguage}
+          className="border border-slate-700 bg-slate-900/70 hover:border-cyan-500/35 text-slate-300 font-bold px-3 py-2 rounded-xl transition text-xs cursor-pointer"
+          aria-label="Dil değiştir"
+        >
+          {content.languageLabel}
+        </button>
         <a
           href={repoUrl}
           className="bg-slate-900/75 border border-slate-800 hover:border-cyan-500/40 text-slate-300 font-semibold px-4 py-2 rounded-xl transition text-sm flex items-center gap-2 active:scale-95 duration-150"
           {...externalLinkProps}
         >
-          GitHub
+          {content.header.github}
         </a>
         <button
           type="button"
           onClick={openReleases}
           className="border border-cyan-500/40 bg-cyan-500/10 hover:bg-cyan-500/15 active:scale-95 text-cyan-200 font-bold px-4 py-2 rounded-xl transition-all duration-150 text-sm flex items-center gap-2 cursor-pointer"
         >
-          Sürümler
+          {content.header.releases}
         </button>
+        <button
+          type="button"
+          onClick={() => setMenuOpen((value) => !value)}
+          className="mobile-menu-button border border-slate-700 bg-slate-900/80 text-slate-200 font-bold px-3 py-2 rounded-xl transition text-xs cursor-pointer"
+          aria-expanded={menuOpen}
+          aria-controls="mobile-menu"
+        >
+          {content.header.menu}
+        </button>
+      </div>
+
+      <div id="mobile-menu" className={`mobile-menu-panel ${menuOpen ? "is-open" : ""}`}>
+        <button type="button" onClick={() => { openSpecs(); closeMenu(); }} className="mobile-menu-item text-cyan-300">
+          {content.header.features}
+        </button>
+        {navItems.map((item) => (
+          <a href={item.href} onClick={closeMenu} className="mobile-menu-item" key={`mobile-${item.href}`}>
+            {item.label}
+          </a>
+        ))}
       </div>
     </header>
   );
