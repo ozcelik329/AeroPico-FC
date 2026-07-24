@@ -6,7 +6,7 @@ export default function Configurator() {
   return (
     <section
       id="configurator"
-      className="site-container py-16 border-t border-slate-900/80 grid md:grid-cols-2 gap-12 items-center relative z-10"
+      className="site-container configurator-band reveal-section py-16 border-t border-slate-900/80 grid md:grid-cols-2 gap-12 items-center relative z-10"
     >
       <div className="space-y-6">
         <div className="text-xs font-mono text-cyan-400 uppercase tracking-wider bg-cyan-500/10 border border-cyan-500/20 px-3.5 py-1.5 rounded-full inline-block font-semibold">
@@ -30,7 +30,7 @@ export default function Configurator() {
         <div className="pt-2">
           <a
             href={repoUrl}
-            className="bg-cyan-500 hover:bg-cyan-400 active:scale-95 text-slate-950 font-bold px-6 py-3.5 rounded-xl transition-all duration-150 inline-flex items-center gap-2 text-sm shadow-lg shadow-cyan-500/20"
+            className="border border-cyan-500/35 bg-cyan-500/10 hover:bg-cyan-500/15 active:scale-95 text-cyan-200 font-bold px-6 py-3.5 rounded-xl transition-all duration-150 inline-flex items-center gap-2 text-sm"
             {...externalLinkProps}
           >
             Configurator İndir (.zip)

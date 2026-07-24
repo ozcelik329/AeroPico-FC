@@ -12,10 +12,10 @@ const themeClasses = {
     link: "bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-300 border-cyan-500/30",
   },
   blue: {
-    badge: "bg-blue-500/10 text-blue-400 border-blue-500/20",
-    icon: "bg-blue-500/10 border-blue-500/20 text-blue-400",
-    title: "text-blue-400",
-    link: "bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 border-blue-500/30",
+    badge: "bg-slate-800/80 text-slate-300 border-slate-700",
+    icon: "bg-slate-900 border-slate-700 text-slate-300",
+    title: "text-slate-200",
+    link: "bg-slate-900 hover:bg-slate-800 text-slate-200 border-slate-700",
   },
 };
 
@@ -24,7 +24,7 @@ function QuickStartCard({ option }) {
   const theme = themeClasses[option.theme];
 
   return (
-    <article className="glass-card p-8 rounded-3xl border border-slate-800 flex flex-col justify-between space-y-6 relative overflow-hidden group hover:border-cyan-500/40 transition">
+    <article className="flat-card p-8 rounded-3xl flex flex-col justify-between space-y-6 relative overflow-hidden group transition">
       <div className={cn("absolute top-0 right-0 text-xs font-mono px-4 py-2 rounded-bl-2xl border-l border-b font-bold", theme.badge)}>
         {option.badge}
       </div>
@@ -72,7 +72,7 @@ function QuickStartCard({ option }) {
 
 export default function QuickStart() {
   return (
-    <section id="quickstart" className="site-container py-16 border-t border-slate-900/80 relative z-10">
+    <section id="quickstart" className="site-container reveal-section py-16 border-t border-slate-900/80 relative z-10">
       <SectionHeading
         eyebrow="HIZLI BAŞLANGIÇ KILAVUZU"
         title="Yazılımı Kurun ve Pico 2'ye Yükleyin"

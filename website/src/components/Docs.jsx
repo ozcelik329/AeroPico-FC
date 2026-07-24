@@ -1,16 +1,9 @@
 import { docCards } from "../data/siteData.js";
 import { externalLinkProps } from "../utils/externalLinkProps.js";
 
-const toneClasses = {
-  amber: "bg-amber-500/10 border-amber-500/20 text-amber-300",
-  cyan: "bg-cyan-500/10 border-cyan-500/20 text-cyan-300",
-  emerald: "bg-emerald-500/10 border-emerald-500/20 text-emerald-300",
-  red: "bg-red-500/10 border-red-500/20 text-red-300",
-};
-
 export default function Docs() {
   return (
-    <section id="docs" className="site-container py-16 border-t border-slate-900/80 relative z-10">
+    <section id="docs" className="site-container reveal-section py-16 border-t border-slate-900/80 relative z-10">
       <div className="mb-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="text-xs uppercase font-mono text-cyan-400 font-semibold tracking-wider bg-cyan-500/10 border border-cyan-500/20 px-3 py-1 rounded-full inline-block">
@@ -22,9 +15,9 @@ export default function Docs() {
 
       <div className="grid md:grid-cols-3 gap-6">
         {docCards.map((doc) => (
-          <article className="glass-card p-6 rounded-2xl flex flex-col justify-between space-y-4 hover:border-cyan-500/40 transition" key={doc.title}>
+          <article className="flat-card p-6 rounded-2xl flex flex-col justify-between space-y-4 transition" key={doc.title}>
             <div className="space-y-3">
-              <div className={`w-10 h-10 rounded-xl border flex items-center justify-center font-mono font-bold text-xs ${toneClasses[doc.tone]}`}>
+              <div className="w-10 h-10 rounded-xl border border-cyan-500/20 bg-cyan-500/10 text-cyan-300 flex items-center justify-center font-mono font-bold text-xs">
                 {doc.type}
               </div>
               <h4 className="text-base font-bold text-white">{doc.title}</h4>
