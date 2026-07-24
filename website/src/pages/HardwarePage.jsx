@@ -1,13 +1,8 @@
-import Architecture from "../components/Architecture.jsx";
-import Configurator from "../components/Configurator.jsx";
-import Docs from "../components/Docs.jsx";
-import Hero from "../components/Hero.jsx";
-import QuickStart from "../components/QuickStart.jsx";
-import ReleaseGate from "../components/ReleaseGate.jsx";
+import SupportedHardware from "../components/SupportedHardware.jsx";
 import Footer from "../components/layout/Footer.jsx";
 import Header from "../components/layout/Header.jsx";
 
-export default function Home() {
+export default function HardwarePage() {
   return (
     <div className="bg-slate-950 text-slate-100 min-h-screen flex flex-col justify-between selection:bg-cyan-500 selection:text-slate-950 relative overflow-x-hidden">
       <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(14,165,233,0.10),transparent_26%,rgba(16,185,129,0.08)_46%,transparent_65%,rgba(245,158,11,0.08))] pointer-events-none" />
@@ -15,12 +10,9 @@ export default function Home() {
 
       <Header />
       <div className="header-spacer" aria-hidden="true" />
-      <Hero />
-      <QuickStart />
-      <Architecture />
-      <Configurator />
-      <Docs />
-      <ReleaseGate />
+      <main className="relative z-10 flex-1">
+        <SupportedHardware />
+      </main>
       <Footer />
     </div>
   );
