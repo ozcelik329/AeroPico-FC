@@ -1,4 +1,4 @@
-import logo from "../../assets/aeropico-logo-full.png";
+import logo from "../../assets/aeropico-logo-full.webp";
 import { navItems, repoUrl } from "../../data/siteData.js";
 import { useModal } from "../../hooks/useModal.js";
 import { externalLinkProps } from "../../utils/externalLinkProps.js";
