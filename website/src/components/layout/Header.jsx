@@ -2,11 +2,9 @@ import { useState } from "react";
 import logo from "../../assets/aeropico-logo-full.webp";
 import { useLanguage } from "../../context/LanguageContext.jsx";
 import { repoUrl } from "../../data/siteData.js";
-import { useModal } from "../../hooks/useModal.js";
 import { externalLinkProps } from "../../utils/externalLinkProps.js";
 
 export default function Header() {
-  const { openReleases, openSpecs } = useModal();
   const { content, toggleLanguage } = useLanguage();
   const [menuOpen, setMenuOpen] = useState(false);
   const navItems = content.navItems;
@@ -23,14 +21,13 @@ export default function Header() {
       </a>
 
       <nav className="header-nav" aria-label={content.header.navLabel}>
-        <button
-          type="button"
-          onClick={openSpecs}
+        <a
+          href="/features"
           className="header-nav-item hover:text-cyan-400 transition cursor-pointer font-semibold text-cyan-300 bg-cyan-500/10 border border-cyan-500/20 rounded-xl shadow-sm flex items-center gap-2 group"
         >
           <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
           {content.header.features}
-        </button>
+        </a>
         {navItems.map((item) => (
           <a
             className={`header-nav-link ${item.highlighted ? "text-cyan-400 font-semibold" : ""}`}
@@ -58,13 +55,12 @@ export default function Header() {
         >
           {content.header.github}
         </a>
-        <button
-          type="button"
-          onClick={openReleases}
+        <a
+          href="/releases"
           className="border border-cyan-500/40 bg-cyan-500/10 hover:bg-cyan-500/15 active:scale-95 text-cyan-200 font-bold px-4 py-2 rounded-xl transition-all duration-150 text-sm flex items-center gap-2 cursor-pointer"
         >
           {content.header.releases}
-        </button>
+        </a>
         <button
           type="button"
           onClick={() => setMenuOpen((value) => !value)}
@@ -77,9 +73,9 @@ export default function Header() {
       </div>
 
       <div id="mobile-menu" className={`mobile-menu-panel ${menuOpen ? "is-open" : ""}`}>
-        <button type="button" onClick={() => { openSpecs(); closeMenu(); }} className="mobile-menu-item text-cyan-300">
+        <a href="/features" onClick={closeMenu} className="mobile-menu-item text-cyan-300">
           {content.header.features}
-        </button>
+        </a>
         {navItems.map((item) => (
           <a href={item.href} onClick={closeMenu} className="mobile-menu-item" key={`mobile-${item.href}`}>
             {item.label}

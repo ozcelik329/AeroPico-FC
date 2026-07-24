@@ -21,11 +21,11 @@ export const content = {
     navItems: [
       { label: "Başlangıç", href: "/#quickstart", highlighted: true },
       { label: "Donanım", href: "/hardware" },
-      { label: "Mimari", href: "/#architecture" },
+      { label: "Mimari", href: "/architecture" },
       { label: "Configurator", href: "/#configurator" },
-      { label: "Dökümanlar", href: "/#docs" },
-      { label: "Koşullar", href: "/#release" },
-      { label: "İletişim", href: "/#contact" },
+      { label: "Dökümanlar", href: "/docs" },
+      { label: "Koşullar", href: "/releases" },
+      { label: "İletişim", href: "/contact" },
     ],
     header: {
       menu: "Menü",
@@ -87,7 +87,7 @@ export const content = {
             {
               title: "Adım A: Sürüm Paketini İndirme",
               body: "Aşağıdaki bağlantıyı kullanarak en güncel kararlı sürüm paketini (.zip) indirin ve arşivden çıkarın:",
-              link: { label: "Releases Sayfasına Git", href: `${repoUrl}/releases/latest` },
+              link: { label: "Releases Sayfasına Git", href: "/releases" },
             },
             {
               title: "Adım B: Boot Modunda Yükleme",
@@ -99,7 +99,7 @@ export const content = {
             },
           ],
           footer: "En Hızlı Yöntem",
-          action: { type: "modal", label: "Sürümleri Aç" },
+          action: { type: "link", label: "Sürümleri Aç", href: "/releases" },
         },
       ],
     },
@@ -295,11 +295,11 @@ export const content = {
     navItems: [
       { label: "Start", href: "/#quickstart", highlighted: true },
       { label: "Hardware", href: "/hardware" },
-      { label: "Architecture", href: "/#architecture" },
+      { label: "Architecture", href: "/architecture" },
       { label: "Configurator", href: "/#configurator" },
-      { label: "Docs", href: "/#docs" },
-      { label: "Release Gate", href: "/#release" },
-      { label: "Contact", href: "/#contact" },
+      { label: "Docs", href: "/docs" },
+      { label: "Releases", href: "/releases" },
+      { label: "Contact", href: "/contact" },
     ],
     header: {
       menu: "Menu",
@@ -361,7 +361,7 @@ export const content = {
             {
               title: "Step A: Download the Release Package",
               body: "Use the link below to download the latest stable package and extract it:",
-              link: { label: "Open Releases", href: `${repoUrl}/releases/latest` },
+              link: { label: "Open Releases", href: "/releases" },
             },
             {
               title: "Step B: Flash in Boot Mode",
@@ -373,7 +373,7 @@ export const content = {
             },
           ],
           footer: "Fastest path",
-          action: { type: "modal", label: "Open Releases" },
+          action: { type: "link", label: "Open Releases", href: "/releases" },
         },
       ],
     },

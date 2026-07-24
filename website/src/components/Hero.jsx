@@ -1,7 +1,6 @@
 import logo from "../assets/aeropico-logo-hero.webp";
 import { useLanguage } from "../context/LanguageContext.jsx";
 import { heroStats, telemetryRows } from "../data/siteData.js";
-import { useModal } from "../hooks/useModal.js";
 
 function TelemetryPanel() {
   return (
@@ -47,7 +46,6 @@ function TelemetryPanel() {
 }
 
 export default function Hero() {
-  const { openReleases, openSpecs } = useModal();
   const { content } = useLanguage();
 
   return (
@@ -78,21 +76,19 @@ export default function Hero() {
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 pt-2">
-            <button
-              type="button"
-              onClick={openReleases}
+            <a
+              href="/releases"
               className="bg-cyan-500 hover:bg-cyan-400 active:scale-95 text-slate-950 font-bold px-6 py-3.5 rounded-xl text-center transition-all duration-150 shadow-lg shadow-cyan-500/20 cursor-pointer"
             >
               {content.hero.primary}
-            </button>
-            <button
-              type="button"
-              onClick={openSpecs}
+            </a>
+            <a
+              href="/features"
               className="border border-slate-800 hover:border-cyan-500/50 bg-slate-900/50 hover:bg-slate-900 active:scale-95 text-slate-300 font-semibold px-6 py-3.5 rounded-xl text-center transition-all duration-150 cursor-pointer flex items-center justify-center gap-2"
             >
               <span>{content.hero.secondary}</span>
               <span className="text-cyan-400 font-mono text-xs">→</span>
-            </button>
+            </a>
           </div>
 
           <p className="hero-note text-xs text-amber-400/90 font-medium bg-amber-500/10 border border-amber-500/20 px-3 py-1.5 rounded-lg inline-block">

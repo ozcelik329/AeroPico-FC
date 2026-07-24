@@ -24,7 +24,7 @@ export default function Footer() {
           <a href={repoUrl} className="hover:text-cyan-400 transition" {...externalLinkProps}>
             GitHub
           </a>
-          <a href="/#release" className="hover:text-cyan-400 transition">
+          <a href="/releases" className="hover:text-cyan-400 transition">
             {content.footer.releasePolicy}
           </a>
         </div>

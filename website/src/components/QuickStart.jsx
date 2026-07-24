@@ -1,5 +1,4 @@
 import { useLanguage } from "../context/LanguageContext.jsx";
-import { useModal } from "../hooks/useModal.js";
 import { cn } from "../utils/cn.js";
 import { externalLinkProps } from "../utils/externalLinkProps.js";
 import SectionHeading from "./ui/SectionHeading.jsx";
@@ -20,7 +19,6 @@ const themeClasses = {
 };
 
 function QuickStartCard({ option }) {
-  const { openReleases } = useModal();
   const theme = themeClasses[option.theme];
 
   return (
@@ -56,15 +54,9 @@ function QuickStartCard({ option }) {
 
       <div className="pt-4 border-t border-slate-800/80 flex items-center justify-between">
         <span className="text-xs text-slate-500 font-mono">{option.footer}</span>
-        {option.action.type === "link" ? (
-          <a href={option.action.href} className={cn("text-xs font-bold hover:underline", theme.title)} {...externalLinkProps}>
-            {option.action.label} →
-          </a>
-        ) : (
-          <button type="button" onClick={openReleases} className={cn("text-xs font-bold hover:underline cursor-pointer", theme.title)}>
-            {option.action.label} →
-          </button>
-        )}
+        <a href={option.action.href} className={cn("text-xs font-bold hover:underline", theme.title)} {...(option.action.href.startsWith("http") ? externalLinkProps : {})}>
+          {option.action.label} →
+        </a>
       </div>
     </article>
   );
