@@ -60,7 +60,7 @@ export default function Hero() {
       </div>
 
       <div className="grid md:grid-cols-2 gap-8 md:gap-12 items-center">
-        <section className="hero-copy space-y-5 md:space-y-6 relative z-10" aria-labelledby="hero-title">
+        <section className="hero-copy space-y-4 md:space-y-6 relative z-10" aria-labelledby="hero-title">
           <div className="inline-flex items-center gap-2 bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-xs px-3.5 py-1.5 rounded-full font-semibold">
             <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
             Sabit kanat uçuş kontrol yazılımı
@@ -94,7 +94,7 @@ export default function Hero() {
             </button>
           </div>
 
-          <p className="text-xs text-amber-400/90 font-medium bg-amber-500/10 border border-amber-500/20 px-3 py-1.5 rounded-lg inline-block">
+          <p className="hero-note text-xs text-amber-400/90 font-medium bg-amber-500/10 border border-amber-500/20 px-3 py-1.5 rounded-lg inline-block">
             Uçuş öncesi masaüstü doğrulaması zorunludur.
           </p>
         </section>
