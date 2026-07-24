@@ -64,6 +64,10 @@ a {
   margin-inline: auto;
 }
 
+.header-spacer {
+  height: 5.8rem;
+}
+
 .header-shell {
   position: relative;
   display: flex;
@@ -202,6 +206,10 @@ a {
 @media (max-width: 640px) {
   .site-container {
     width: min(calc(100% - 1rem), 1280px);
+  }
+
+  .header-spacer {
+    height: 4.7rem;
   }
 
   .header-shell {
