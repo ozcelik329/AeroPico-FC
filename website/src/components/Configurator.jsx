@@ -1,4 +1,4 @@
-import configuratorPreview from "../assets/aeropico-configurator-dark.png";
+import configuratorPreview from "../assets/aeropico-configurator-dark.webp";
 import { configuratorChecks, repoUrl } from "../data/siteData.js";
 import { externalLinkProps } from "../utils/externalLinkProps.js";
 
@@ -43,6 +43,8 @@ export default function Configurator() {
           <img
             src={configuratorPreview}
             alt="AeroPico Configurator arayüzü"
+            loading="lazy"
+            decoding="async"
             className="w-full h-full object-cover group-hover:scale-105 transition duration-500"
           />
         </div>

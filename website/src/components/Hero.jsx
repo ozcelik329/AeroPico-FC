@@ -1,4 +1,4 @@
-import logo from "../assets/aeropico-logo-hero.png";
+import logo from "../assets/aeropico-logo-hero.webp";
 import { heroStats, telemetryRows } from "../data/siteData.js";
 import { useModal } from "../hooks/useModal.js";
 
