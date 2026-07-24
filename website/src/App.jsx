@@ -24,6 +24,18 @@ export default function App() {
 
   useEffect(() => {
     const onPopState = () => setPath(window.location.pathname);
+    const updateRoute = (url) => {
+      window.history.pushState({}, "", `${url.pathname}${url.hash}`);
+      setPath(url.pathname);
+
+      requestAnimationFrame(() => {
+        if (url.hash) {
+          document.querySelector(url.hash)?.scrollIntoView();
+        } else {
+          window.scrollTo({ top: 0 });
+        }
+      });
+    };
     const onClick = (event) => {
       const link = event.target.closest("a");
 
@@ -40,16 +52,12 @@ export default function App() {
       }
 
       event.preventDefault();
-      window.history.pushState({}, "", `${url.pathname}${url.hash}`);
-      setPath(url.pathname);
 
-      requestAnimationFrame(() => {
-        if (url.hash) {
-          document.querySelector(url.hash)?.scrollIntoView();
-        } else {
-          window.scrollTo({ top: 0 });
-        }
-      });
+      if (document.startViewTransition && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+        document.startViewTransition(() => updateRoute(url));
+      } else {
+        updateRoute(url);
+      }
     };
 
     window.addEventListener("popstate", onPopState);
@@ -63,7 +71,9 @@ export default function App() {
 
   return (
     <LanguageProvider>
-      <Page />
+      <div className="page-transition" key={path}>
+        <Page />
+      </div>
     </LanguageProvider>
   );
 }
