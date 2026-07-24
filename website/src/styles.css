@@ -34,6 +34,10 @@ body {
   background: #020617;
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
 button,
 a {
   -webkit-tap-highlight-color: transparent;
@@ -49,6 +53,11 @@ a {
   background: rgba(15, 23, 42, 0.78);
   border: 1px solid rgba(51, 65, 85, 0.8);
   box-shadow: 0 20px 60px -45px rgba(8, 47, 73, 0.9);
+  transition:
+    border-color 180ms ease,
+    background-color 180ms ease,
+    box-shadow 180ms ease,
+    transform 180ms ease;
 }
 
 .flat-card:hover {
@@ -81,6 +90,7 @@ a {
   justify-content: space-between;
   gap: 1rem;
   padding: 0.75rem 1.25rem;
+  animation: header-drop 420ms ease both;
 }
 
 .header-brand {
@@ -185,10 +195,73 @@ a {
   border: 1px solid rgba(34, 211, 238, 0.08);
 }
 
+.page-transition {
+  animation: page-enter 260ms ease both;
+}
+
+.page-transition .site-container:first-of-type {
+  animation: content-rise 320ms ease 40ms both;
+}
+
+.flat-card,
+.hardware-list,
+.telemetry-panel,
+.glass-card {
+  animation: soft-pop 360ms ease both;
+}
+
 .reveal-section {
   animation: section-fade-up both;
   animation-timeline: view();
   animation-range: entry 8% cover 26%;
+}
+
+@keyframes page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes content-rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes soft-pop {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.99);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes header-drop {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
 }
 
 @keyframes section-fade-up {
@@ -204,8 +277,61 @@ a {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+
   .reveal-section {
     animation: none;
+  }
+}
+
+@supports (view-transition-name: root) {
+  ::view-transition-old(root),
+  ::view-transition-new(root) {
+    animation-duration: 260ms;
+    animation-timing-function: ease;
+  }
+
+  ::view-transition-old(root) {
+    animation-name: route-fade-out;
+  }
+
+  ::view-transition-new(root) {
+    animation-name: route-fade-in;
+  }
+}
+
+@keyframes route-fade-out {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  to {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
+
+@keyframes route-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 
