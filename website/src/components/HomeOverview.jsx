@@ -3,7 +3,7 @@ import { useLanguage } from "../context/LanguageContext.jsx";
 export default function HomeOverview() {
   const { content } = useLanguage();
   const featuredRelease = content.release.downloads[0];
-  const statusItems = content.specs.slice(0, 4);
+  const statusItems = content.home.statusItems;
 
   return (
     <section className="site-container reveal-section py-16 border-t border-slate-900/80 relative z-10">
@@ -35,7 +35,7 @@ export default function HomeOverview() {
             <h3 className="text-sm font-extrabold text-white">{content.home.statusTitle}</h3>
             <div className="mt-4 space-y-3">
               {statusItems.map((item) => (
-                <div className="flex items-center justify-between gap-4 border-b border-slate-800/70 pb-3 last:border-b-0 last:pb-0" key={item.label}>
+                <div className="flex items-center justify-between gap-4 border-b border-slate-800/70 pb-3 last:border-b-0 last:pb-0" key={`${item.label}-${item.value}`}>
                   <span className="text-[10px] font-mono text-slate-500">{item.label}</span>
                   <span className="text-sm font-bold text-cyan-300 text-right">{item.value}</span>
                 </div>
