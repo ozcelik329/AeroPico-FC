@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
+import SpecsModal from "./components/ui/SpecsModal.jsx";
 import { LanguageProvider } from "./context/LanguageContext.jsx";
+import { ModalProvider } from "./context/ModalContext.jsx";
 import HardwarePage from "./pages/HardwarePage.jsx";
 import Home from "./pages/Home.jsx";
 import ReleasesPage from "./pages/ReleasesPage.jsx";
@@ -63,9 +65,12 @@ export default function App() {
 
   return (
     <LanguageProvider>
-      <div className="page-transition" key={path}>
-        <Page />
-      </div>
+      <ModalProvider>
+        <div className="page-transition" key={path}>
+          <Page />
+        </div>
+        <SpecsModal />
+      </ModalProvider>
     </LanguageProvider>
   );
 }

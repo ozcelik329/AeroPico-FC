@@ -2,10 +2,12 @@ import { useState } from "react";
 import logo from "../../assets/aeropico-logo-full.webp";
 import { useLanguage } from "../../context/LanguageContext.jsx";
 import { repoUrl } from "../../data/siteData.js";
+import { useModal } from "../../hooks/useModal.js";
 import { externalLinkProps } from "../../utils/externalLinkProps.js";
 
 export default function Header() {
   const { content, toggleLanguage } = useLanguage();
+  const { openSpecs } = useModal();
   const [menuOpen, setMenuOpen] = useState(false);
   const navItems = content.navItems;
 
@@ -21,13 +23,14 @@ export default function Header() {
       </a>
 
       <nav className="header-nav" aria-label={content.header.navLabel}>
-        <a
-          href="/#architecture"
+        <button
+          type="button"
+          onClick={openSpecs}
           className="header-nav-item hover:text-cyan-400 transition cursor-pointer font-semibold text-cyan-300 bg-cyan-500/10 border border-cyan-500/20 rounded-xl shadow-sm flex items-center gap-2 group"
         >
           <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
           {content.header.features}
-        </a>
+        </button>
         {navItems.map((item) => (
           <a
             className={`header-nav-link ${item.highlighted ? "text-cyan-400 font-semibold" : ""}`}
@@ -73,9 +76,9 @@ export default function Header() {
       </div>
 
       <div id="mobile-menu" className={`mobile-menu-panel ${menuOpen ? "is-open" : ""}`}>
-        <a href="/#architecture" onClick={closeMenu} className="mobile-menu-item text-cyan-300">
+        <button type="button" onClick={() => { openSpecs(); closeMenu(); }} className="mobile-menu-item text-cyan-300">
           {content.header.features}
-        </a>
+        </button>
         {navItems.map((item) => (
           <a href={item.href} onClick={closeMenu} className="mobile-menu-item" key={`mobile-${item.href}`}>
             {item.label}
