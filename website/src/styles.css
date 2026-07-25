@@ -438,10 +438,11 @@ body::after {
 }
 
 .header-shell {
-  background: rgba(5, 9, 20, 0.78) !important;
-  border-color: rgba(100, 116, 139, 0.48) !important;
-  box-shadow: 0 18px 60px -46px rgba(2, 6, 23, 0.95) !important;
-  backdrop-filter: blur(14px) !important;
+  background: rgba(15, 23, 42, 0.2) !important;
+  border-color: rgba(96, 165, 250, 0.12) !important;
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1) !important;
+  backdrop-filter: blur(16px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(180%) !important;
 }
 
 .hero-logo-wrap > div {
