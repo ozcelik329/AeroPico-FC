@@ -7,7 +7,7 @@ export default function SpecsModal() {
   const { activeModal, closeModal } = useModal();
   const { content } = useLanguage();
   const open = activeModal === modalNames.specs;
-  const specifications = content.specs;
+  const sections = content.specSections;
 
   return (
     <Modal ariaLabel={content.modals.specsTitle} maxWidth="max-w-4xl max-h-[90vh] flex flex-col" open={open} onClose={closeModal}>
@@ -27,27 +27,31 @@ export default function SpecsModal() {
       </div>
 
       <div className="space-y-6 overflow-y-auto pr-2 flex-grow">
-        <div className="bg-gradient-to-r from-cyan-500/10 via-blue-500/10 to-transparent border border-cyan-500/20 p-5 rounded-2xl flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="bg-gradient-to-r from-cyan-500/10 via-blue-500/10 to-transparent border border-cyan-500/20 p-5 rounded-2xl">
           <div>
-            <div className="text-[10px] font-mono text-cyan-400 uppercase tracking-widest">{content.modals.stack}</div>
-            <div className="text-xl font-extrabold text-white mt-1">{content.modals.stackTitle}</div>
-            <p className="text-slate-300 text-sm leading-relaxed mt-3 max-w-2xl">{content.specsIntro}</p>
-          </div>
-          <div className="text-right hidden sm:block">
-            <div className="text-[10px] font-mono text-slate-400">TARGET</div>
-            <div className="text-sm font-bold text-cyan-400">RP2350 / Pico 2</div>
+            <div className="text-[10px] font-mono text-cyan-400 uppercase tracking-widest">{content.modals.specsTitle}</div>
+            <p className="text-slate-300 text-sm leading-relaxed mt-2 max-w-3xl">{content.modals.specsDescription}</p>
           </div>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-3">
-          {specifications.map((spec) => (
-            <article
-              className="bg-slate-900/55 border border-slate-800 p-4 rounded-xl space-y-2 hover:border-cyan-500/25 transition"
-              key={spec.title}
-            >
-              <h4 className="font-bold text-white text-sm">{spec.title}</h4>
-              <p className="text-slate-400 text-xs leading-relaxed">{spec.text}</p>
-            </article>
+        <div className="space-y-8">
+          {sections.map((section, index) => (
+            <section className="border-t border-slate-800 pt-6 first:border-t-0 first:pt-0" key={section.title}>
+              <h4 className="text-lg font-extrabold text-white">{section.title}</h4>
+              {section.intro ? <p className="text-slate-300 text-sm leading-relaxed mt-2">{section.intro}</p> : null}
+              {index === 0 ? (
+                <p className="text-slate-400 text-sm leading-relaxed mt-2">{content.specsIntro}</p>
+              ) : null}
+
+              <div className="space-y-4 mt-5">
+                {section.items.map((item) => (
+                  <article className="border-l-2 border-cyan-500/35 pl-4" key={item.title}>
+                    <h5 className="font-bold text-white text-sm">{item.title}</h5>
+                    <p className="text-slate-400 text-xs sm:text-sm leading-relaxed mt-1">{item.text}</p>
+                  </article>
+                ))}
+              </div>
+            </section>
           ))}
         </div>
 
