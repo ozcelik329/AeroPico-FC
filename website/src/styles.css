@@ -351,8 +351,8 @@ a {
 body {
   color: #dbeafe;
   background:
-    radial-gradient(circle at 48% 0%, rgba(37, 99, 235, 0.13), transparent 28rem),
-    linear-gradient(180deg, #050914 0%, #08111f 48%, #020617 100%);
+    radial-gradient(circle at 48% 0%, rgba(37, 99, 235, 0.09), transparent 28rem),
+    linear-gradient(180deg, #030712 0%, #050b16 48%, #020617 100%);
 }
 
 body::before,
