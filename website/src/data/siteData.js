@@ -82,7 +82,7 @@ export const quickStartOptions = [
 export const architectureCards = [
   {
     title: "Sabit Kanat Kontrol Yolu",
-    text: "Sabit kanat için ayrılmış, okunabilir kontrol yolu. AeroPico FC, ArduPilot veya PX4 kopyası olmaya çalışmaz; RP2350 üzerinde küçük, takip edilebilir ve genişletilebilir bir fixed-wing çekirdek kurar.",
+    text: "RP2350 üzerinde küçük, takip edilebilir ve genişletilebilir bir fixed-wing çekirdek. Kontrol döngüsü, mixer ve failsafe akışı okunabilir sınırlarla ayrılır.",
     tone: "cyan",
   },
   {

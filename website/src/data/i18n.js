@@ -117,7 +117,7 @@ export const content = {
       cards: [
         {
           title: "Sabit Kanat Kontrol Yolu",
-          text: "Sabit kanat için ayrılmış, okunabilir kontrol yolu. AeroPico FC, ArduPilot veya PX4 kopyası olmaya çalışmaz; RP2350 üzerinde küçük, takip edilebilir ve genişletilebilir bir fixed-wing çekirdek kurar.",
+          text: "RP2350 üzerinde küçük, takip edilebilir ve genişletilebilir bir fixed-wing çekirdek. Kontrol döngüsü, mixer ve failsafe akışı okunabilir sınırlarla ayrılır.",
         },
         {
           title: "Flight-Critical Yol Sade",
@@ -493,7 +493,7 @@ export const content = {
       cards: [
         {
           title: "Fixed-Wing Control Path",
-          text: "A dedicated, readable fixed-wing control path. AeroPico-FC does not try to clone ArduPilot or PX4; it builds a small, traceable, extensible core on RP2350.",
+          text: "A small, traceable, and extensible fixed-wing core on RP2350. The control loop, mixer, and failsafe flow are separated with readable boundaries.",
         },
         {
           title: "Clean Flight-Critical Path",
