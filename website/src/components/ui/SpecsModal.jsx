@@ -1,7 +1,6 @@
 import { modalNames } from "../../context/ModalContext.jsx";
 import { useLanguage } from "../../context/LanguageContext.jsx";
 import { useModal } from "../../hooks/useModal.js";
-import { cn } from "../../utils/cn.js";
 import Modal from "./Modal.jsx";
 
 export default function SpecsModal() {
@@ -28,10 +27,11 @@ export default function SpecsModal() {
       </div>
 
       <div className="space-y-6 overflow-y-auto pr-2 flex-grow">
-        <div className="bg-gradient-to-r from-cyan-500/10 via-blue-500/10 to-transparent border border-cyan-500/20 p-5 rounded-2xl flex items-center justify-between">
+        <div className="bg-gradient-to-r from-cyan-500/10 via-blue-500/10 to-transparent border border-cyan-500/20 p-5 rounded-2xl flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
             <div className="text-[10px] font-mono text-cyan-400 uppercase tracking-widest">{content.modals.stack}</div>
             <div className="text-xl font-extrabold text-white mt-1">{content.modals.stackTitle}</div>
+            <p className="text-slate-300 text-sm leading-relaxed mt-3 max-w-2xl">{content.specsIntro}</p>
           </div>
           <div className="text-right hidden sm:block">
             <div className="text-[10px] font-mono text-slate-400">TARGET</div>
@@ -39,18 +39,31 @@ export default function SpecsModal() {
           </div>
         </div>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid md:grid-cols-2 gap-3">
           {specifications.map((spec) => (
             <article
-              className={cn("bg-slate-900/60 border border-slate-800 p-4 rounded-xl space-y-1", spec.wide && "md:col-span-2 lg:col-span-3")}
-              key={`${spec.label}-${spec.value}`}
+              className="bg-slate-900/55 border border-slate-800 p-4 rounded-xl space-y-2 hover:border-cyan-500/25 transition"
+              key={spec.title}
             >
-              <div className="text-[10px] font-mono text-cyan-400">{spec.label}</div>
-              <h4 className="font-bold text-white text-sm">{spec.value}</h4>
+              <h4 className="font-bold text-white text-sm">{spec.title}</h4>
               <p className="text-slate-400 text-xs leading-relaxed">{spec.text}</p>
             </article>
           ))}
         </div>
+
+        <a
+          href="/hardware"
+          onClick={closeModal}
+          className="block bg-slate-900/75 border border-cyan-500/25 hover:border-cyan-400/50 rounded-2xl p-5 transition group"
+        >
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div>
+              <div className="text-[10px] font-mono text-cyan-400 uppercase tracking-widest">{content.modals.hardwareLinkTitle}</div>
+              <p className="text-slate-300 text-sm mt-2">{content.modals.hardwareLinkText}</p>
+            </div>
+            <span className="text-cyan-300 font-bold text-sm group-hover:text-cyan-200 transition">{content.modals.hardwareLinkAction} →</span>
+          </div>
+        </a>
       </div>
 
       <div className="pt-2 border-t border-slate-800 flex justify-end">
