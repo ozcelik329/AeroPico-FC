@@ -1,16 +1,5 @@
 import { repoUrl } from "./siteData.js";
 
-const sharedSpecs = [
-  { label: "CONTROL LOOP", value: "500 Hz", text: "Yüksek frekanslı kararlı kontrol döngüsü." },
-  { label: "OUTPUT", value: "PIO PWM", text: "Donanımsal esneklik sağlayan PIO tabanlı PWM sinyal üretimi." },
-  { label: "GCS LINK", value: "MAVLink", text: "Yer istasyonu haberleşmesi için standart protokol entegrasyonu." },
-  { label: "GATE", value: "Preflight", text: "Uçuş öncesi zorunlu güvenlik ve doğrulama denetimleri." },
-  { label: "HARDWARE", value: "RP2350 / Pico 2", text: "Çift çekirdekli işlem gücü ile iş yükü dağılımı." },
-  { label: "OS", value: "FreeRTOS", text: "Gerçek zamanlı işletim sistemi altyapısı." },
-  { label: "BUS", value: "DMA I2C", text: "İşlemciye yük bindirmeyen sensör okuma yolu." },
-  { label: "BUILD", value: "PlatformIO", text: "Tekrarlanabilir ve modüler derleme akışı.", wide: true },
-];
-
 export const content = {
   tr: {
     languageLabel: "EN",
@@ -294,9 +283,75 @@ export const content = {
       specsDescription: "AeroPico-FC sistem tasarım ilkeleri, donanım katmanı ve yazılım yığını detayları.",
       stack: "UÇUŞ YAZILIMI STACK",
       stackTitle: "RP2350 / Pico 2 için uçuş kontrol yazılımı.",
+      hardwareLinkTitle: "Hardware Platform",
+      hardwareLinkText: "Donanım uyumluluğu, hedef kart ve sensör desteği ayrı sayfada listelenir.",
+      hardwareLinkAction: "Hardware Sayfasını Aç",
       close: "Kapat",
     },
-    specs: sharedSpecs,
+    specsIntro:
+      "AeroPico-FC, RP2350 tabanlı sabit kanat uçuş kontrolcüsü mimarisi üzerine geliştirilmiş, düşük gecikmeli ve deterministik çalışmayı hedefleyen açık kaynak bir flight controller projesidir.",
+    specs: [
+      {
+        title: "RP2350 / Pico 2 Tabanlı Mimari",
+        text: "Dual-core Cortex-M33 yapısı üzerine kurulu, düşük gecikmeli sabit kanat uçuş kontrol altyapısı. Gerçek zamanlı iş yükleri core/task ayrımıyla düzenlenir.",
+      },
+      {
+        title: "Deterministik Uçuş Döngüsü",
+        text: "500 Hz sınıfı kontrol döngüsü, scheduler tabanlı görev ayrımı, phase drift kontrolü, timing health izleme ve watchdog gate mantığıyla çalışır.",
+      },
+      {
+        title: "Jitter Kontrollü Servo Çıkışı",
+        text: "Servo sinyalleri RP2350 PIO altyapısı ile üretilir. Dinamik divider ile 1000-2000 us pulse aralığı korunur ve frame zamanlaması deterministik tutulur.",
+      },
+      {
+        title: "Sabit Kanat Kontrol Sistemi",
+        text: "MANUAL ve STABILIZE modları, cascaded PID kontrol, fixed-wing mixer, servo trim/reverse/min/max, mixer gain ve failsafe output desteği.",
+      },
+      {
+        title: "Sensör Altyapısı",
+        text: "MPU6050 IMU, BMP180/BMP085 barometre ve HMC/QMC uyumlu manyetometre backend mimarisi. Role/backend ayrımı yeni sensörlerin eklenmesini kolaylaştırır.",
+      },
+      {
+        title: "DMA Destekli Sensör Okuma",
+        text: "IMU ve yardımcı sensör okumalarında DMA destekli I2C yolu, bounded polling fallback, fault-code ayrımı ve sensor health izleme kullanılır.",
+      },
+      {
+        title: "Attitude ve İrtifa Kestirimi",
+        text: "Madgwick tabanlı yönelim kestirimi, adaptif beta altyapısı ve BaroVerticalKalman ile irtifa/dikey hız filtresi.",
+      },
+      {
+        title: "Dikey İvme Destekli Altitude Estimator",
+        text: "BaroVerticalKalman yalnızca barometreye dayanmaz; attitude üzerinden dünya çerçevesine projekte edilen dikey ivme girdisini de kullanır.",
+      },
+      {
+        title: "MAVLink Uyumluluğu",
+        text: "USB üzerinden AeroPico Configurator, QGroundControl ve Mission Planner ile temel MAVLink bağlantısı. HEARTBEAT, SYS_STATUS, ATTITUDE, VFR_HUD, GPS_RAW_INT, STATUSTEXT, parametre ve command akışları desteklenir.",
+      },
+      {
+        title: "Güvenlik ve Preflight Sistemi",
+        text: "Pre-arm checks, RC failsafe, sensor health, battery state, watchdog gate, timing monitor, actuator readiness ve safe output davranışı.",
+      },
+      {
+        title: "Watchdog Gate Mimarisi",
+        text: "Watchdog yalnızca flight loop, sensor loop, telemetry heartbeat ve scheduler health sağlıklıysa beslenir. Tek bir task canlı diye sistem sağlıklı kabul edilmez.",
+      },
+      {
+        title: "Blackbox ve Test Altyapısı",
+        text: "Blackbox event logging, native unit tests, fault-injection smoke testleri, HIL/bench checklist, MAVLink probe ve logic analyzer doğrulama akışı.",
+      },
+      {
+        title: "Configurator Desteği",
+        text: "Parametre yönetimi, servo setup, RC mapping, battery setup, preflight reason paneli, bench test araçları ve modül durum izleme.",
+      },
+      {
+        title: "Statik Bellek ve Düşük Gecikme",
+        text: "Kritik uçuş yolunda heap kullanımından kaçınılır. Ring buffer, latest-value mailbox, bounded execution ve task-owned state yaklaşımı kullanılır.",
+      },
+      {
+        title: "Modüler ve Sürdürülebilir Tasarım",
+        text: "HAL/driver ayrımı, sensor backend sistemi, typed blackboard, service command mailbox ve uzun vadeli geliştirilebilir mimari.",
+      },
+    ],
   },
   en: {
     languageLabel: "TR",
@@ -580,17 +635,74 @@ export const content = {
       specsDescription: "AeroPico-FC system design principles, hardware layer, and software stack details.",
       stack: "FLIGHT SOFTWARE STACK",
       stackTitle: "Flight control software for RP2350 / Pico 2.",
+      hardwareLinkTitle: "Hardware Platform",
+      hardwareLinkText: "Hardware compatibility, target board, and sensor support are listed on a dedicated page.",
+      hardwareLinkAction: "Open Hardware Page",
       close: "Close",
     },
+    specsIntro:
+      "AeroPico-FC is an open-source flight controller project built around an RP2350 fixed-wing control architecture, targeting low latency and deterministic operation.",
     specs: [
-      { label: "CONTROL LOOP", value: "500 Hz", text: "High-frequency stable control loop." },
-      { label: "OUTPUT", value: "PIO PWM", text: "PIO-based PWM signal generation for flexible actuator outputs." },
-      { label: "GCS LINK", value: "MAVLink", text: "Standard protocol integration for ground station communication." },
-      { label: "GATE", value: "Preflight", text: "Required safety and validation checks before flight." },
-      { label: "HARDWARE", value: "RP2350 / Pico 2", text: "Dual-core processing headroom for workload separation." },
-      { label: "OS", value: "FreeRTOS", text: "Real-time operating system foundation." },
-      { label: "BUS", value: "DMA I2C", text: "Sensor reads with reduced CPU load." },
-      { label: "BUILD", value: "PlatformIO", text: "Repeatable and modular build flow.", wide: true },
+      {
+        title: "RP2350 / Pico 2 Based Architecture",
+        text: "A low-latency fixed-wing flight-control foundation built on the dual-core Cortex-M33 RP2350. Real-time workloads are separated by core and task ownership.",
+      },
+      {
+        title: "Deterministic Flight Loop",
+        text: "A 500 Hz class control loop with scheduler-based task separation, phase-drift control, timing-health monitoring, and watchdog-gate logic.",
+      },
+      {
+        title: "Jitter-Controlled Servo Output",
+        text: "Servo signals are generated through RP2350 PIO. A dynamic divider preserves the 1000-2000 us pulse range and keeps servo-frame timing deterministic.",
+      },
+      {
+        title: "Fixed-Wing Control System",
+        text: "MANUAL and STABILIZE modes, cascaded PID control, fixed-wing mixer, servo trim/reverse/min/max, mixer gain, and failsafe output support.",
+      },
+      {
+        title: "Sensor Architecture",
+        text: "MPU6050 IMU, BMP180/BMP085 barometer, and HMC/QMC-compatible magnetometer backend architecture. Role/backend separation keeps future sensor additions manageable.",
+      },
+      {
+        title: "DMA Assisted Sensor Read Path",
+        text: "IMU and auxiliary sensor reads use a DMA-assisted I2C path, bounded polling fallback, fault-code separation, and sensor-health monitoring.",
+      },
+      {
+        title: "Attitude and Altitude Estimation",
+        text: "Madgwick-based attitude estimation, adaptive beta infrastructure, and BaroVerticalKalman altitude/vertical-speed filtering.",
+      },
+      {
+        title: "Vertical Acceleration Assisted Altitude Estimator",
+        text: "BaroVerticalKalman does not rely only on the barometer; it also uses vertical acceleration projected into the world frame through attitude.",
+      },
+      {
+        title: "MAVLink Compatibility",
+        text: "Basic MAVLink connectivity over USB for AeroPico Configurator, QGroundControl, and Mission Planner. HEARTBEAT, SYS_STATUS, ATTITUDE, VFR_HUD, GPS_RAW_INT, STATUSTEXT, parameter, and command flows are supported.",
+      },
+      {
+        title: "Safety and Preflight System",
+        text: "Pre-arm checks, RC failsafe, sensor health, battery state, watchdog gate, timing monitor, actuator readiness, and safe-output behavior.",
+      },
+      {
+        title: "Watchdog Gate Architecture",
+        text: "The watchdog is fed only when the flight loop, sensor loop, telemetry heartbeat, and scheduler health are all valid. A single alive task is not treated as system health.",
+      },
+      {
+        title: "Blackbox and Test Infrastructure",
+        text: "Blackbox event logging, native unit tests, fault-injection smoke tests, HIL/bench checklist, MAVLink probe, and logic-analyzer validation flow.",
+      },
+      {
+        title: "Configurator Support",
+        text: "Parameter management, servo setup, RC mapping, battery setup, preflight reason panel, bench-test tools, and module status monitoring.",
+      },
+      {
+        title: "Static Memory and Low-Latency Discipline",
+        text: "Heap usage is avoided on the critical flight path. Ring buffers, latest-value mailboxes, bounded execution, and task-owned state keep data flow controlled.",
+      },
+      {
+        title: "Modular and Maintainable Design",
+        text: "HAL/driver separation, sensor backend system, typed blackboard, service command mailbox, and a long-term extensible architecture.",
+      },
     ],
   },
 };
