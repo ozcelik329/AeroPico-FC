@@ -13,7 +13,7 @@ export default function Header() {
 
   return (
     <header className="header-shell bg-slate-950/35 border border-white/10 shadow-2xl shadow-black/35 backdrop-blur-2xl rounded-3xl">
-      <a className="header-brand" href="/" aria-label={content.header.homeLabel}>
+      <a className="header-brand" href="/#top" aria-label={content.header.homeLabel}>
         <span className="rounded-2xl bg-slate-900/45 border border-cyan-400/20 px-3 py-2 shadow-lg shadow-cyan-500/10">
           <img src={logo} alt="AeroPico Flight Control Software" className="header-logo object-contain drop-shadow-[0_0_12px_rgba(34,211,238,0.20)]" />
         </span>
@@ -22,7 +22,7 @@ export default function Header() {
 
       <nav className="header-nav" aria-label={content.header.navLabel}>
         <a
-          href="/features"
+          href="/#architecture"
           className="header-nav-item hover:text-cyan-400 transition cursor-pointer font-semibold text-cyan-300 bg-cyan-500/10 border border-cyan-500/20 rounded-xl shadow-sm flex items-center gap-2 group"
         >
           <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
@@ -73,7 +73,7 @@ export default function Header() {
       </div>
 
       <div id="mobile-menu" className={`mobile-menu-panel ${menuOpen ? "is-open" : ""}`}>
-        <a href="/features" onClick={closeMenu} className="mobile-menu-item text-cyan-300">
+        <a href="/#architecture" onClick={closeMenu} className="mobile-menu-item text-cyan-300">
           {content.header.features}
         </a>
         {navItems.map((item) => (

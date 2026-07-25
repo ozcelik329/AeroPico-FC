@@ -1,19 +1,11 @@
 import { useEffect, useState } from "react";
 import { LanguageProvider } from "./context/LanguageContext.jsx";
-import ArchitecturePage from "./pages/ArchitecturePage.jsx";
-import ContactPage from "./pages/ContactPage.jsx";
-import DocsPage from "./pages/DocsPage.jsx";
-import FeaturesPage from "./pages/FeaturesPage.jsx";
 import HardwarePage from "./pages/HardwarePage.jsx";
 import Home from "./pages/Home.jsx";
 import ReleasesPage from "./pages/ReleasesPage.jsx";
 
 const routes = {
   "/": Home,
-  "/architecture": ArchitecturePage,
-  "/contact": ContactPage,
-  "/docs": DocsPage,
-  "/features": FeaturesPage,
   "/hardware": HardwarePage,
   "/releases": ReleasesPage,
 };
