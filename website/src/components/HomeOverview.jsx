@@ -7,14 +7,10 @@ export default function HomeOverview() {
 
   return (
     <section className="site-container reveal-section py-16 border-t border-slate-900/80 relative z-10">
-      <div className="mb-10 grid gap-6 lg:grid-cols-[0.9fr_1.1fr] lg:items-end">
-        <div>
-          <div className="text-xs uppercase font-mono text-cyan-400 font-semibold tracking-wider bg-cyan-500/10 border border-cyan-500/20 px-3 py-1 rounded-full inline-block">
-            {content.home.overviewEyebrow}
-          </div>
-          <h2 className="text-2xl md:text-4xl font-extrabold text-white mt-3">{content.home.overviewTitle}</h2>
+      <div className="mb-10">
+        <div className="text-xs uppercase font-mono text-cyan-400 font-semibold tracking-wider bg-cyan-500/10 border border-cyan-500/20 px-3 py-1 rounded-full inline-block">
+          {content.home.overviewEyebrow}
         </div>
-        <p className="text-slate-400 text-sm leading-relaxed lg:max-w-2xl">{content.home.overviewDescription}</p>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[1.35fr_0.9fr]">

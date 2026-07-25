@@ -83,7 +83,7 @@ export default function Hero() {
               {content.hero.primary}
             </a>
             <a
-              href="/features"
+              href="/#architecture"
               className="border border-slate-800 hover:border-cyan-500/50 bg-slate-900/50 hover:bg-slate-900 active:scale-95 text-slate-300 font-semibold px-6 py-3.5 rounded-xl text-center transition-all duration-150 cursor-pointer flex items-center justify-center gap-2"
             >
               <span>{content.hero.secondary}</span>
