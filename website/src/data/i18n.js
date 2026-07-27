@@ -5,7 +5,7 @@ export const content = {
     languageLabel: "EN",
     seo: {
       title: "AeroPico-FC",
-      description: "RP2350 / Raspberry Pi Pico 2 için FreeRTOS, PIO, DMA ve MAVLink temelli sabit kanat uçuş kontrol yazılımı.",
+      description: "RP2350 / Raspberry Pi Pico 2 tabanlı sabit kanat uçuş kontrol yazılımı; FreeRTOS görev yapısı, PIO servo PWM, DMA sensör yolu ve MAVLink telemetri içerir.",
     },
     navItems: [
       { label: "Başlangıç", href: "/#quickstart", highlighted: true },
@@ -381,7 +381,7 @@ export const content = {
     languageLabel: "TR",
     seo: {
       title: "AeroPico-FC",
-      description: "A fixed-wing flight control software stack for RP2350 / Raspberry Pi Pico 2 using FreeRTOS, PIO, DMA, and MAVLink.",
+      description: "Fixed-wing flight control software for RP2350 / Raspberry Pi Pico 2 with FreeRTOS tasking, PIO servo PWM, DMA sensor acquisition, and MAVLink telemetry.",
     },
     navItems: [
       { label: "Start", href: "/#quickstart", highlighted: true },
