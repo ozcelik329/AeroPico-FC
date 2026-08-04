@@ -162,7 +162,7 @@ export const content = {
       title: "Kurulum, kalibrasyon ve bench komutları tek arayüzde.",
       description:
         "Configurator, firmware ile ACK-gated MAVLink servis komutları üzerinden konuşur. Parametreleri okur, flash üzerine kaydeder, sensör sağlığını kontrol eder ve güvenli testleri sadece disarmed durumda çalıştırır.",
-      action: "Configurator Sayfasını Aç",
+      action: "Detaylı İncele →",
       checks: [
         "USB Serial bağlantı",
         "MAVLink parametre okuma/yazma",
@@ -289,12 +289,9 @@ export const content = {
         ],
       },
       downloads: {
-        eyebrow: "CONFIGURATOR İNDİRME",
-        title: "macOS ve Windows paketleri",
-        text:
-          "Electron paketleme tamamlandığında .dmg ve .exe bağlantıları buraya bağlanacak. Şimdilik butonlar paket yerleşimi için hazır tutulur.",
+        title: "AeroPico Configurator",
         items: [
-          { platform: "macos", kicker: "Yakında", label: "macOS", ariaLabel: "macOS için AeroPico Configurator indir" },
+          { platform: "macos", kicker: "Yakında", label: "MacOS", ariaLabel: "MacOS için AeroPico Configurator indir" },
           { platform: "windows", kicker: "Yakında", label: "Windows", ariaLabel: "Windows için AeroPico Configurator indir" },
         ],
       },
@@ -661,7 +658,7 @@ export const content = {
       title: "Setup, calibration, and bench commands in one interface.",
       description:
         "Configurator talks to the firmware through ACK-gated MAVLink service commands. It reads parameters, saves to flash, checks sensor health, and runs safe tests only while disarmed.",
-      action: "Open Configurator Page",
+      action: "View Details →",
       checks: [
         "USB serial connection",
         "MAVLink parameter read/write",
@@ -788,12 +785,9 @@ export const content = {
         ],
       },
       downloads: {
-        eyebrow: "CONFIGURATOR DOWNLOAD",
-        title: "macOS and Windows packages",
-        text:
-          "After Electron packaging is ready, the .dmg and .exe links will be connected here. For now, the buttons are prepared for package placement.",
+        title: "AeroPico Configurator",
         items: [
-          { platform: "macos", kicker: "Soon", label: "macOS", ariaLabel: "Download AeroPico Configurator for macOS" },
+          { platform: "macos", kicker: "Soon", label: "MacOS", ariaLabel: "Download AeroPico Configurator for MacOS" },
           { platform: "windows", kicker: "Soon", label: "Windows", ariaLabel: "Download AeroPico Configurator for Windows" },
         ],
       },

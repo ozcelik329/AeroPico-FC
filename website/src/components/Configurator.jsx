@@ -1,5 +1,7 @@
 import configuratorPreview from "../assets/aeropico-configurator-dark.webp";
 import { useLanguage } from "../context/LanguageContext.jsx";
+import PlatformDownloadButtons from "./ui/PlatformDownloadButtons.jsx";
+
 export default function Configurator() {
   const { content } = useLanguage();
 
@@ -26,7 +28,9 @@ export default function Configurator() {
           ))}
         </div>
 
-        <div className="pt-2">
+        <PlatformDownloadButtons items={content.configuratorPage.downloads.items} className="configurator-inline-downloads" />
+
+        <div className="pt-1">
           <a
             href="/configurator"
             className="border border-cyan-500/35 bg-cyan-500/10 hover:bg-cyan-500/15 active:scale-95 text-cyan-200 font-bold px-6 py-3.5 rounded-xl transition-all duration-150 inline-flex items-center gap-2 text-sm"

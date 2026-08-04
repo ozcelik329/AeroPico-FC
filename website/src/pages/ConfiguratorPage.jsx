@@ -155,10 +155,8 @@ export default function ConfiguratorPage() {
 
       <section className="site-container py-14 border-t border-slate-900/80 relative z-10">
         <div className="config-download-panel">
-          <div className="space-y-3">
-            <div className="text-xs font-mono text-cyan-400 uppercase tracking-wider">{page.downloads.eyebrow}</div>
+          <div>
             <h2>{page.downloads.title}</h2>
-            <p>{page.downloads.text}</p>
           </div>
           <PlatformDownloadButtons items={page.downloads.items} />
         </div>
