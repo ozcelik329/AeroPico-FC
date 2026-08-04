@@ -8,12 +8,9 @@ export const content = {
       description: "RP2350 / Raspberry Pi Pico 2 tabanlı sabit kanat uçuş kontrol yazılımı; FreeRTOS görev yapısı, PIO servo PWM, DMA sensör yolu ve MAVLink telemetri içerir.",
     },
     navItems: [
-      { label: "Başlangıç", href: "/#quickstart", highlighted: true },
-      { label: "Donanım", href: "/hardware" },
-      { label: "Mimari", href: "/#architecture" },
+      { label: "Quick Start", href: "/#quickstart", highlighted: true },
       { label: "Configurator", href: "/configurator" },
       { label: "Dökümanlar", href: "/#docs" },
-      { label: "Koşullar", href: "/releases" },
       { label: "İletişim", href: "/#contact" },
     ],
     header: {
@@ -510,12 +507,9 @@ export const content = {
       description: "Fixed-wing flight control software for RP2350 / Raspberry Pi Pico 2 with FreeRTOS tasking, PIO servo PWM, DMA sensor acquisition, and MAVLink telemetry.",
     },
     navItems: [
-      { label: "Start", href: "/#quickstart", highlighted: true },
-      { label: "Hardware", href: "/hardware" },
-      { label: "Architecture", href: "/#architecture" },
+      { label: "Quick Start", href: "/#quickstart", highlighted: true },
       { label: "Configurator", href: "/configurator" },
       { label: "Docs", href: "/#docs" },
-      { label: "Releases", href: "/releases" },
       { label: "Contact", href: "/#contact" },
     ],
     header: {

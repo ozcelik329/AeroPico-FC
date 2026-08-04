@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import ReleaseGate from "../components/ReleaseGate.jsx";
 import PageShell from "../components/layout/PageShell.jsx";
 import PlatformDownloadButtons from "../components/ui/PlatformDownloadButtons.jsx";
 import { useLanguage } from "../context/LanguageContext.jsx";
@@ -48,8 +47,7 @@ export default function ReleasesPage() {
 
   return (
     <PageShell>
-      <ReleaseGate />
-      <section className="site-container py-16 border-t border-slate-900/80 relative z-10">
+      <section className="site-container py-16 relative z-10">
         <div className="mb-10 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
           <div className="max-w-3xl">
             <div className="text-xs uppercase font-mono text-cyan-400 font-semibold tracking-wider bg-cyan-500/10 border border-cyan-500/20 px-3 py-1 rounded-full inline-block">
