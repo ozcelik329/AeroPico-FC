@@ -2,16 +2,17 @@ import { useEffect, useState } from "react";
 import SpecsModal from "./components/ui/SpecsModal.jsx";
 import { LanguageProvider } from "./context/LanguageContext.jsx";
 import { ModalProvider } from "./context/ModalContext.jsx";
+import DownloadsPage from "./pages/DownloadsPage.jsx";
 import HardwarePage from "./pages/HardwarePage.jsx";
 import Home from "./pages/Home.jsx";
 import ConfiguratorPage from "./pages/ConfiguratorPage.jsx";
-import ReleasesPage from "./pages/ReleasesPage.jsx";
 
 const routes = {
   "/": Home,
   "/configurator": ConfiguratorPage,
+  "/downloads": DownloadsPage,
   "/hardware": HardwarePage,
-  "/releases": ReleasesPage,
+  "/releases": DownloadsPage,
 };
 
 export default function App() {

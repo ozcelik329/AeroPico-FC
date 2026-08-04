@@ -79,7 +79,7 @@ export default function Hero() {
 
           <div className="flex flex-col sm:flex-row gap-4 pt-2">
             <a
-              href="/releases"
+              href="/downloads"
               className="bg-cyan-500 hover:bg-cyan-400 active:scale-95 text-slate-950 font-bold px-6 py-3.5 rounded-xl text-center transition-all duration-150 shadow-lg shadow-cyan-500/20 cursor-pointer"
             >
               {content.hero.primary}
