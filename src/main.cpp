@@ -8,6 +8,7 @@
 #include "core/flight/FlightManager.h"
 #include "core/scheduling/SystemTimer.h"
 #include "core/safety/WatchdogGate.h"
+#include "core/safety/BenchAdminGate.h"
 #include "core/scheduling/Scheduler.h"
 #include "core/safety/PreflightHealth.h"
 #include "core/sensors/SensorPreflightEvaluator.h"
@@ -22,6 +23,10 @@
 #include "app/ServiceCommandProcessor.h"
 #include "telemetry/MavlinkHandler.h"
 #include "telemetry/Blackbox.h"
+#if BLACKBOX_SD_ENABLED
+#include "hal/rp2350/RP2350_SPI.h"
+#include "telemetry/BlackboxSdSink.h"
+#endif
 #include "app/AppTasks.h"
 #if BATTERY_ADC_ENABLED
 #include "hal/rp2350/RP2350_ADC.h"
@@ -29,12 +34,10 @@
 #ifdef MAVLINK_PARAMS_ENABLED
 #include "telemetry/ParamManager.h"
 #endif
-
-FlightManager flightManager;
-
 #include "drivers/Sensors.h"
 #include "drivers/gps/GpsManager.h"
 #include "drivers/RX.h"
+FlightManager flightManager;
 SensorManager sensorManager;
 RXManager rxManager;
 static GpsManager gpsManager;
@@ -51,6 +54,10 @@ static RPFlashParamStorage paramStorage;
 #endif
 #if BATTERY_ADC_ENABLED
 static RP2350ADC batteryAdc;
+#endif
+#if BLACKBOX_SD_ENABLED
+static RP2350SPI blackboxSpi;
+static BlackboxSdSink blackboxSdSink(PIN_BLACKBOX_SPI_CS, BLACKBOX_SPI_HZ, BLACKBOX_SD_FILE);
 #endif
 static PreflightResult lastPreflightResult = {false, "not evaluated", 0};
 static constexpr uint32_t PREFLIGHT_MIN_FREE_HEAP_BYTES = 24 * 1024;
@@ -69,9 +76,7 @@ static TaskHandle_t sensorTaskHandle = nullptr;
 static TaskHandle_t flightTaskHandle = nullptr;
 static TaskHandle_t telemetryTaskHandle = nullptr;
 static RuntimeHealthStatus runtimeHealth = {};
-
 static PreflightResult evaluatePreflight();
-
 static uint16_t clampStackWords(UBaseType_t value) { return value > 0xFFFFu ? 0xFFFFu : (uint16_t)value; }
 
 static WatchdogDecision evaluateWatchdogGate() {
@@ -86,9 +91,14 @@ static WatchdogDecision evaluateWatchdogGate() {
 
 static bool provideFlightData(FlightData& out) { return flightManager.peekLatest(out); }
 static bool provideArmState() { return flightManager.isArmed(); }
-
 static bool handleMavlinkArmCommand(bool arm, bool force, char* reason, size_t reasonLen) {
-    return flightManager.requestArmFromMavlink(arm, force, reason, reasonLen);
+    const bool accepted = flightManager.requestArmFromMavlink(arm, force, reason, reasonLen);
+    if (!accepted && reason && strcmp(reason, "preflight blocked") == 0 &&
+        lastPreflightResult.firstFailureReason && lastPreflightResult.firstFailureReason[0] != '\0') {
+        strncpy(reason, lastPreflightResult.firstFailureReason, reasonLen - 1);
+        reason[reasonLen - 1] = '\0';
+    }
+    return accepted;
 }
 
 static uint8_t handleMavlinkServiceCommand(uint16_t action, float p2, float p3, float p4, char* reason, size_t reasonLen) {
@@ -103,7 +113,6 @@ static bool provideBatteryVoltage(float& voltage) {
 
 static void applyRCOverride(uint16_t aileron, uint16_t elevator, uint16_t throttle, uint16_t rudder) { flightManager.setRCOverride(aileron, elevator, throttle, rudder); }
 static void clearRCOverride() { flightManager.clearRCOverride(); }
-
 static void applyPidGains(float angleP, float angleI, float angleD, float rateP, float rateI, float rateD) { SystemTimer::applyPidGains(angleP, angleI, angleD, rateP, rateI, rateD); }
 static void applyMixerSettings(const MixerSettings& settings) { SystemTimer::applyMixerSettings(settings); }
 static void applyFailsafeTimeout(uint32_t timeoutMs) { rxManager.setFailsafeTimeoutMs(timeoutMs); }
@@ -113,7 +122,6 @@ static void applyRcMapping(uint8_t roll, uint8_t pitch, uint8_t throttle, uint8_
 static void applyMavlinkRates(uint8_t attitudeHz, uint8_t rcHz, uint8_t sysStatusHz) { mavlink.setStreamRates(attitudeHz, rcHz, sysStatusHz); }
 static void applyBlackboxRate(uint8_t logHz) { blackbox.setLogRateHz(logHz); }
 static void applyPreflightQuality(uint8_t minQuality) { preflightMinSensorQuality = minQuality > 100 ? 100 : minQuality; }
-
 static void applyBatteryProfile(uint8_t cells, float nominalVoltage, uint16_t capacityMah, uint8_t cRating,
                                 float lowVoltage, float brownoutVoltage, float maxVoltage) {
     (void)nominalVoltage;
@@ -125,7 +133,6 @@ static void applyBatteryProfile(uint8_t cells, float nominalVoltage, uint16_t ca
                         cells, capacityMah, cRating);
 #endif
 }
-
 static bool evaluateSensorPreflight() {
     SensorBuffer latest = sensorManager.getLatest();
     const SensorPreflightStatus status = SensorPreflightEvaluator::evaluate(
@@ -158,13 +165,12 @@ static PreflightResult evaluatePreflight() {
 
 static void updatePreflightArmGate() {
     lastPreflightResult = evaluatePreflight();
+    flightManager.setBenchForceArmAllowed(benchAdminGate.forceArmActive());
     flightManager.setPreflightArmAllowed(lastPreflightResult.canArm);
 }
-
 static void runSensorUpdate() { flightManager.updateSensors(); }
 static void runServiceCommandMailbox() { serviceCommandProcessor.process(); }
 static void runRcUpdate() { flightManager.updateRc(); }
-
 static void runStatePublish() {
     flightManager.setSystemFaults(
         !SystemTimer::checkTimingBudgets(),
@@ -173,7 +179,6 @@ static void runStatePublish() {
     );
     flightManager.publishState();
 }
-
 static void runWatchdogGate() {
     WatchdogDecision watchdogDecision = evaluateWatchdogGate();
     if (watchdogDecision.shouldFeed) {
@@ -189,7 +194,6 @@ static void runWatchdogGate() {
                       watchdogDecision.heartbeatAgeUs);
     }
 }
-
 static void runMavlinkTelemetry() {
     mavlink.update();
     ServiceCommandCompletion completion = {};
@@ -345,6 +349,7 @@ void setup() {
     }
 
     Logger::init();
+    benchAdminGate.init();
 #if BATTERY_ADC_ENABLED
     batteryAdc.init(PIN_BATTERY_ADC, BATTERY_ADC_CHANNEL);
     batteryMonitor.init(provideBatteryVoltage, BATTERY_MIN_VOLTAGE, BATTERY_MAX_VOLTAGE, BATTERY_BROWNOUT_VOLTAGE);
@@ -427,6 +432,10 @@ void setup() {
     mavlink.setRCOverrideEnabled(true);
     mavlink.setRCOverrideAllowedWhileArmed(false);
     mavlink.init();
+#if BLACKBOX_SD_ENABLED
+    blackboxSpi.begin(PIN_BLACKBOX_SPI_SCK, PIN_BLACKBOX_SPI_MISO, PIN_BLACKBOX_SPI_MOSI);
+    blackbox.setSink(&blackboxSdSink);
+#endif
     blackbox.init();
 
 #ifdef MAVLINK_PARAMS_ENABLED

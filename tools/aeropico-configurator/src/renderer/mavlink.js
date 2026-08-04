@@ -1,6 +1,9 @@
 (function () {
-  const STX = 0xfe;
-  const MAVLINK_VERSION = 1;
+  const STX_V1 = 0xfe;
+  const STX_V2 = 0xfd;
+  const MAVLINK_V2_HEADER_LEN = 9;
+  const MAVLINK_V2_SIGNATURE_LEN = 13;
+  const MAVLINK_V2_INCOMPAT_SIGNED = 0x01;
   const SYS_ID = 255;
   const COMP_ID = 190;
 
@@ -61,13 +64,22 @@
     }
 
     frame(msgId, payload) {
-      const header = new Uint8Array([payload.length, this.seq++ & 0xff, SYS_ID, COMP_ID, msgId]);
+      const header = new Uint8Array(MAVLINK_V2_HEADER_LEN);
+      header[0] = payload.length;
+      header[1] = 0; // incompat_flags: signing is intentionally disabled for now.
+      header[2] = 0; // compat_flags
+      header[3] = this.seq++ & 0xff;
+      header[4] = SYS_ID;
+      header[5] = COMP_ID;
+      header[6] = msgId & 0xff;
+      header[7] = (msgId >> 8) & 0xff;
+      header[8] = (msgId >> 16) & 0xff;
       const crcBytes = new Uint8Array(header.length + payload.length);
       crcBytes.set(header, 0);
       crcBytes.set(payload, header.length);
       const crc = x25(crcBytes, CRC_EXTRA[msgId] || 0);
       const frame = new Uint8Array(1 + header.length + payload.length + 2);
-      frame[0] = STX;
+      frame[0] = STX_V2;
       frame.set(header, 1);
       frame.set(payload, 1 + header.length);
       frame[frame.length - 2] = crc & 0xff;
@@ -109,6 +121,14 @@
     aeroPicoService(action, p2 = 0, p3 = 0, p4 = 0) {
       return this.commandLong(31010, [action, p2, p3, p4, 0, 0, 0]);
     }
+
+    arm(force = false) {
+      return this.commandLong(400, [1, force ? 21196 : 0, 0, 0, 0, 0, 0]);
+    }
+
+    disarm(force = false) {
+      return this.commandLong(400, [0, force ? 21196 : 0, 0, 0, 0, 0, 0]);
+    }
   }
 
   class Parser {
@@ -122,6 +142,7 @@
       this.state = "stx";
       this.expected = 0;
       this.index = 0;
+      this.protocol = 0;
     }
 
     pushBytes(bytes) {
@@ -130,7 +151,8 @@
 
     push(byte) {
       if (this.state === "stx") {
-        if (byte === STX) {
+        if (byte === STX_V1 || byte === STX_V2) {
+          this.protocol = byte === STX_V2 ? 2 : 1;
           this.frame[0] = byte;
           this.index = 1;
           this.state = "len";
@@ -145,9 +167,13 @@
 
       this.frame[this.index++] = byte;
       if (this.state === "len") {
-        this.expected = byte + 8;
+        this.expected = byte + (this.protocol === 2 ? 12 : 8);
         this.state = "body";
         return;
+      }
+
+      if (this.protocol === 2 && this.index === 3 && (byte & MAVLINK_V2_INCOMPAT_SIGNED)) {
+        this.expected += MAVLINK_V2_SIGNATURE_LEN;
       }
 
       if (this.index >= this.expected) {
@@ -157,10 +183,13 @@
     }
 
     consumeFrame(frame) {
+      const protocol = frame[0] === STX_V2 ? 2 : 1;
       const len = frame[1];
-      const msgId = frame[5];
+      const msgId = protocol === 2
+        ? (frame[7] | (frame[8] << 8) | (frame[9] << 16))
+        : frame[5];
       if (CRC_EXTRA[msgId] === undefined) return;
-      const payloadStart = 6;
+      const payloadStart = protocol === 2 ? 10 : 6;
       const payloadEnd = payloadStart + len;
       const crcIn = frame[payloadEnd] | (frame[payloadEnd + 1] << 8);
       const crcBytes = frame.subarray(1, payloadEnd);
@@ -175,7 +204,7 @@
           autopilot: view.getUint8(5),
           baseMode: view.getUint8(6),
           systemStatus: view.getUint8(7),
-          mavlinkVersion: MAVLINK_VERSION
+          mavlinkVersion: protocol
         });
         return;
       }

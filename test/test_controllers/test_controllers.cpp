@@ -73,6 +73,16 @@ void test_flight_mode_controller_recovers_from_failsafe_to_ready() {
     TEST_ASSERT_EQUAL((int)FlightState::ReadyToArm, (int)m.state());
 }
 
+void test_flight_mode_controller_force_arm_bypasses_preflight_for_bench() {
+    FlightModeController m;
+    m.init();
+    const char* reason = "";
+
+    TEST_ASSERT_TRUE(m.forceArm(&reason));
+    TEST_ASSERT_TRUE(m.isArmed());
+    TEST_ASSERT_EQUAL_STRING("BENCH_FORCE_ARM active", reason);
+}
+
 int main() {
     UNITY_BEGIN();
     RUN_TEST(test_flight_mode_controller_starts_disarmed);
@@ -81,5 +91,6 @@ int main() {
     RUN_TEST(test_flight_mode_controller_blocks_arm_when_preflight_fails);
     RUN_TEST(test_flight_mode_controller_reports_ready_reason_after_preflight_recovers);
     RUN_TEST(test_flight_mode_controller_recovers_from_failsafe_to_ready);
+    RUN_TEST(test_flight_mode_controller_force_arm_bypasses_preflight_for_bench);
     return UNITY_END();
 }

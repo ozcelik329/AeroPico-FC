@@ -54,11 +54,12 @@ Durum tahmini notu:
 - Gyro sicaklik katsayisi boot kalibrasyonunda olculur, kalibrasyon blob'una kaydedilir ve fusion katmaninda kullanilir.
 - IMU, manyetometre, barometre ve GPS kabiliyetleri bitmask ile raporlanir; olmayan fonksiyonun algoritmasi devreye alinmaz.
 
-## ESP32-CAM Hazirligi
+## Harici Video ve Telemetry Ayrimi
 
-ESP32-CAM, V1.0 ucus kontrol karari vermemelidir. Kamera linki yalnizca yardimci telemetry/vision hazirligi olarak tutulur.
-
-Durum: `src/drivers/camera/Esp32CamLink.*` link health iskeleti eklendi ve `ESP32_CAM_LINK_ENABLED=0` ile varsayilan kapali tutuldu. Aktif edilince ilk sorumlulugu UART link var/yok bilgisini raporlamak olmalidir; kontrol dongusuna dogrudan baglanmamalidir.
+Video sistemi V1.0 flight controller kapsaminda degildir. Kamera goruntusu
+ayri analog veya dijital FPV linkiyle tasinmalidir. AeroPico-FC uzerindeki
+GP12/GP13 PIO UART hatti, MAVLink telemetry radio icin ayrilir; ucus kontrol
+karari telemetry veya video yardimci donanimina verilmez.
 
 ## EKF State Onerisi
 

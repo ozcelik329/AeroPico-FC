@@ -14,7 +14,7 @@ Fault semantics that do not require hardware are covered by
 - Pico 2 / RP2350 board flashed with the current firmware
 - USB serial connection
 - Connected IMU/I2C stack used by the target build
-- Optional: SBUS receiver and ESP32-CAM telemetry path
+- Optional: SBUS receiver and external UART telemetry radio path
 
 ## Run
 

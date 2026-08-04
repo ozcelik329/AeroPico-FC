@@ -26,7 +26,7 @@ class MavlinkHandler {
     using RCOverrideHandler = void (*)(uint16_t aileron, uint16_t elevator, uint16_t throttle, uint16_t rudder);
     using ClearRCOverrideHandler = void (*)();
 
-    void init(uint32_t baud = 57600);
+    void init(uint32_t baud = TELEMETRY_UART_BAUD);
     void update();
     void setFlightDataProvider(FlightDataProvider provider);
     void setArmStateProvider(ArmStateProvider provider);
@@ -50,7 +50,7 @@ class MavlinkHandler {
     void sendCommandAck(uint16_t command, uint8_t result);
     void sendStatusText(const char* text, uint8_t severity = MAV_SEVERITY_WARNING);
 
-    bool isESP32Alive() const;
+    bool isGroundStationAlive() const;
 
 #ifdef UNIT_TEST
     void handleRCOverrideForTest(uint16_t ch1, uint16_t ch2, uint16_t ch3, uint16_t ch4);
@@ -70,8 +70,8 @@ class MavlinkHandler {
     mavlink_message_t _msg;
     mavlink_status_t  _status;
 
-    uint32_t _lastESP32Heartbeat  = 0;
-    bool     _esp32Alive          = false;
+    uint32_t _lastGroundStationHeartbeat = 0;
+    bool     _groundStationAlive         = false;
     FlightDataProvider _flightDataProvider = nullptr;
     ArmStateProvider _armStateProvider = nullptr;
     ArmCommandHandler _armCommandHandler = nullptr;

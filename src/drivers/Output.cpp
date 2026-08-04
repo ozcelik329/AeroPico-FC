@@ -1,6 +1,7 @@
 #include "Output.h"
 #include "pwm.pio.h"
 #include <hardware/clocks.h>
+#include <pico/time.h>
 
 static PIO pio = pio0;
 static int sm_aileron = -1;
@@ -9,13 +10,15 @@ static int sm_rudder = -1;
 static int sm_throttle = -1;
 static constexpr uint32_t SERVO_UPDATE_PERIOD_US = 20000U;
 static uint32_t lastServoWriteUs = 0;
-static bool forceNextServoWrite = true;
 static ServoOutputStatus outputStatus = {};
-static int pendingThrottle = PWM_MIN;
-static int pendingRoll = PWM_NEUTRAL;
-static int pendingPitch = PWM_NEUTRAL;
-static int pendingYaw = PWM_NEUTRAL;
-static uint32_t pendingFrameUs = 0;
+static repeating_timer servoFrameTimer;
+static bool servoFrameTimerActive = false;
+static volatile uint32_t pendingThrottleFrame = 0;
+static volatile uint32_t pendingRollFrame = 0;
+static volatile uint32_t pendingPitchFrame = 0;
+static volatile uint32_t pendingYawFrame = 0;
+static volatile uint32_t pendingFrameUs = 0;
+static volatile bool pendingFrameDirty = false;
 
 // ServoOutput implementation
 ServoOutput servoOutput;
@@ -23,9 +26,12 @@ ServoOutput servoOutput;
 // forward declarations for helper functions
 static bool initServoSM(uint sm, uint pin, uint offset);
 static void writePulse(uint sm, int pulse_us);
-static void flushPendingFrame(uint32_t nowUs);
+static void writePackedPulse(uint sm, uint32_t packed);
 static uint32_t packServoFrameUs(int pulse_us);
 static float getOneMicrosecondPioClockDivider();
+static void updateMaxLatency(uint32_t latencyUs);
+static bool servoFrameTimerCallback(repeating_timer* timer);
+static void updatePendingFrame(int throttle, int roll, int pitch, int yaw, uint32_t nowUs);
 
 void ServoOutput::init() {
     _ready = false;
@@ -54,17 +60,21 @@ void ServoOutput::init() {
     }
 
     _ready = true;
-    forceNextServoWrite = true;
     outputStatus = {};
-    pendingThrottle = PWM_MIN;
-    pendingRoll = PWM_NEUTRAL;
-    pendingPitch = PWM_NEUTRAL;
-    pendingYaw = PWM_NEUTRAL;
-    pendingFrameUs = micros();
-    writePulse((uint)sm_aileron,  PWM_NEUTRAL);
-    writePulse((uint)sm_elevator, PWM_NEUTRAL);
-    writePulse((uint)sm_rudder,   PWM_NEUTRAL);
-    writePulse((uint)sm_throttle, PWM_MIN);
+    const uint32_t nowUs = time_us_32();
+    lastServoWriteUs = nowUs;
+    updatePendingFrame(PWM_MIN, PWM_NEUTRAL, PWM_NEUTRAL, PWM_NEUTRAL, nowUs);
+    pendingFrameDirty = true;
+    serviceFrame();
+
+    if (!servoFrameTimerActive) {
+        servoFrameTimerActive = add_repeating_timer_us(
+            -(int64_t)SERVO_UPDATE_PERIOD_US,
+            servoFrameTimerCallback,
+            nullptr,
+            &servoFrameTimer
+        );
+    }
 }
 
 void ServoOutput::writeMotors(int throttle, int roll, int pitch, int yaw) {
@@ -72,27 +82,26 @@ void ServoOutput::writeMotors(int throttle, int roll, int pitch, int yaw) {
         return;
     }
 
-    const uint32_t nowUs = micros();
-    pendingThrottle = throttle;
-    pendingRoll = roll;
-    pendingPitch = pitch;
-    pendingYaw = yaw;
-    pendingFrameUs = nowUs;
+    const uint32_t nowUs = time_us_32();
+    updatePendingFrame(throttle, roll, pitch, yaw, nowUs);
+}
 
-    const bool immediateSafeFrame = throttle <= PWM_MIN
-        && roll == PWM_NEUTRAL
-        && pitch == PWM_NEUTRAL
-        && yaw == PWM_NEUTRAL;
-    if (!immediateSafeFrame
-        && !forceNextServoWrite
-        && (uint32_t)(nowUs - lastServoWriteUs) < SERVO_UPDATE_PERIOD_US) {
-        __atomic_add_fetch(&outputStatus.staleSkips, 1U, __ATOMIC_RELAXED);
+void ServoOutput::serviceFrame() {
+    if (!_ready) {
         return;
     }
-    forceNextServoWrite = false;
+
+    const uint32_t nowUs = time_us_32();
+    const uint32_t latencyUs = nowUs - __atomic_load_n(&pendingFrameUs, __ATOMIC_ACQUIRE);
+    updateMaxLatency(latencyUs);
+    __atomic_store_n(&outputStatus.lastWriteUs, nowUs, __ATOMIC_RELEASE);
+    __atomic_store_n(&pendingFrameDirty, false, __ATOMIC_RELEASE);
     lastServoWriteUs = nowUs;
 
-    flushPendingFrame(nowUs);
+    writePackedPulse((uint)sm_aileron,  __atomic_load_n(&pendingRollFrame, __ATOMIC_ACQUIRE));
+    writePackedPulse((uint)sm_elevator, __atomic_load_n(&pendingPitchFrame, __ATOMIC_ACQUIRE));
+    writePackedPulse((uint)sm_rudder,   __atomic_load_n(&pendingYawFrame, __ATOMIC_ACQUIRE));
+    writePackedPulse((uint)sm_throttle, __atomic_load_n(&pendingThrottleFrame, __ATOMIC_ACQUIRE));
 }
 
 void ServoOutput::setServoPulse(void* p, unsigned sm, uint32_t pulse_us) {
@@ -154,23 +163,34 @@ static void updateMaxLatency(uint32_t latencyUs) {
     }
 }
 
-static void flushPendingFrame(uint32_t nowUs) {
-    const uint32_t latencyUs = nowUs - pendingFrameUs;
-    updateMaxLatency(latencyUs);
-    __atomic_store_n(&outputStatus.lastWriteUs, nowUs, __ATOMIC_RELEASE);
-    writePulse((uint)sm_aileron,  pendingRoll);
-    writePulse((uint)sm_elevator, pendingPitch);
-    writePulse((uint)sm_rudder,   pendingYaw);
-    writePulse((uint)sm_throttle, pendingThrottle);
+static void writePulse(uint sm, int pulse_us) {
+    writePackedPulse(sm, packServoFrameUs(pulse_us));
 }
 
-static void writePulse(uint sm, int pulse_us) {
+static void writePackedPulse(uint sm, uint32_t packed) {
     if (pio_sm_is_tx_fifo_full(pio, sm)) {
         __atomic_add_fetch(&outputStatus.fifoDrops, 1U, __ATOMIC_RELAXED);
         return;
     }
-    pio_sm_put(pio, sm, packServoFrameUs(pulse_us));
+    pio_sm_put(pio, sm, packed);
     __atomic_add_fetch(&outputStatus.framesWritten, 1U, __ATOMIC_RELAXED);
+}
+
+static bool servoFrameTimerCallback(repeating_timer* timer) {
+    (void)timer;
+    servoOutput.serviceFrame();
+    return true;
+}
+
+static void updatePendingFrame(int throttle, int roll, int pitch, int yaw, uint32_t nowUs) {
+    __atomic_store_n(&pendingThrottleFrame, packServoFrameUs(throttle), __ATOMIC_RELEASE);
+    __atomic_store_n(&pendingRollFrame, packServoFrameUs(roll), __ATOMIC_RELEASE);
+    __atomic_store_n(&pendingPitchFrame, packServoFrameUs(pitch), __ATOMIC_RELEASE);
+    __atomic_store_n(&pendingYawFrame, packServoFrameUs(yaw), __ATOMIC_RELEASE);
+    __atomic_store_n(&pendingFrameUs, nowUs, __ATOMIC_RELEASE);
+    if (__atomic_exchange_n(&pendingFrameDirty, true, __ATOMIC_ACQ_REL)) {
+        __atomic_add_fetch(&outputStatus.staleSkips, 1U, __ATOMIC_RELAXED);
+    }
 }
 
 void outputInit() {

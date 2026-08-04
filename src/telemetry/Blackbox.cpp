@@ -10,7 +10,25 @@ void Blackbox::init() {
     _lastLogMs = 0;
     _droppedRecords = 0;
     _queue.reset();
-    Serial.println("[BLACKBOX] Baslatildi.");
+    if (_sink && !_sink->begin()) {
+        _sink = nullptr;
+        Serial.println("[BLACKBOX] SD sink baslatilamadi.");
+    } else if (_sink) {
+        Serial.println("[BLACKBOX] SPI sink aktif.");
+    }
+#if BLACKBOX_OUTPUT_MODE == BLACKBOX_OUTPUT_TELEMETRY
+    Serial.println("[BLACKBOX] Cikis: telemetri.");
+#elif BLACKBOX_OUTPUT_MODE == BLACKBOX_OUTPUT_SD
+    Serial.println("[BLACKBOX] Cikis: SD kart.");
+#elif BLACKBOX_OUTPUT_MODE == BLACKBOX_OUTPUT_BOTH
+    Serial.println("[BLACKBOX] Cikis: SD kart + telemetri.");
+#else
+    Serial.println("[BLACKBOX] Cikis modu gecersiz, kayit tutulmayacak.");
+#endif
+}
+
+void Blackbox::setSink(IBlackboxSink* sink) {
+    _sink = sink;
 }
 
 void Blackbox::setLogRateHz(uint8_t hz) {
@@ -59,15 +77,37 @@ uint8_t Blackbox::drain(uint8_t maxRecords) {
     uint8_t drained = 0;
     Frame frame;
     while (drained < maxRecords && _queue.peek(frame)) {
-        if (espUart.availableForWrite() < frame.size) {
+#if BLACKBOX_OUTPUT_MODE == BLACKBOX_OUTPUT_SD || BLACKBOX_OUTPUT_MODE == BLACKBOX_OUTPUT_BOTH
+        if (!_sink) {
             break;
         }
-        if (espUart.write(frame.bytes, frame.size) != frame.size) {
+        if (_sink->availableForWrite() < frame.size) {
+            break;
+        }
+        if (_sink->write(frame.bytes, frame.size) != frame.size) {
             _droppedRecords++;
             break;
         }
+#endif
+#if BLACKBOX_OUTPUT_MODE == BLACKBOX_OUTPUT_TELEMETRY || BLACKBOX_OUTPUT_MODE == BLACKBOX_OUTPUT_BOTH
+#if TELEMETRY_UART_ENABLED
+        if (telemetryUart.availableForWrite() < frame.size) {
+            break;
+        }
+        if (telemetryUart.write(frame.bytes, frame.size) != frame.size) {
+            _droppedRecords++;
+            break;
+        }
+#else
+        break;
+#endif
+#endif
+#if BLACKBOX_OUTPUT_MODE == BLACKBOX_OUTPUT_TELEMETRY || BLACKBOX_OUTPUT_MODE == BLACKBOX_OUTPUT_SD || BLACKBOX_OUTPUT_MODE == BLACKBOX_OUTPUT_BOTH
         _queue.pop(frame);
         drained++;
+#else
+        break;
+#endif
     }
     return drained;
 }

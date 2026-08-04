@@ -10,14 +10,29 @@
   <link rel="stylesheet" href="./styles.css">
 </head>
 
-<body>
+<body class="app-loading">
+  <div id="splashScreen" class="splash-screen" aria-label="AeroPico Configurator açılıyor">
+    <div class="splash-card">
+      <img class="splash-logo" src="../../assets/aeropico-wordmark.webp" alt="AeroPico">
+      <div class="splash-runway" aria-hidden="true">
+        <svg class="splash-plane" viewBox="0 0 48 24" fill="none">
+          <path d="M3 13.5 44 3l-9 9 9 9-41-7.5Z" fill="currentColor" opacity="0.95" />
+          <path d="M17 10.5 7 5.5l18 5M17 13.5 7 18.5l18-5" stroke="currentColor" stroke-width="2"
+            stroke-linecap="round" stroke-linejoin="round" opacity="0.65" />
+        </svg>
+        <span class="splash-track"></span>
+        <span class="splash-progress"></span>
+      </div>
+      <p>Configurator hazırlanıyor</p>
+    </div>
+  </div>
+
   <div class="app-shell">
     <aside class="sidebar">
       <div class="brand">
-        <img class="brand-logo" src="../../assets/aeropico-logo.png" alt="AeroPico">
+        <img class="brand-logo" src="../../assets/aeropico-wordmark.webp" alt="AeroPico">
         <div>
           <h1>AeroPico Configurator</h1>
-          <p>RP2350 fixed-wing setup</p>
         </div>
         <button id="themeToggleBtn" class="icon-btn theme-toggle" title="Tema değiştir" aria-label="Tema değiştir">
           <svg class="theme-icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -98,6 +113,19 @@
           <button id="readParamsBtn" disabled>Parametreleri Oku</button>
           <button id="saveParamsBtn" disabled>Flash'a Kaydet</button>
         </div>
+
+        <div class="admin-arm-panel inline-admin-arm">
+          <div class="panel-title">
+            <span>Bench Admin Arm</span>
+            <span class="status-pill warn">Jumper</span>
+          </div>
+          <p class="hint">Masa testi: pervane sokulu, GP20-GP21 kisa devre.</p>
+          <div class="admin-arm-actions">
+            <button data-arm-command="normal" class="admin-arm-normal" type="button">Normal Arm</button>
+            <button data-arm-command="force" class="admin-arm-force" type="button">Force Arm</button>
+            <button data-arm-command="disarm" type="button">Disarm</button>
+          </div>
+        </div>
       </section>
     </aside>
 
@@ -105,61 +133,83 @@
       <header class="topbar">
         <div class="topbar-left">
           <div class="page-title">
-            <span class="eyebrow">AeroPico Setup</span>
+            <span class="eyebrow">AeroPico Configurator</span>
             <h2 id="sectionTitle">Flight Tuning</h2>
           </div>
         </div>
-        <div class="topbar-actions">
-          <button id="pinMapperBtn">
-            <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-              stroke-linecap="round" stroke-linejoin="round">
-              <rect x="3" y="7" width="18" height="13" rx="2" />
-              <path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-              <circle cx="9" cy="13" r="1.5" />
-              <circle cx="15" cy="13" r="1.5" />
-            </svg>
-            Pin Mapper
-          </button>
-          <button id="exportBtn">
-            <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-              stroke-linecap="round" stroke-linejoin="round">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-              <polyline points="7 10 12 15 17 10" />
-              <line x1="12" y1="15" x2="12" y2="3" />
-            </svg>
-            JSON Dışarı Al
-          </button>
-          <button id="importBtn">
-            <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-              stroke-linecap="round" stroke-linejoin="round">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-              <polyline points="17 8 12 3 7 8" />
-              <line x1="12" y1="3" x2="12" y2="15" />
-            </svg>
-            JSON İçeri Al
-          </button>
+        <div class="topbar-actions" aria-label="Genel işlemler">
+          <div class="action-cluster action-cluster-tool">
+            <button id="pinMapperBtn" title="Pin Mapper">
+              <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="7" width="18" height="13" rx="2" />
+                <path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                <circle cx="9" cy="13" r="1.5" />
+                <circle cx="15" cy="13" r="1.5" />
+              </svg>
+              Pin Mapper
+            </button>
+          </div>
+          <div class="action-cluster action-cluster-primary">
+            <button id="profileManagerBtn" title="Profil Yöneticisi">
+              <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+                <path d="M9 7h7M9 11h5" />
+              </svg>
+              Profiller
+            </button>
+            <button id="applyDirtyParamsBtn" class="apply-action" disabled>
+              <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <path d="M20 6 9 17l-5-5" />
+              </svg>
+              Değişenleri Uygula
+            </button>
+          </div>
+          <div class="action-cluster action-cluster-file">
+            <button id="exportBtn" class="file-action" title="JSON dışarı al">
+              <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="7 10 12 15 17 10" />
+                <line x1="12" y1="15" x2="12" y2="3" />
+              </svg>
+              Dışa Al
+            </button>
+            <button id="importBtn" class="file-action" title="JSON içeri al">
+              <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="17 8 12 3 7 8" />
+                <line x1="12" y1="3" x2="12" y2="15" />
+              </svg>
+              İçe Al
+            </button>
+          </div>
           <input id="importInput" type="file" accept="application/json" hidden>
         </div>
       </header>
 
       <section class="status-strip" aria-label="Sistem özeti">
-        <div class="status-tile">
+        <div class="status-tile status-link">
           <span class="status-tile-label">Link</span>
           <strong id="linkSummary">Kapalı</strong>
         </div>
-        <div class="status-tile">
+        <div class="status-tile status-param">
           <span class="status-tile-label">Parametre</span>
           <strong id="paramSummary">0 okunmuş</strong>
         </div>
-        <div class="status-tile">
+        <div class="status-tile status-module">
           <span class="status-tile-label">Modül</span>
           <strong id="moduleSummaryTop">Bekliyor</strong>
         </div>
-        <div class="status-tile">
+        <div class="status-tile status-heartbeat">
           <span class="status-tile-label">Heartbeat</span>
           <strong id="heartbeatSummary">Yok</strong>
         </div>
-        <div class="status-tile">
+        <div class="status-tile status-arm">
           <span class="status-tile-label">Arm</span>
           <strong id="armSummary">Bilinmiyor</strong>
         </div>
@@ -192,18 +242,36 @@
           <span>Modüller</span>
           <span id="moduleSummary" class="status-pill muted">Bekliyor</span>
         </div>
-        <div class="module-grid" id="moduleGrid"></div>
+        <div class="module-tabs" role="tablist" aria-label="Modül paneli">
+          <button class="module-tab active" data-module-tab="status" type="button">Durum</button>
+          <button class="module-tab" data-module-tab="setup" type="button">Setup</button>
+        </div>
+        <div class="module-pane active" data-module-pane="status">
+          <div class="module-grid" id="moduleGrid"></div>
+        </div>
+        <div class="module-pane" data-module-pane="setup">
+          <div class="module-setup-grid" aria-label="Modül rol seçimi">
+            <label><span>IMU</span><select><option>Auto detect</option><option>MPU6050</option><option>MPU6500</option><option>ICM42688</option><option>Disabled</option></select></label>
+            <label><span>Baro</span><select><option>Auto detect</option><option>BMP180/BMP085</option><option>BMP280</option><option>BMP390</option><option>Disabled</option></select></label>
+            <label><span>Mag</span><select><option>Auto detect</option><option>HMC5883L</option><option>QMC5883L/P</option><option>Disabled</option></select></label>
+            <label><span>GPS</span><select><option>Auto detect</option><option>NMEA UART</option><option>UBlox UART</option><option>Disabled</option></select></label>
+            <label><span>RC</span><select><option>SBUS</option><option>CRSF/ELRS</option><option>IBUS</option><option>PPM</option><option>Disabled</option></select></label>
+            <label><span>Battery</span><select><option>ADC voltage</option><option>Power module</option><option>Disabled</option></select></label>
+          </div>
+          <p class="hint">Bu alan rol/backend mimarisi icin hazirliktir; firmware destekleri arttikca aktif secimler parametreye baglanir.</p>
+        </div>
       </section>
 
-      <section class="panel collapsible" data-collapsible>
-        <button class="panel-title collapse-trigger" type="button">
-          <span>Kalibrasyon</span>
-          <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-            stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="6 9 12 15 18 9" />
-          </svg>
-        </button>
-        <div class="collapse-body">
+      <section class="panel tools-panel">
+        <div class="panel-title">
+          <span>Araçlar</span>
+        </div>
+        <div class="side-tool-tabs" role="tablist" aria-label="Araç paneli">
+          <button class="side-tool-tab active" data-tool-tab="calibration" type="button">Kalibrasyon</button>
+          <button class="side-tool-tab" data-tool-tab="bench" type="button">Bench</button>
+          <button class="side-tool-tab" data-tool-tab="audit" type="button">Denetim</button>
+        </div>
+        <div class="side-tool-pane active" data-tool-pane="calibration">
           <button data-command="CAL_IMU">
             <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
               stroke-linecap="round" stroke-linejoin="round">
@@ -231,17 +299,7 @@
           </button>
           <p class="hint">Komutlar MAVLink servis kapısından geçer; firmware güvenli değilse reddeder.</p>
         </div>
-      </section>
-
-      <section class="panel collapsible" data-collapsible>
-        <button class="panel-title collapse-trigger" type="button">
-          <span>Bench Test</span>
-          <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-            stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="6 9 12 15 18 9" />
-          </svg>
-        </button>
-        <div class="collapse-body">
+        <div class="side-tool-pane" data-tool-pane="bench">
           <button data-command="SERVO_TEST">
             <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
               stroke-linecap="round" stroke-linejoin="round">
@@ -274,17 +332,7 @@
           </button>
           <p class="hint">Pervane mutlaka sökülü olmalıdır.</p>
         </div>
-      </section>
-
-      <section class="panel collapsible" data-collapsible>
-        <button class="panel-title collapse-trigger" type="button">
-          <span>Config Denetimi</span>
-          <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-            stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="6 9 12 15 18 9" />
-          </svg>
-        </button>
-        <div class="collapse-body">
+        <div class="side-tool-pane" data-tool-pane="audit">
           <div id="configAudit" class="config-audit"></div>
         </div>
       </section>
@@ -297,8 +345,20 @@
         <div id="commandStatusList" class="command-status-list"></div>
       </section>
 
+      <section class="panel mavlink-inspector-panel">
+        <div class="panel-title">
+          <span>MAVLink Akışı</span>
+          <span id="mavlinkInspectorSummary" class="status-pill muted">Bekliyor</span>
+        </div>
+        <div id="mavlinkInspectorList" class="mavlink-inspector-list">
+          <p class="hint">Cihazdan MAVLink paketi bekleniyor.</p>
+        </div>
+      </section>
+
     </aside>
   </div>
+
+  <div id="toastStack" class="toast-stack" aria-live="polite" aria-atomic="false"></div>
 
   <!-- Pin mapper modal: Raspberry Pi Pico 2 pinout -->
   <div class="modal-overlay hidden" id="portPickerModal">
@@ -351,6 +411,32 @@
             </div>
           </div>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay hidden" id="profileModal">
+    <div class="modal modal-profile">
+      <div class="modal-header">
+        <h3>Profil Yöneticisi</h3>
+        <button class="icon-btn modal-close" data-close-modal="profileModal" aria-label="Kapat">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+            stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body profile-body">
+        <section class="profile-create-panel">
+          <label class="field">
+            <span>Profil Adı</span>
+            <input type="text" id="profileNameInput" maxlength="32" placeholder="örn. Calm day / trainer wing">
+          </label>
+          <button id="saveProfileBtn" class="primary" type="button">Profil Kaydet</button>
+          <p class="hint">Profil sadece okunan veya içe aktarılan parametreleri saklar. Firmware'e yazmak için profili uygula.</p>
+        </section>
+        <section class="profile-list" id="profileList"></section>
       </div>
     </div>
   </div>

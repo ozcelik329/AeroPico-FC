@@ -66,10 +66,10 @@ void MavlinkHandler::update() {
 
     uint32_t now = millis();
 
-    // ESP32 heartbeat timeout — 3 saniye
-    if (_esp32Alive && (now - _lastESP32Heartbeat > 3000)) {
-        _esp32Alive = false;
-        Serial.println("[MAVLINK] ESP32 baglantisi kesildi!");
+    // GCS heartbeat timeout - 3 saniye
+    if (_groundStationAlive && (now - _lastGroundStationHeartbeat > 3000)) {
+        _groundStationAlive = false;
+        Serial.println("[MAVLINK] GCS heartbeat kayboldu.");
     }
 
     // Heartbeat — 1 Hz
@@ -121,10 +121,10 @@ void MavlinkHandler::_parse(uint8_t byte) {
 void MavlinkHandler::_handleMessage(mavlink_message_t& msg) {
     switch (msg.msgid) {
         case MAVLINK_MSG_ID_HEARTBEAT: {
-            _lastESP32Heartbeat = millis();
-            if (!_esp32Alive) {
-                _esp32Alive = true;
-                Serial.println("[MAVLINK] ESP32 baglandi.");
+            _lastGroundStationHeartbeat = millis();
+            if (!_groundStationAlive) {
+                _groundStationAlive = true;
+                Serial.println("[MAVLINK] GCS heartbeat alindi.");
             }
             break;
         }
@@ -217,8 +217,8 @@ void MavlinkHandler::_handleCommandLong(const mavlink_message_t& msg) {
     }
 
     sendCommandAck(command.command, accepted ? MAV_RESULT_ACCEPTED : MAV_RESULT_DENIED);
-    if (!accepted && reason[0] != '\0') {
-        sendStatusText(reason, MAV_SEVERITY_WARNING);
+    if (reason[0] != '\0') {
+        sendStatusText(reason, accepted ? MAV_SEVERITY_INFO : MAV_SEVERITY_WARNING);
     }
 }
 
@@ -459,8 +459,8 @@ void MavlinkHandler::sendStatusText(const char* text, uint8_t severity) {
     _sendMessage(msg);
 }
 
-bool MavlinkHandler::isESP32Alive() const {
-    return _esp32Alive;
+bool MavlinkHandler::isGroundStationAlive() const {
+    return _groundStationAlive;
 }
 
 void MavlinkHandler::_sendMessage(mavlink_message_t& msg) {

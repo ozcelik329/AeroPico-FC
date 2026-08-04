@@ -6,7 +6,7 @@
 #include "../../src/telemetry/MavlinkTransport.cpp"
 #include "../../src/telemetry/ParamManager.cpp"
 
-PioUart espUart;
+PioUart telemetryUart;
 
 static bool gainsApplied;
 static bool mixerApplied;

@@ -9,7 +9,7 @@
 #include "../../src/telemetry/MavlinkTransport.cpp"
 #include "../../src/telemetry/MavlinkHandler.cpp"
 
-PioUart espUart;
+PioUart telemetryUart;
 
 static FlightData latestData;
 static uint16_t overrideAileron;

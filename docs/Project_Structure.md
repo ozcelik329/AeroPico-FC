@@ -72,7 +72,9 @@ core/
 - Kalibrasyon ve parametre saklama API'leri `storage/` altina alindi. Native testler icin RAM tabanli, RP2350 icin dogrudan flash tabanli implementasyon vardir; parametre kaydi `PARAM_SAVE` komutuyla kontrollu yapilir.
 - `FlightManager` icindeki RC, sensor, controller ve state snapshot sorumluluklari ayrildi. RC akisi `RCPipeline`, sensor/fusion akisi `SensorPipeline`, controller orkestrasyonu `ControlPipeline`, flight loop `FlightControlTask`, snapshot uretimi `StatePublisher` icindedir.
 - Sensor suruculeri modül adina gore degil role gore adlandirilir. `drivers/sensors/gyro`, `drivers/sensors/mag` ve `drivers/sensors/baro` altindaki siniflar ileride MPU/HMC/BMP yerine farkli moduller gelse bile ayni mimari siniri korur.
-- GPS ve ESP32-CAM hazirlik kodu varsayilan kapali gelir. `drivers/gps/` NMEA parser ve UART manager siniridir; `drivers/camera/` ESP32-CAM link health siniridir. `GPS_MODULE_ENABLED=0` ve `ESP32_CAM_LINK_ENABLED=0` kaldigi surece ucus akisini, preflight kararini veya `BaroVerticalKalman` cikisini degistirmezler.
+- GPS hazirlik kodu varsayilan kapali gelir. `drivers/gps/` NMEA parser ve
+  UART manager siniridir. Video/FPV sistemi flight controller kapsaminda
+  degildir; harici analog veya dijital video linki olarak kurulmalidir.
 - Core dosyalari sorumluluk klasorlerine ayrildi. Yeni core dosyasi eklenirken `control/`, `flight/`, `safety/`, `sensors/`, `rc/`, `scheduling/`, `data/`, `events/` veya `state/` altinda net bir sahiplik secilmelidir.
 - IMU kalibrasyon hesaplamasi `drivers/sensors/SensorCalibration.*` icindedir. `Sensors.cpp` ham ornek okuma ve sonucu uygulama disinda kalibrasyon matematigi tasimamali.
 - Sensor DMA orkestrasyonu `drivers/sensors/SensorDmaBus.*` icindedir. MPU ve yardimci sensor okumalari RX+TX DMA komut zinciri kullanir; kanal tahsis hatasinda alinmis kanal geri birakilir. GY87 mag/baro state machine'i `SensorAuxBus.*` icine ayrildi ve `Sensors.cpp` sadece sensor orkestrasyonu sinirinda tutulur.
@@ -95,7 +97,6 @@ src/
   config/      Build-time ve runtime konfigurasyon ayrimi
   core/        Ucus kontrol cekirdegi
   drivers/     HAL ve donanim suruculeri
-    camera/    ESP32-CAM link/health hazirligi (varsayilan kapali)
     gps/       NMEA GPS parser/manager hazirligi (varsayilan kapali)
   estimators/  EKF/complementary/filter fusion katmani (ileride)
   filters/     Genel filtre algoritmalari

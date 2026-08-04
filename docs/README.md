@@ -31,7 +31,9 @@ Bu klasor yalnizca aktif ve bakimi suren proje dokumanlarini tutar.
 ## Devre Disi Hazirliklar
 
 - GPS altyapisi `src/drivers/gps/` altinda NMEA GGA parser ve UART manager olarak hazir tutulur; `GPS_MODULE_ENABLED=0` oldugu icin V1.0 manuel/stabilize akisini etkilemez.
-- ESP32-CAM altyapisi `src/drivers/camera/` altinda link health izleme olarak hazir tutulur; `ESP32_CAM_LINK_ENABLED=0` oldugu icin varsayilan firmware'de kamera baglantisi baslatilmaz.
-- Opsiyonel ESP32 WiFi MAVLink koprusu iskeleti `Esp32Cam/` altindadir. v1.0 RCI icin ilk GCS test yolu Pico USB Serial MAVLink'tir.
+- Harici video sistemi flight controller kapsaminda degildir; analog/dijital FPV
+  ayri bir link olarak kurulmalidir.
+- GP12/GP13 PIO UART hatti, USB bench dogrulamasi sonrasi harici MAVLink
+  telemetry radio icin ayrilmistir.
 
 Eski faz snapshot'lari, tarihli brainstorm dosyalari ve guncel markdown raporunun eski PDF/DOCX export'lari tutulmaz.

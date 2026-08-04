@@ -93,8 +93,9 @@ the manual-flight core.
 * **Sensor role/backend split** - IMU, magnetometer and barometer roles stay
   stable while chip-specific backends (`Mpu6050Backend`, `Hmc5883lBackend`,
   `Bmp085Backend`) hold device math and profiles.
-* **MAVLink over USB and PIO UART** - Mission Planner, QGroundControl,
+* **MAVLink over USB and telemetry UART** - Mission Planner, QGroundControl,
   AeroPico Configurator and future AeroPico GCS share the same MAVLink path.
+  USB is the bench path; GP12/GP13 are reserved for an external telemetry radio.
 * **Configurator service commands** - IMU calibration, mag calibration,
   preflight check, RC monitor, sensor check and safe servo test use ACK-gated
   MAVLink commands.
@@ -122,7 +123,7 @@ flowchart LR
         SP["Sensor pipeline"]
         EST["Attitude and altitude estimators"]
         USB["USB Serial"]
-        PIOU["PIO UART companion"]
+        PIOU["Telemetry UART radio"]
         MAV["MAVLink transport"]
     end
 
@@ -216,7 +217,7 @@ Recommended bench order:
 1. AeroPico Configurator over Pico USB Serial
 2. QGroundControl over Pico USB Serial
 3. Mission Planner over Pico USB Serial
-4. Optional ESP32/WiFi MAVLink bridge after USB behavior is validated
+4. External UART telemetry radio after USB behavior is validated
 
 ---
 
@@ -265,8 +266,8 @@ npm run check
 | SDA | GP4 | I2C | GY-87 / MPU6050 / mag / baro |
 | SCL | GP5 | I2C | GY-87 / MPU6050 / mag / baro |
 | SBUS RX | GP1 | UART RX | RC receiver through transistor inverter |
-| Companion TX | GP12 | PIO UART TX | MAVLink + blackbox to ESP32/WiFi bridge |
-| Companion RX | GP13 | PIO UART RX | MAVLink commands from companion |
+| Telemetry TX | GP12 | PIO UART TX | MAVLink + blackbox to telemetry radio |
+| Telemetry RX | GP13 | PIO UART RX | MAVLink commands from telemetry radio |
 | GPS TX | GP8 | UART1 TX | GPS module preparation |
 | GPS RX | GP9 | UART1 RX | GPS module preparation |
 | Battery ADC | GP26 / ADC0 | ADC | Voltage divider input |
@@ -287,7 +288,7 @@ levels into RP2350 GPIO or ADC pins.
 | `src/main.cpp` | Boot wiring, static FreeRTOS task creation and system composition |
 | `src/board/Config.h` | Board pins, loop rates, defaults and safety constants |
 | `src/core/` | Pipelines, control, safety, scheduling and state publishing |
-| `src/drivers/` | Sensor, RC, GPS, camera/companion and hardware-facing drivers |
+| `src/drivers/` | Sensor, RC, GPS, telemetry UART and hardware-facing drivers |
 | `src/estimators/` | Complementary attitude and barometric vertical estimators |
 | `src/hal/` | HAL contracts for portability boundaries |
 | `src/storage/` | Parameter and calibration persistence |
@@ -382,8 +383,9 @@ to real flight readiness:
 The core flight firmware is designed to run independently on the Pico 2. Extra
 modules are optional and asynchronous so they cannot block the flight loop.
 
-* **ESP32-CAM / WiFi companion:** Prepared as a MAVLink bridge and optional
-  camera companion. It should be validated after USB MAVLink is proven.
+* **Telemetry radio:** GP12/GP13 expose a UART-style MAVLink telemetry port for
+  an external serial radio. Video is intentionally kept outside the flight
+  controller and should use a separate analog or digital FPV link.
 * **GPS module:** UART parsing and capability state are prepared, but GPS-based
   navigation is not active in v1.0. GPS support becomes important for later
   RTL, waypoint and mission features.
@@ -403,13 +405,13 @@ modules are optional and asynchronous so they cannot block the flight loop.
 | Raw I2C + DMA IMU reads | Done |
 | RC failsafe and signal-loss handling | Done |
 | Watchdog gate | Done |
-| MAVLink v2 over USB and PIO UART | Done |
+| MAVLink v2 over USB and telemetry UART | Done |
 | Blackbox logger | Done |
 | MPU6050 + GY-87 support | Done |
 | Sensor backend registry foundation | Done |
 | Mission Planner / QGC generic MAVLink | Done |
 | AeroPico Configurator | Done |
-| ESP32/WiFi bridge validation | Bench pending |
+| Telemetry radio bench validation | Bench pending |
 | GPS-assisted navigation | Future |
 | RTL / mission / loiter | Future |
 | Dedicated AeroPico GCS | Future |

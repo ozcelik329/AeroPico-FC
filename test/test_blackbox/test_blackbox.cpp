@@ -4,10 +4,10 @@
 
 #include "../../src/telemetry/Blackbox.cpp"
 
-PioUart espUart;
+PioUart telemetryUart;
 
 void setUp() {
-    espUart.bytesWritten = 0;
+    telemetryUart.bytesWritten = 0;
 }
 void tearDown() {}
 
@@ -22,11 +22,11 @@ void test_blackbox_writes_binary_flight_record() {
     setMockMillis(21);
     blackbox.log(1, 2, 3, 4, 5, 6, 1200, 1500, 1500, 1500, false, SensorHealth::Ok);
     TEST_ASSERT_EQUAL_UINT8(1, blackbox.queuedRecords());
-    TEST_ASSERT_EQUAL(0, espUart.bytesWritten);
+    TEST_ASSERT_EQUAL(0, telemetryUart.bytesWritten);
     TEST_ASSERT_EQUAL_UINT8(1, blackbox.drain());
     TEST_ASSERT_EQUAL(
         sizeof(BlackboxRecordHeader) + sizeof(BlackboxFlightPayload) + sizeof(uint16_t),
-        espUart.bytesWritten
+        telemetryUart.bytesWritten
     );
     TEST_ASSERT_EQUAL_UINT32(0, blackbox.droppedRecords());
 }
@@ -46,7 +46,7 @@ void test_blackbox_writes_runtime_health_record() {
 
     TEST_ASSERT_EQUAL(
         sizeof(BlackboxRecordHeader) + sizeof(RuntimeHealthStatus) + sizeof(uint16_t),
-        espUart.bytesWritten
+        telemetryUart.bytesWritten
     );
     TEST_ASSERT_EQUAL_UINT32(0, blackbox.droppedRecords());
 }

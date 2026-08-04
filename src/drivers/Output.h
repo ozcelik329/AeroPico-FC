@@ -21,6 +21,7 @@ class ServoOutput : public IServoOutput {
 		void init() override;
 		void writeMotors(int throttle, int roll, int pitch, int yaw) override;
 		void setServoPulse(void* pio, unsigned sm, uint32_t pulse_us) override;
+		void serviceFrame();
 		bool isReady() const { return _ready; }
 		ServoOutputStatus status() const;
 

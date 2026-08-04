@@ -25,14 +25,41 @@
 #define PIN_DEBUG_PID     3
 #define PIN_DEBUG_MIXER   6
 
-// --- PIO UART — ESP32-CAM MAVLink ---
-#define PIN_ESP_TX      12
-#define PIN_ESP_RX      13
-#define ESP32_CAM_LINK_ENABLED 0
-#define ESP32_CAM_UART_BAUD 57600
+// --- Bench admin override ---
+// GP20 ile GP21 kisa devre edilirse bench/admin force-arm kapisi acilir.
+// Normal ucus icin bu jumper takili olmamalidir.
+#define BENCH_ADMIN_FORCE_ARM_ENABLED 1
+#define PIN_BENCH_ADMIN_GND   20
+#define PIN_BENCH_ADMIN_SENSE 21
+
+// --- PIO UART MAVLink telemetry radio ---
+#define PIN_TELEM_TX      12
+#define PIN_TELEM_RX      13
+#define TELEMETRY_UART_ENABLED 1
+#define TELEMETRY_UART_BAUD 57600
 
 // --- MAVLink bench / GCS transport ---
 #define MAVLINK_USB_ENABLED 1
+
+// --- Blackbox output routing ---
+// TELEMETRY: binary blackbox kayitlari MAVLink telemetri UART hattina akar.
+// SD:        yalniz SD karta yazar, telemetri linkini zorlamaz.
+// BOTH:      once SD karta, sonra telemetri hattina ayni kaydi yollar.
+#define BLACKBOX_OUTPUT_TELEMETRY 1
+#define BLACKBOX_OUTPUT_SD        2
+#define BLACKBOX_OUTPUT_BOTH      3
+#define BLACKBOX_OUTPUT_MODE BLACKBOX_OUTPUT_TELEMETRY
+
+// --- Blackbox SD card over SPI ---
+// BLACKBOX_OUTPUT_SD veya BOTH secilecekse harici SD kart modulu takilmali.
+// Binary blackbox kayitlari /AEROPICO.BBX dosyasina eklenir.
+#define BLACKBOX_SD_ENABLED 0
+#define PIN_BLACKBOX_SPI_SCK  10
+#define PIN_BLACKBOX_SPI_MOSI 11
+#define PIN_BLACKBOX_SPI_MISO 14
+#define PIN_BLACKBOX_SPI_CS   15
+#define BLACKBOX_SPI_HZ       8000000UL
+#define BLACKBOX_SD_FILE      "/AEROPICO.BBX"
 
 // --- PWM Servo Çıkışları ---
 #define PIN_AILERON     16

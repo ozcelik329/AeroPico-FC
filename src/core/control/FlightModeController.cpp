@@ -90,6 +90,12 @@ bool FlightModeController::requestArm(bool preflightOk, bool failsafe, uint16_t 
     return true;
 }
 
+bool FlightModeController::forceArm(const char** reason) {
+    transitionTo(FlightState::ArmedManual, "bench force arm");
+    if (reason) *reason = "BENCH_FORCE_ARM active";
+    return true;
+}
+
 bool FlightModeController::requestDisarm(bool force, uint16_t throttle, const char** reason) {
     if (!isArmed()) {
         if (reason) *reason = "already disarmed";

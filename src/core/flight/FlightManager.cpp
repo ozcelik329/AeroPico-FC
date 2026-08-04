@@ -62,6 +62,9 @@ void FlightManager::publishState() {
     provisional.batteryCritical = _batteryCritical;
     provisional.actuatorFault = _actuatorFault;
     FailsafeDecision failsafe = _failsafeManager.evaluate(provisional);
+    if (_benchForceArmAllowed) {
+        failsafe = {false, "bench admin override", 0};
+    }
     FlightData data = _statePublisher.buildFlightData(_vehicleState, _rcState, failsafe);
     data.timingExceeded = _timingExceeded;
     data.batteryCritical = _batteryCritical;
@@ -70,8 +73,8 @@ void FlightManager::publishState() {
     ControlPipelineInput controlInput;
     controlInput.rc = _rcState;
     controlInput.vehicle = _vehicleState;
-    controlInput.failsafe = failsafe.active;
-    controlInput.preflightArmAllowed = _preflightArmAllowed;
+    controlInput.failsafe = _benchForceArmAllowed ? false : failsafe.active;
+    controlInput.preflightArmAllowed = _benchForceArmAllowed ? true : _preflightArmAllowed;
     const bool wasArmed = _controlPipeline.isArmed();
     const bool wasFailsafe = _controlPipeline.isFailsafe();
     const FlightState previousState = _controlPipeline.flightState();
@@ -141,13 +144,19 @@ void FlightManager::setPreflightArmAllowed(bool allowed) {
     _preflightArmAllowed = allowed;
 }
 
+void FlightManager::setBenchForceArmAllowed(bool allowed) {
+    _benchForceArmAllowed = allowed;
+}
+
 bool FlightManager::requestArmFromMavlink(bool arm, bool force, char* reason, size_t reasonLen) {
     const char* localReason = "";
     bool accepted = false;
     const bool faulted = _timingExceeded || _batteryCritical || _actuatorFault;
     const bool failsafe = _rcState.failsafe || faulted;
 
-    if (arm && faulted) {
+    if (arm && force && _benchForceArmAllowed) {
+        accepted = _controlPipeline.forceArm(&localReason);
+    } else if (arm && faulted) {
         localReason = _batteryCritical ? "battery critical" :
                       _actuatorFault ? "actuator fault" :
                       "timing budget exceeded";

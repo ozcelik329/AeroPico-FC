@@ -108,6 +108,9 @@
     PREFLIGHT_CHECK: "Preflight kontrol"
   });
 
+  const MAV_CMD_COMPONENT_ARM_DISARM = 400;
+  const PROFILE_STORAGE_KEY = "aeropico-param-profiles-v1";
+
   const DEFAULT_WIRING = Object.freeze([
     [2, "RC Giriş (SBUS/PPM)"],
     [6, "I2C SDA (IMU/MAG/BARO)"],
@@ -238,17 +241,22 @@
     armed: null,
     lastCommand: null,
     commandHistory: [],
+    mavlinkHistory: [],
     lastHeartbeatMs: 0,
     portDisplay: { name: null, vid: null, pid: null },
     activeBaud: null,
     selectedPin: null,
-    pinMap: new Map() // pinNumber -> role string
+    pinMap: new Map(), // pinNumber -> role string
+    dirtyParams: new Map(),
+    txQueue: [],
+    txBusy: false
   };
 
   const encoder = new window.AeroPicoMavlink.Encoder();
   const parser = new window.AeroPicoMavlink.Parser(handleMavlinkMessage);
 
   const els = {
+    splashScreen: document.getElementById("splashScreen"),
     connectBtn: document.getElementById("connectBtn"),
     disconnectBtn: document.getElementById("disconnectBtn"),
     readParamsBtn: document.getElementById("readParamsBtn"),
@@ -272,6 +280,12 @@
     importInput: document.getElementById("importInput"),
     themeToggleBtn: document.getElementById("themeToggleBtn"),
     pinMapperBtn: document.getElementById("pinMapperBtn"),
+    profileManagerBtn: document.getElementById("profileManagerBtn"),
+    applyDirtyParamsBtn: document.getElementById("applyDirtyParamsBtn"),
+    profileModal: document.getElementById("profileModal"),
+    profileNameInput: document.getElementById("profileNameInput"),
+    saveProfileBtn: document.getElementById("saveProfileBtn"),
+    profileList: document.getElementById("profileList"),
     pinMapperModal: document.getElementById("pinMapperModal"),
     portPickerModal: document.getElementById("portPickerModal"),
     portPickerList: document.getElementById("portPickerList"),
@@ -288,10 +302,13 @@
     armSummary: document.getElementById("armSummary"),
     commandSummary: document.getElementById("commandSummary"),
     commandStatusList: document.getElementById("commandStatusList"),
+    mavlinkInspectorSummary: document.getElementById("mavlinkInspectorSummary"),
+    mavlinkInspectorList: document.getElementById("mavlinkInspectorList"),
     terminalPreflightBtn: document.getElementById("terminalPreflightBtn"),
     terminalLogBtn: document.getElementById("terminalLogBtn"),
     preflightPane: document.getElementById("preflightPane"),
-    logPane: document.getElementById("logPane")
+    logPane: document.getElementById("logPane"),
+    toastStack: document.getElementById("toastStack")
   };
 
   const TAB_ICONS = {
@@ -319,11 +336,31 @@
     els.log.scrollTop = els.log.scrollHeight;
   }
 
+  function toast(message, kind = "info") {
+    if (!els.toastStack) return;
+    const item = document.createElement("div");
+    item.className = `toast ${kind}`;
+    item.textContent = message;
+    els.toastStack.appendChild(item);
+    window.setTimeout(() => item.classList.add("leaving"), 3200);
+    window.setTimeout(() => item.remove(), 3800);
+  }
+
   function setLinkStatus(text, cls) {
-    els.linkStatus.textContent = text;
     els.linkStatus.className = `status-pill ${cls}`;
-    els.linkSummary.textContent = text;
-    els.linkSummary.dataset.state = cls;
+    els.linkStatus.textContent = text;
+    setStatusValue(els.linkSummary, cls, text);
+  }
+
+  function setStatusValue(el, stateName, text) {
+    if (!el) return;
+    if (el.textContent !== text) {
+      el.textContent = text;
+      el.classList.remove("value-pop");
+      void el.offsetWidth;
+      el.classList.add("value-pop");
+    }
+    el.dataset.state = stateName;
   }
 
   /* ── Theme ────────────────────────────────── */
@@ -389,6 +426,10 @@
     });
 
     els.pinMapperBtn.addEventListener("click", () => openModal(els.pinMapperModal));
+    els.profileManagerBtn.addEventListener("click", () => {
+      renderProfiles();
+      openModal(els.profileModal);
+    });
   }
 
   /* ── Collapsible panels ───────────────────── */
@@ -399,6 +440,34 @@
       if (!trigger) return;
       trigger.addEventListener("click", () => {
         panel.classList.toggle("collapsed");
+      });
+    });
+  }
+
+  function bindSideToolTabs() {
+    document.querySelectorAll("[data-tool-tab]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const target = button.dataset.toolTab;
+        document.querySelectorAll("[data-tool-tab]").forEach((tab) => {
+          tab.classList.toggle("active", tab.dataset.toolTab === target);
+        });
+        document.querySelectorAll("[data-tool-pane]").forEach((pane) => {
+          pane.classList.toggle("active", pane.dataset.toolPane === target);
+        });
+      });
+    });
+  }
+
+  function bindModuleTabs() {
+    document.querySelectorAll("[data-module-tab]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const target = button.dataset.moduleTab;
+        document.querySelectorAll("[data-module-tab]").forEach((tab) => {
+          tab.classList.toggle("active", tab.dataset.moduleTab === target);
+        });
+        document.querySelectorAll("[data-module-pane]").forEach((pane) => {
+          pane.classList.toggle("active", pane.dataset.modulePane === target);
+        });
       });
     });
   }
@@ -436,8 +505,7 @@
     }
     els.moduleSummary.textContent = okCount === 0 ? "Bekliyor" : `${okCount}/${MODULES.length}`;
     els.moduleSummary.className = `status-pill ${okCount > 0 ? "ok" : "muted"}`;
-    els.moduleSummaryTop.textContent = okCount === 0 ? "Bekliyor" : `${okCount}/${MODULES.length} hazır`;
-    els.moduleSummaryTop.dataset.state = okCount > 0 ? "ok" : "muted";
+    setStatusValue(els.moduleSummaryTop, okCount > 0 ? "ok" : "muted", okCount === 0 ? "Bekliyor" : `${okCount}/${MODULES.length} hazır`);
   }
 
   function moduleText(value) {
@@ -449,6 +517,7 @@
   function renderSettings() {
     const group = PARAM_GROUPS.find((item) => item.id === state.activeGroup);
     document.getElementById("sectionTitle").textContent = group.label;
+    els.settingsGrid.dataset.group = group.id;
     els.settingsGrid.innerHTML = "";
     for (const [name, label, description] of group.params) {
       const param = state.params.get(name);
@@ -482,15 +551,303 @@
       button.disabled = !state.connected;
       footer.append(input, button);
 
+      const visual = createParamVisual(name, param ? param.value : null);
+
       const metaEl = document.createElement("div");
       metaEl.className = "value-meta";
       metaEl.textContent = meta;
 
-      card.append(header, desc, footer, metaEl);
-      button.addEventListener("click", () => setParam(name, Number(input.value)));
+      card.append(header, desc);
+      if (visual) card.appendChild(visual);
+      card.append(footer, metaEl);
+      input.addEventListener("input", () => {
+        const next = Number(input.value);
+        const validation = validateParam(name, next);
+        input.classList.toggle("invalid", !validation.ok);
+        const unchanged = param && validation.ok && Math.abs(validation.value - param.value) < 1e-6;
+        card.classList.toggle("dirty", validation.ok && !unchanged);
+        if (validation.ok && !unchanged) {
+          state.dirtyParams.set(name, validation.value);
+          updateParamVisual(visual, name, validation.value);
+        } else {
+          state.dirtyParams.delete(name);
+          if (validation.ok) updateParamVisual(visual, name, validation.value);
+        }
+        updateDirtyButton();
+      });
+      button.addEventListener("click", () => {
+        if (setParam(name, Number(input.value))) {
+          state.dirtyParams.delete(name);
+          updateDirtyButton();
+        }
+      });
       els.settingsGrid.appendChild(card);
     }
     renderConfigAudit();
+    updateDirtyButton();
+  }
+
+  function createParamVisual(name, rawValue) {
+    const html = renderParamVisualHtml(name, rawValue);
+    if (!html) return null;
+    const visual = document.createElement("div");
+    visual.className = `setting-visual ${visualClassForParam(name)}`;
+    visual.innerHTML = html;
+    return visual;
+  }
+
+  function updateParamVisual(visual, name, rawValue) {
+    if (!visual) return;
+    visual.innerHTML = renderParamVisualHtml(name, rawValue);
+  }
+
+  function renderParamVisualHtml(name, rawValue) {
+    if (isPidParam(name)) return renderResponseCurveSvg(name, rawValue);
+    if (isServoRangeParam(name)) return renderServoRangeVisual(name, rawValue);
+    if (isTrimParam(name)) return renderTrimVisual(name, rawValue);
+    if (name.startsWith("BATT_")) return renderBatteryVisual(name, rawValue);
+    if (name.startsWith("MIX_")) return renderMixerVisual(name, rawValue);
+    if (name.startsWith("RC_")) return renderRcChannelVisual(name, rawValue);
+    if (name === "FS_TIMEOUT" || name === "PREF_Q_MIN") return renderSafetyVisual(name, rawValue);
+    if (name.startsWith("MAV_") || name === "BB_LOG_HZ") return renderTelemetryVisual(name, rawValue);
+    return "";
+  }
+
+  function visualClassForParam(name) {
+    if (isPidParam(name)) return "setting-curve";
+    if (isServoRangeParam(name) || isTrimParam(name)) return "setting-range";
+    if (name.startsWith("BATT_")) return "setting-battery";
+    if (name.startsWith("MIX_")) return "setting-mixer";
+    if (name.startsWith("RC_")) return "setting-rc";
+    if (name === "FS_TIMEOUT" || name === "PREF_Q_MIN") return "setting-safety";
+    if (name.startsWith("MAV_") || name === "BB_LOG_HZ") return "setting-telemetry";
+    return "";
+  }
+
+  function isPidParam(name) {
+    return name.startsWith("ANGLE_") || name.startsWith("RATE_");
+  }
+
+  function isServoRangeParam(name) {
+    return name === "SERVO_MIN" || name === "SERVO_MAX";
+  }
+
+  function isTrimParam(name) {
+    return name.startsWith("TRIM_");
+  }
+
+  function renderResponseCurveSvg(name, rawValue) {
+    const value = Number.isFinite(rawValue) ? Number(rawValue) : 0;
+    const rule = PARAM_RULES[name] || { min: 0, max: 1 };
+    const min = Number.isFinite(rule.min) ? rule.min : 0;
+    const max = Number.isFinite(rule.max) && rule.max > min ? rule.max : Math.max(1, value || 1);
+    const norm = Math.max(0, Math.min(1, (value - min) / (max - min)));
+    const damping = name.includes("_D") ? 0.55 : name.includes("_I") ? 0.35 : 0.72;
+    const gain = 0.18 + norm * 0.70;
+    const points = [];
+    for (let i = 0; i < 24; i++) {
+      const t = i / 23;
+      const response = 1 - Math.exp(-t * (2.2 + gain * 4.2)) * Math.cos(t * Math.PI * (1.2 + gain) * damping);
+      const x = 4 + t * 92;
+      const y = 34 - Math.max(0, Math.min(1.25, response)) * 24;
+      points.push(`${x.toFixed(1)},${y.toFixed(1)}`);
+    }
+    return `<svg viewBox="0 0 100 40" aria-hidden="true">
+      <path class="curve-grid" d="M4 34H96M4 10H96" />
+      <polyline class="curve-line" points="${points.join(" ")}" />
+    </svg>`;
+  }
+
+  function renderServoRangeVisual(name, rawValue) {
+    const value = Number.isFinite(rawValue) ? Number(rawValue) : (name === "SERVO_MIN" ? 1000 : 2000);
+    const domainMin = 800;
+    const domainMax = 2200;
+    const safeMin = paramValue("SERVO_MIN");
+    const safeMax = paramValue("SERVO_MAX");
+    const minUs = Number.isFinite(safeMin) ? safeMin : 1000;
+    const maxUs = Number.isFinite(safeMax) ? safeMax : 2000;
+    const left = percentInRange(minUs, domainMin, domainMax);
+    const right = percentInRange(maxUs, domainMin, domainMax);
+    const marker = percentInRange(value, domainMin, domainMax);
+    return `<div class="range-scale" aria-hidden="true">
+      <span>800</span><span>1500</span><span>2200 µs</span>
+      <i class="range-window" style="left:${left}%;width:${Math.max(2, right - left)}%"></i>
+      <i class="range-marker" style="left:${marker}%"></i>
+    </div>
+    <div class="range-caption"><strong>${Math.round(value)} µs</strong><span>${name === "SERVO_MIN" ? "minimum pulse" : "maximum pulse"}</span></div>`;
+  }
+
+  function renderTrimVisual(name, rawValue) {
+    const value = Number.isFinite(rawValue) ? Number(rawValue) : 0;
+    const marker = percentInRange(value, -400, 400);
+    return `<div class="trim-scale" aria-hidden="true">
+      <span>-400</span><span>0</span><span>+400</span>
+      <i class="trim-zero"></i>
+      <i class="range-marker" style="left:${marker}%"></i>
+    </div>
+    <div class="range-caption"><strong>${Math.round(value)} µs</strong><span>trim offset</span></div>`;
+  }
+
+  function renderBatteryVisual(name, rawValue) {
+    if (name === "BATT_CELLS") return renderBatteryCellVisual(rawValue);
+    if (name === "BATT_CAP_MAH") return renderBatteryCapacityVisual(rawValue);
+    if (name === "BATT_C_RATE") return renderBatteryCRateVisual(rawValue);
+    if (name === "BATT_NOM_V" || name === "BATT_LOW_V" || name === "BATT_BRN_V") {
+      return renderBatteryVoltageVisual(name, rawValue);
+    }
+    return "";
+  }
+
+  function batteryCellCount(rawCells) {
+    const cellsFromState = paramValue("BATT_CELLS");
+    return clampInteger(Number.isFinite(rawCells) ? rawCells : cellsFromState, 1, 6, 3);
+  }
+
+  function renderBatteryCellVisual(rawValue) {
+    const cellCount = batteryCellCount(rawValue);
+    const cells = Array.from({ length: cellCount }, (_, index) => `<i class="ok">${index + 1}</i>`).join("");
+    return `<div class="battery-cells" style="grid-template-columns:repeat(${cellCount}, minmax(0, 1fr))" aria-label="${cellCount}S battery">${cells}</div>
+    <div class="range-caption"><strong>${cellCount}S</strong><span>${cellCount} hucre seri paket</span></div>`;
+  }
+
+  function renderBatteryVoltageVisual(name, rawValue) {
+    const cellsFromState = paramValue("BATT_CELLS");
+    const cellCount = batteryCellCount(cellsFromState);
+    const fallback = name === "BATT_NOM_V" ? cellCount * 3.7 : name === "BATT_LOW_V" ? cellCount * 3.5 : cellCount * 3.3;
+    const volts = Number.isFinite(rawValue) ? Number(rawValue) : fallback;
+    const perCell = volts / Math.max(1, cellCount);
+    const stateClass = perCell < 3.35 ? "bad" : perCell < 3.55 ? "warn" : "ok";
+    const left = percentInRange(perCell, 3.0, 4.25);
+    const low = percentInRange(3.5, 3.0, 4.25);
+    const brownout = percentInRange(3.3, 3.0, 4.25);
+    const label = name === "BATT_NOM_V" ? "nominal" : name === "BATT_LOW_V" ? "low threshold" : "brownout threshold";
+    return `<div class="battery-meter ${stateClass}" aria-hidden="true">
+      <span>3.0</span><span>3.7</span><span>4.2 V/cell</span>
+      <i class="battery-fill" style="width:${left}%"></i>
+      <i class="battery-threshold low" style="left:${low}%"></i>
+      <i class="battery-threshold brownout" style="left:${brownout}%"></i>
+    </div>
+    <div class="range-caption"><strong>${volts.toFixed(1)} V</strong><span>${perCell.toFixed(2)} V/cell ${label}</span></div>`;
+  }
+
+  function renderBatteryCapacityVisual(rawValue) {
+    const value = Number.isFinite(rawValue) ? Number(rawValue) : 3300;
+    const fill = percentInRange(value, 500, 10000);
+    return `<div class="battery-capacity" aria-hidden="true">
+      <i class="battery-capacity-fill" style="width:${fill}%"></i>
+      <span>${Math.round(value).toLocaleString("tr-TR")}</span>
+    </div>
+    <div class="range-caption"><strong>${Math.round(value).toLocaleString("tr-TR")} mAh</strong><span>paket kapasitesi</span></div>`;
+  }
+
+  function renderBatteryCRateVisual(rawValue) {
+    const cRate = Number.isFinite(rawValue) ? Number(rawValue) : 40;
+    const capacity = paramValue("BATT_CAP_MAH");
+    const capacityAh = Number.isFinite(capacity) ? capacity / 1000 : 3.3;
+    const continuousA = Math.max(0, cRate * capacityAh);
+    const bars = 6;
+    const lit = clampInteger(Math.ceil(percentInRange(cRate, 1, 120) / (100 / bars)), 1, bars, 2);
+    const cells = Array.from({ length: bars }, (_, index) => `<i class="${index < lit ? "ok" : ""}"></i>`).join("");
+    return `<div class="battery-c-rate" aria-hidden="true">${cells}</div>
+    <div class="range-caption"><strong>${Math.round(cRate)}C</strong><span>~${Math.round(continuousA)} A surekli</span></div>`;
+  }
+
+  function renderMixerVisual(name, rawValue) {
+    const value = Number.isFinite(rawValue) ? Number(rawValue) : 1;
+    const width = percentInRange(value, 0, 2);
+    const axis = name === "MIX_ROLL" ? "AIL" : name === "MIX_PITCH" ? "ELE" : "RUD";
+    const left = Math.max(8, 50 - width * 0.32);
+    const right = Math.min(92, 50 + width * 0.32);
+    return `<div class="mixer-visual ${name.toLowerCase()}" aria-hidden="true">
+      <i class="mixer-wing"></i>
+      <i class="mixer-center"></i>
+      <i class="mixer-deflection left" style="left:${left}%"></i>
+      <i class="mixer-deflection right" style="left:${right}%"></i>
+    </div>
+    <div class="range-caption"><strong>${value.toFixed(2)}x</strong><span>${axis} mixer etkisi</span></div>`;
+  }
+
+  function renderRcChannelVisual(name, rawValue) {
+    const selected = clampInteger(Number.isFinite(rawValue) ? rawValue : defaultRcChannel(name), 0, 15, 0);
+    const role = name.replace("RC_", "").replace("_CH", "");
+    const cells = Array.from({ length: 8 }, (_, index) => {
+      const channel = index + 1;
+      const active = index === selected;
+      return `<i class="${active ? "active" : ""}">${channel}</i>`;
+    }).join("");
+    return `<div class="rc-channel-strip" aria-hidden="true">${cells}</div>
+    <div class="range-caption"><strong>CH${selected + 1}</strong><span>${role.toLowerCase()} girisi</span></div>`;
+  }
+
+  function defaultRcChannel(name) {
+    if (name === "RC_ROLL_CH") return 0;
+    if (name === "RC_PITCH_CH") return 1;
+    if (name === "RC_THR_CH") return 2;
+    if (name === "RC_YAW_CH") return 3;
+    if (name === "RC_MODE_CH") return 4;
+    return 0;
+  }
+
+  function renderSafetyVisual(name, rawValue) {
+    if (name === "FS_TIMEOUT") {
+      const value = Number.isFinite(rawValue) ? Number(rawValue) : 1000;
+      const pct = percentInRange(value, 100, 5000);
+      const stateClass = value < 350 ? "bad" : value < 700 ? "warn" : "ok";
+      return `<div class="safety-timeout ${stateClass}" aria-hidden="true">
+        <i class="safety-timeout-fill" style="width:${pct}%"></i>
+        <span>RC loss window</span>
+      </div>
+      <div class="range-caption"><strong>${Math.round(value)} ms</strong><span>failsafe gecikmesi</span></div>`;
+    }
+    const value = Number.isFinite(rawValue) ? Number(rawValue) : 60;
+    const pct = percentInRange(value, 0, 100);
+    const stateClass = value < 35 ? "bad" : value < 55 ? "warn" : "ok";
+    return `<div class="quality-gauge ${stateClass}" aria-hidden="true">
+      <i class="quality-arc"></i>
+      <i class="quality-needle" style="transform:rotate(${(-55 + pct * 1.1).toFixed(1)}deg)"></i>
+    </div>
+    <div class="range-caption"><strong>${Math.round(value)}%</strong><span>minimum preflight kalite</span></div>`;
+  }
+
+  function renderTelemetryVisual(name, rawValue) {
+    const value = Number.isFinite(rawValue) ? Number(rawValue) : defaultTelemetryHz(name);
+    const maxHz = name === "BB_LOG_HZ" ? 500 : name === "MAV_SYS_HZ" ? 50 : 100;
+    const pct = percentInRange(value, 0, maxHz);
+    const pulses = Math.max(1, Math.min(5, Math.ceil(pct / 20)));
+    const dots = Array.from({ length: 5 }, (_, index) => `<i class="${index < pulses && value > 0 ? "active" : ""}"></i>`).join("");
+    const label = name === "BB_LOG_HZ" ? "blackbox log" : "MAVLink stream";
+    return `<div class="telemetry-flow" aria-hidden="true">
+      <span>${dots}</span>
+      <b style="width:${pct}%"></b>
+    </div>
+    <div class="range-caption"><strong>${Math.round(value)} Hz</strong><span>${label}</span></div>`;
+  }
+
+  function defaultTelemetryHz(name) {
+    if (name === "MAV_ATT_HZ") return 50;
+    if (name === "MAV_RC_HZ") return 10;
+    if (name === "MAV_SYS_HZ") return 2;
+    if (name === "BB_LOG_HZ") return 100;
+    return 0;
+  }
+
+  function percentInRange(value, min, max) {
+    if (!Number.isFinite(value) || max <= min) return 0;
+    return Math.max(0, Math.min(100, ((value - min) / (max - min)) * 100));
+  }
+
+  function clampInteger(value, min, max, fallback) {
+    const next = Math.round(Number(value));
+    if (!Number.isFinite(next)) return fallback;
+    return Math.max(min, Math.min(max, next));
+  }
+
+  function updateDirtyButton() {
+    if (!els.applyDirtyParamsBtn) return;
+    const count = state.dirtyParams.size;
+    els.applyDirtyParamsBtn.disabled = !state.connected || count === 0;
+    els.applyDirtyParamsBtn.innerHTML = `<svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+      stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5" /></svg>${count > 0 ? `Değişenleri Uygula (${count})` : "Değişenleri Uygula"}`;
   }
 
   function updateButtons() {
@@ -503,33 +860,38 @@
       const dangerousWhileArmed = command === "CAL_IMU" || command === "CAL_MAG" || command === "SERVO_TEST";
       button.disabled = !state.connected || (dangerousWhileArmed && state.armed === true);
     });
+    document.querySelectorAll("[data-arm-command]").forEach((button) => {
+      const command = button.dataset.armCommand;
+      button.disabled = !state.connected || (command === "normal" && state.armed === true) || (command === "disarm" && state.armed !== true);
+    });
     renderSettings();
     renderSummary();
   }
 
   function renderSummary() {
     const expected = state.expectedParamCount || 0;
-    els.paramSummary.textContent = expected > 0 ? `${state.params.size}/${expected}` : `${state.params.size} okunmuş`;
-    els.paramSummary.dataset.state = state.params.size > 0 ? "ok" : "muted";
+    setStatusValue(
+      els.paramSummary,
+      state.params.size > 0 ? "ok" : "muted",
+      expected > 0 ? `${state.params.size}/${expected}` : `${state.params.size} okunmuş`
+    );
 
     if (state.lastHeartbeatMs > 0) {
       const ageSec = Math.max(0, Math.round((Date.now() - state.lastHeartbeatMs) / 1000));
-      els.heartbeatSummary.textContent = ageSec < 2 ? "Canlı" : `${ageSec} sn önce`;
-      els.heartbeatSummary.dataset.state = ageSec < 5 ? "ok" : "warn";
+      setStatusValue(els.heartbeatSummary, ageSec < 5 ? "ok" : "warn", ageSec < 2 ? "Canlı" : `${ageSec} sn önce`);
     } else {
-      els.heartbeatSummary.textContent = "Yok";
-      els.heartbeatSummary.dataset.state = "muted";
+      setStatusValue(els.heartbeatSummary, "muted", "Yok");
     }
 
     if (state.armed === true) {
-      els.armSummary.textContent = "Armed";
-      els.armSummary.dataset.state = "bad";
+      setStatusValue(els.armSummary, "bad", "Armed");
+      document.body.classList.add("is-armed");
     } else if (state.armed === false) {
-      els.armSummary.textContent = "Disarmed";
-      els.armSummary.dataset.state = "ok";
+      setStatusValue(els.armSummary, "ok", "Disarmed");
+      document.body.classList.remove("is-armed");
     } else {
-      els.armSummary.textContent = "Bilinmiyor";
-      els.armSummary.dataset.state = "muted";
+      setStatusValue(els.armSummary, "muted", "Bilinmiyor");
+      document.body.classList.remove("is-armed");
     }
   }
 
@@ -585,6 +947,16 @@
       log("Uygun serial port bulunamadi.");
       window.aeropicoBridge.chooseSerialPort("");
     });
+  }
+
+  function finishSplash() {
+    if (!els.splashScreen) return;
+    window.setTimeout(() => {
+      document.body.classList.remove("app-loading");
+      document.body.classList.add("app-ready");
+      els.splashScreen.classList.add("hidden");
+      window.setTimeout(() => els.splashScreen.remove(), 360);
+    }, 2020);
   }
 
   function chooseLikelyAeroPicoPort(ports) {
@@ -655,6 +1027,8 @@
     }
 
     try {
+      els.connectBtn.classList.add("loading");
+      els.connectBtn.disabled = true;
       state.port = await navigator.serial.requestPort();
       await state.port.open({ baudRate });
       state.writer = state.port.writable.getWriter();
@@ -668,11 +1042,17 @@
       setLinkStatus("Bagli", "ok");
       updateButtons();
       log(`USB serial baglandi @ ${baudRate.toLocaleString("tr-TR")} bps.`);
+      toast("USB bağlantısı kuruldu.", "ok");
       readLoop();
       requestParams();
     } catch (error) {
       log(`Baglanti hatasi: ${error.message}`);
+      toast("Bağlantı kurulamadı.", "bad");
       setLinkStatus("Hata", "bad");
+    } finally {
+      els.connectBtn.classList.remove("loading");
+      els.connectBtn.classList.toggle("connected-ok", state.connected);
+      if (!state.connected) els.connectBtn.disabled = false;
     }
   }
 
@@ -692,10 +1072,14 @@
       state.writer = null;
       state.port = null;
       state.activeBaud = null;
+      state.txQueue = [];
+      state.txBusy = false;
       setLinkStatus("Kapali", "muted");
       updateButtons();
       updatePortInfoDisplay();
       log("Baglanti kapatildi.");
+      toast("Bağlantı kapatıldı.", "info");
+      els.connectBtn.classList.remove("connected-ok");
     }
   }
 
@@ -712,32 +1096,234 @@
     }
   }
 
-  async function writeFrame(frame) {
-    if (!state.writer) return;
+  function writeFrame(frame, label = "MAVLink") {
+    if (!state.writer) return false;
+    if (state.txQueue.length >= 64) {
+      log(`${label}: gonderim kuyrugu dolu, paket reddedildi.`);
+      toast("MAVLink gönderim kuyruğu dolu.", "bad");
+      return false;
+    }
+    state.txQueue.push({ frame, label });
+    processTxQueue();
+    return true;
+  }
+
+  function processTxQueue() {
+    if (state.txBusy || !state.writer || state.txQueue.length === 0) return;
+    state.txBusy = true;
+    const item = state.txQueue.shift();
+    sendQueuedFrame(item).finally(() => {
+      state.txBusy = false;
+      if (state.txQueue.length > 0) {
+        window.setTimeout(processTxQueue, 18);
+      }
+    });
+  }
+
+  async function sendQueuedFrame(item) {
     try {
-      await state.writer.write(frame);
+      await state.writer.write(item.frame);
     } catch (error) {
-      log(`Yazma hatasi: ${error.message}`);
+      log(`${item.label}: yazma hatasi: ${error.message}`);
+      state.txQueue = [];
     }
   }
 
   function requestParams() {
-    writeFrame(encoder.paramRequestList());
+    if (!writeFrame(encoder.paramRequestList(), "PARAM_REQUEST_LIST")) return;
     log("PARAM_REQUEST_LIST gonderildi.");
+    toast("Parametre okuma isteği gönderildi.", "info");
   }
 
-  function setParam(name, value) {
+  function setParam(name, value, notify = true) {
     const validation = validateParam(name, value);
     if (!validation.ok) {
       log(`${name}: ${validation.reason}`);
-      return;
+      return false;
     }
-    writeFrame(encoder.paramSet(name, validation.value));
+    if (!writeFrame(encoder.paramSet(name, validation.value), `PARAM_SET ${name}`)) return false;
     log(`${name} = ${validation.value} gonderildi.`);
+    if (notify) toast(`${name} gönderildi.`, "ok");
+    return true;
   }
 
   function saveParams() {
     setParam("PARAM_SAVE", 1);
+    toast("Flash kayıt komutu gönderildi.", "warn");
+  }
+
+  function applyDirtyParams() {
+    if (!state.connected || !state.writer) {
+      log("Degisenleri uygulamak icin once baglan.");
+      return;
+    }
+    const entries = [...state.dirtyParams.entries()];
+    let sent = 0;
+    for (const [name, value] of entries) {
+      if (setParam(name, value, false)) {
+        state.dirtyParams.delete(name);
+        sent++;
+      }
+    }
+    updateDirtyButton();
+    renderSettings();
+    log(`${sent} degisen parametre gonderildi.`);
+    toast(`${sent} değişiklik uygulandı.`, sent > 0 ? "ok" : "info");
+  }
+
+  /* ── Parameter Profiles ───────────────────── */
+
+  function readProfiles() {
+    try {
+      const parsed = JSON.parse(localStorage.getItem(PROFILE_STORAGE_KEY) || "[]");
+      return Array.isArray(parsed) ? parsed.filter((profile) => profile && profile.name && profile.params) : [];
+    } catch (error) {
+      return [];
+    }
+  }
+
+  function writeProfiles(profiles) {
+    try {
+      localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(profiles.slice(0, 12)));
+    } catch (error) {
+      log(`Profil kaydedilemedi: ${error.message}`);
+    }
+  }
+
+  function currentParamSnapshot() {
+    const params = {};
+    for (const [name, param] of state.params.entries()) {
+      if (Number.isFinite(param.value) && PARAM_RULES[name]) params[name] = param.value;
+    }
+    return params;
+  }
+
+  function saveCurrentProfile() {
+    const name = (els.profileNameInput.value || "").trim();
+    if (!name) {
+      log("Profil adi girin.");
+      return;
+    }
+
+    const params = currentParamSnapshot();
+    const count = Object.keys(params).length;
+    if (count === 0) {
+      log("Profil icin okunmus veya ice aktarilmis parametre yok.");
+      return;
+    }
+
+    const profiles = readProfiles().filter((profile) => profile.name !== name);
+    profiles.unshift({
+      name,
+      params,
+      count,
+      createdAt: new Date().toISOString()
+    });
+    writeProfiles(profiles);
+    els.profileNameInput.value = "";
+    renderProfiles();
+    log(`Profil kaydedildi: ${name} (${count} parametre).`);
+    toast("Profil kaydedildi.", "ok");
+  }
+
+  function loadProfileToUi(profileName) {
+    const profile = readProfiles().find((item) => item.name === profileName);
+    if (!profile) return;
+    let loaded = 0;
+    for (const [name, value] of Object.entries(profile.params)) {
+      const validation = validateParam(name, Number(value));
+      if (!validation.ok) continue;
+      state.params.set(name, { name, value: validation.value, index: 0, count: state.expectedParamCount || 0 });
+      loaded++;
+    }
+    renderSettings();
+    renderSummary();
+    renderProfiles();
+    log(`Profil arayuze yuklendi: ${profile.name} (${loaded} parametre).`);
+    toast("Profil arayüze yüklendi.", "ok");
+  }
+
+  function applyProfileToFirmware(profileName) {
+    const profile = readProfiles().find((item) => item.name === profileName);
+    if (!profile) return;
+    if (!state.connected || !state.writer) {
+      log(`${profile.name}: firmware'e uygulamak icin once baglan.`);
+      return;
+    }
+
+    let sent = 0;
+    for (const [name, value] of Object.entries(profile.params)) {
+      const validation = validateParam(name, Number(value));
+      if (!validation.ok) {
+        log(`${profile.name}/${name}: uygulanmadi, ${validation.reason}`);
+        continue;
+      }
+      if (writeFrame(encoder.paramSet(name, validation.value), `PROFILE ${name}`)) {
+        sent++;
+      }
+    }
+    log(`Profil firmware'e gonderildi: ${profile.name} (${sent} parametre). Flash'a almak icin Kaydet.`);
+    toast("Profil firmware'e gönderildi.", "ok");
+  }
+
+  function deleteProfile(profileName) {
+    const ok = window.confirm(`${profileName} profilini silmek istiyor musun?`);
+    if (!ok) return;
+    writeProfiles(readProfiles().filter((profile) => profile.name !== profileName));
+    renderProfiles();
+    log(`Profil silindi: ${profileName}.`);
+    toast("Profil silindi.", "info");
+  }
+
+  function renderProfiles() {
+    if (!els.profileList) return;
+    const profiles = readProfiles();
+    if (profiles.length === 0) {
+      els.profileList.innerHTML = `<div class="profile-empty">Kayitli profil yok.</div>`;
+      return;
+    }
+
+    els.profileList.innerHTML = "";
+    for (const profile of profiles) {
+      const card = document.createElement("article");
+      card.className = "profile-card";
+      const date = profile.createdAt ? new Date(profile.createdAt).toLocaleString("tr-TR", { hour12: false }) : "Tarih yok";
+      card.innerHTML = `
+        <div class="profile-card-main">
+          <strong>${escapeHtml(profile.name)}</strong>
+          <span>${Number(profile.count || Object.keys(profile.params || {}).length)} parametre · ${date}</span>
+        </div>
+        <div class="profile-actions">
+          <button class="small" data-profile-load="${escapeAttr(profile.name)}" type="button">Yükle</button>
+          <button class="small" data-profile-apply="${escapeAttr(profile.name)}" type="button">Firmware'e Uygula</button>
+          <button class="small danger-text" data-profile-delete="${escapeAttr(profile.name)}" type="button">Sil</button>
+        </div>`;
+      els.profileList.appendChild(card);
+    }
+
+    els.profileList.querySelectorAll("[data-profile-load]").forEach((button) => {
+      button.addEventListener("click", () => loadProfileToUi(button.dataset.profileLoad));
+    });
+    els.profileList.querySelectorAll("[data-profile-apply]").forEach((button) => {
+      button.addEventListener("click", () => applyProfileToFirmware(button.dataset.profileApply));
+    });
+    els.profileList.querySelectorAll("[data-profile-delete]").forEach((button) => {
+      button.addEventListener("click", () => deleteProfile(button.dataset.profileDelete));
+    });
+  }
+
+  function escapeHtml(value) {
+    return String(value).replace(/[&<>"']/g, (char) => ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#39;"
+    }[char]));
+  }
+
+  function escapeAttr(value) {
+    return escapeHtml(value).replace(/`/g, "&#96;");
   }
 
   function serviceCommandParams(command) {
@@ -758,11 +1344,38 @@
       return;
     }
     const [p1, p2, p3, p4] = serviceCommandParams(command);
-    writeFrame(encoder.aeroPicoService(p1, p2, p3, p4));
+    if (!writeFrame(encoder.aeroPicoService(p1, p2, p3, p4), SERVICE_LABELS[command] || command)) return;
     state.lastCommand = command;
     pushCommandHistory(command, "pending", "ACK bekleniyor");
     updateButtons();
     log(`${SERVICE_LABELS[command] || command} komutu gonderildi.`);
+  }
+
+  function sendArmCommand(command) {
+    if (!state.connected || !state.writer) {
+      log("Arm komutu: once baglan.");
+      return;
+    }
+    if (command === "force") {
+      const ok = window.confirm("Bench force-arm icin pervane sokulu olmali ve GP20-GP21 jumper takili olmalidir. Devam?");
+      if (!ok) return;
+      if (!writeFrame(encoder.arm(true), "BENCH_FORCE_ARM")) return;
+      state.lastCommand = "BENCH_FORCE_ARM";
+      pushCommandHistory("BENCH_FORCE_ARM", "pending", "GP20-GP21 jumper ile ACK bekleniyor");
+      log("Bench force-arm komutu gonderildi.");
+      return;
+    }
+    if (command === "disarm") {
+      if (!writeFrame(encoder.disarm(false), "DISARM")) return;
+      state.lastCommand = "DISARM";
+      pushCommandHistory("DISARM", "pending", "ACK bekleniyor");
+      log("Disarm komutu gonderildi.");
+      return;
+    }
+    if (!writeFrame(encoder.arm(false), "ARM")) return;
+    state.lastCommand = "ARM";
+    pushCommandHistory("ARM", "pending", "Preflight gate ACK bekleniyor");
+    log("Normal arm komutu gonderildi.");
   }
 
   function pushCommandHistory(command, stateName, detail) {
@@ -809,6 +1422,125 @@
     }
   }
 
+  function pushMavlinkInspector(message) {
+    const item = describeMavlinkMessage(message);
+    if (!item) return;
+    state.mavlinkHistory.unshift({
+      ...item,
+      at: new Date().toLocaleTimeString("tr-TR", { hour12: false })
+    });
+    state.mavlinkHistory = state.mavlinkHistory.slice(0, 8);
+    renderMavlinkInspector();
+  }
+
+  function renderMavlinkInspector() {
+    if (!els.mavlinkInspectorList) return;
+    const latest = state.mavlinkHistory[0];
+    if (latest) {
+      els.mavlinkInspectorSummary.textContent = latest.kind === "bad" ? "Uyarı" : latest.kind === "warn" ? "Dikkat" : "Canlı";
+      els.mavlinkInspectorSummary.className = `status-pill ${latest.kind === "bad" ? "bad" : latest.kind === "warn" ? "warn" : "ok"}`;
+    } else {
+      els.mavlinkInspectorSummary.textContent = "Bekliyor";
+      els.mavlinkInspectorSummary.className = "status-pill muted";
+      els.mavlinkInspectorList.innerHTML = `<p class="hint">Cihazdan MAVLink paketi bekleniyor.</p>`;
+      return;
+    }
+
+    els.mavlinkInspectorList.innerHTML = "";
+    for (const item of state.mavlinkHistory) {
+      const row = document.createElement("div");
+      row.className = `mavlink-inspector-row ${item.kind}`;
+      row.innerHTML = `<div><strong>${item.title}</strong><time>${item.at}</time></div><span>${item.detail}</span><em>${item.advice}</em>`;
+      els.mavlinkInspectorList.appendChild(row);
+    }
+  }
+
+  function describeMavlinkMessage(message) {
+    if (message.type === "heartbeat") {
+      const armed = (message.baseMode & 0x80) !== 0;
+      const status = systemStatusText(message.systemStatus);
+      return {
+        kind: armed ? "warn" : "ok",
+        title: `HEARTBEAT ${message.mavlinkVersion ? `v${message.mavlinkVersion}` : ""}`,
+        detail: `${armed ? "ARMED" : "DISARMED"} · ${status}`,
+        advice: armed ? "Pervane/servo hattı güvenli mi kontrol et." : "Bağlantı canlı; preflight ve parametreleri okuyabilirsin."
+      };
+    }
+    if (message.type === "sysStatus") {
+      const hasBattery = message.voltageBatteryMv > 0 && message.voltageBatteryMv < 65535;
+      const voltage = hasBattery ? `${(message.voltageBatteryMv / 1000).toFixed(2)} V` : "batarya yok";
+      return {
+        kind: hasBattery ? "ok" : "warn",
+        title: "SYS_STATUS",
+        detail: `${voltage} · kalan ${message.batteryRemaining}%`,
+        advice: hasBattery ? "Batarya izleme akıyor." : "Bench ise normal; uçuş için battery ADC/power module doğrula."
+      };
+    }
+    if (message.type === "param") {
+      return {
+        kind: message.index + 1 >= message.count ? "ok" : "muted",
+        title: "PARAM_VALUE",
+        detail: `${message.name} = ${formatParamValue(message.value)} (${message.index + 1}/${message.count})`,
+        advice: message.index + 1 >= message.count ? "Parametre listesi tamamlandı; değişiklik yapmadan önce yedek al." : "Parametreler okunuyor."
+      };
+    }
+    if (message.type === "commandAck") {
+      const accepted = message.result === 0;
+      return {
+        kind: accepted ? "ok" : "bad",
+        title: "COMMAND_ACK",
+        detail: `${commandName(message.command)} · ${mavResultText(message.result)}`,
+        advice: accepted ? "Komut firmware tarafından kabul edildi." : "Reddedildiyse preflight, armed state ve safety gate sebebini kontrol et."
+      };
+    }
+    if (message.type === "statusText") {
+      const upper = message.text.toUpperCase();
+      const bad = upper.includes("FAIL") || upper.includes("MISSING") || upper.includes("MISMATCH") || upper.includes("BROWNOUT");
+      const warn = bad || upper.includes("WARN") || upper.includes("DROPPED") || upper.includes("INVALID");
+      return {
+        kind: bad ? "bad" : warn ? "warn" : "ok",
+        title: "STATUSTEXT",
+        detail: message.text,
+        advice: adviceForStatusText(upper)
+      };
+    }
+    return null;
+  }
+
+  function systemStatusText(status) {
+    switch (status) {
+      case 3: return "standby";
+      case 4: return "active";
+      case 5: return "critical";
+      case 6: return "emergency";
+      default: return `status ${status}`;
+    }
+  }
+
+  function commandName(command) {
+    if (command === MAV_CMD_COMPONENT_ARM_DISARM) return "ARM/DISARM";
+    if (command === 31010) return "AeroPico service";
+    return `CMD ${command}`;
+  }
+
+  function formatParamValue(value) {
+    if (!Number.isFinite(value)) return String(value);
+    if (Math.abs(value) >= 100) return String(Math.round(value));
+    return value.toFixed(3).replace(/0+$/, "").replace(/\.$/, "");
+  }
+
+  function adviceForStatusText(text) {
+    if (text.includes("WHOAMI") || text.includes("IMU")) return "IMU kablo/I2C adresi ve GY-87 beslemesini kontrol et.";
+    if (text.includes("BARO") || text.includes("BMP")) return "Barometre adresi 0x77 ve lehim/I2C hattını doğrula.";
+    if (text.includes("MAG") || text.includes("HMC") || text.includes("QMC")) return "Mag opsiyonelse preflight politikasını, gerekliyse bypass/profil seçimini kontrol et.";
+    if (text.includes("RC")) return "SBUS sinyali, inverter ve mode/throttle kanallarını kontrol et.";
+    if (text.includes("BROWNOUT") || text.includes("BATTERY")) return "Bench ise batarya yok sayılabilir; uçuşta ADC/power module kalibrasyonu şart.";
+    if (text.includes("DROPPED") || text.includes("BLACKBOX")) return "Log hedefi/telemetri hızı yüksek olabilir; SD/telemetry sink ayarını kontrol et.";
+    if (text.includes("PREFLIGHT_OK")) return "Preflight yazılımsal olarak hazır; fiziksel güvenliği ayrıca kontrol et.";
+    if (text.includes("PREFLIGHT")) return "Arm reddi için bu mesajı gider; bench force arm sadece pervane sökülüyken.";
+    return "Mesaj normal akış bilgisi; anormal tekrar ederse olay kaydına bak.";
+  }
+
   function mavResultText(result) {
     switch (result) {
       case 0: return "ACCEPTED";
@@ -821,6 +1553,8 @@
   }
 
   function handleMavlinkMessage(message) {
+    pushMavlinkInspector(message);
+
     if (message.type === "heartbeat") {
       state.lastHeartbeatMs = Date.now();
       state.armed = (message.baseMode & 0x80) !== 0;
@@ -853,8 +1587,12 @@
     if (message.type === "commandAck") {
       const accepted = message.result === 0;
       updateLastCommand(accepted ? "accepted" : "rejected", mavResultText(message.result));
-      if (message.command === 31010) {
+      if (message.command === MAV_CMD_COMPONENT_ARM_DISARM) {
+        log(`ARM/DISARM ACK: ${mavResultText(message.result)}.`);
+        toast(accepted ? "ARM/DISARM kabul edildi." : "ARM/DISARM reddedildi.", accepted ? "ok" : "bad");
+      } else if (message.command === 31010) {
         log(`Servis komutu ACK: ${mavResultText(message.result)}.`);
+        toast(accepted ? "Servis komutu kabul edildi." : "Servis komutu reddedildi.", accepted ? "ok" : "bad");
       } else {
         log(`COMMAND_ACK ${message.command}: ${mavResultText(message.result)}.`);
       }
@@ -999,6 +1737,7 @@
     a.download = "aeropico-params.json";
     a.click();
     URL.revokeObjectURL(url);
+    toast("JSON dışa aktarıldı.", "ok");
   }
 
   async function importParams(file) {
@@ -1015,6 +1754,7 @@
     }
     renderSettings();
     log("JSON parametre dosyasi yuklendi. Yazmak icin her parametrede Yaz butonunu kullan.");
+    toast("JSON içe aktarıldı.", "ok");
   }
 
   /* ── Pin Mapper ────────────────────────────── */
@@ -1228,8 +1968,16 @@
     els.importInput.addEventListener("change", () => {
       if (els.importInput.files[0]) importParams(els.importInput.files[0]).catch((error) => log(error.message));
     });
+    els.applyDirtyParamsBtn.addEventListener("click", applyDirtyParams);
+    els.saveProfileBtn.addEventListener("click", saveCurrentProfile);
+    els.profileNameInput.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") saveCurrentProfile();
+    });
     for (const button of document.querySelectorAll("[data-command]")) {
       button.addEventListener("click", () => sendServiceCommand(button.dataset.command));
+    }
+    for (const button of document.querySelectorAll("[data-arm-command]")) {
+      button.addEventListener("click", () => sendArmCommand(button.dataset.armCommand));
     }
     els.themeToggleBtn.addEventListener("click", toggleTheme);
     els.cancelPortPickBtn.addEventListener("click", () => {
@@ -1247,6 +1995,8 @@
 
     bindModals();
     bindCollapsibles();
+    bindSideToolTabs();
+    bindModuleTabs();
     bindBaudSelect();
     bindSerialBridge();
   }
@@ -1261,5 +2011,6 @@
   updatePortInfoDisplay();
   initPinMapper();
   setInterval(renderSummary, 1000);
+  finishSplash();
   log("AeroPico Configurator hazir.");
 })();

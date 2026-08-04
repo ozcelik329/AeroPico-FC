@@ -6,7 +6,7 @@ uzerinden calisacak sekilde hazirlar.
 
 ## Kapsam
 
-- USB Serial ve PIO UART uzerinden ortak MAVLink transport.
+- USB Serial ve telemetry UART uzerinden ortak MAVLink transport.
 - Mission Planner / QGC icin generic autopilot uyumlulugu:
   - `HEARTBEAT` armed biti
   - `COMMAND_LONG` arm/disarm
@@ -41,13 +41,15 @@ uzerinden calisacak sekilde hazirlar.
   modeline tasindi.
 - `TimingMonitor` azalan sure orneklerinde unsigned EWMA underflow uretmez.
 - `BuildInfo` firmware adi, hedef kart, MCU ve surum bilgisini tek yerde tutar.
-- ESP32 WiFi MAVLink bridge iskeleti `Esp32Cam/` altinda hazirdir.
+- GP12/GP13 PIO UART hatti harici MAVLink telemetry radio icin hazirdir.
 
 ## Bilerek Aktif Edilmeyenler
 
 - RTL, waypoint mission, loiter ve auto landing v1.0 RCI kapsaminda aktif degildir.
 - Mission protokolu simdilik `MISSION_COUNT = 0` ile time-out engelleyen stub seviyesindedir.
-- ESP32 WiFi bridge opsiyoneldir; ilk bench dogrulama Pico USB Serial ile yapilmalidir.
+- Harici telemetry radio opsiyoneldir; ilk bench dogrulama Pico USB Serial ile yapilmalidir.
+- Video sistemi flight controller kapsaminda degildir; analog veya dijital FPV
+  ayri bir link olarak kurulmalidir.
 
 ## Ucus / Ticari Hazirlik Notu
 
@@ -59,7 +61,7 @@ bench kanitlari tamamlanmadan final kabul verilmemelidir:
 - Servo PWM logic analyzer capture
 - SBUS GP1 alici testi
 - Battery ADC multimetre dogrulamasi
-- ESP32/WiFi UDP 14550 MAVLink bridge testi
+- Harici UART telemetry radio testi
 
 ## Yazilim Kabul Kaniti
 

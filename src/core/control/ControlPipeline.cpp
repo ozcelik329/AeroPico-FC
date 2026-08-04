@@ -22,6 +22,10 @@ bool ControlPipeline::requestArm(bool preflightOk, bool failsafe, uint16_t throt
     return _modeController.requestArm(preflightOk, failsafe, throttle, reason);
 }
 
+bool ControlPipeline::forceArm(const char** reason) {
+    return _modeController.forceArm(reason);
+}
+
 bool ControlPipeline::requestDisarm(bool force, uint16_t throttle, const char** reason) {
     return _modeController.requestDisarm(force, throttle, reason);
 }

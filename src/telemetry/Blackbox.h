@@ -5,6 +5,7 @@
 #include "../drivers/PioUart.h"
 #include "../types.h"
 #include "../core/state/ThreadSafeRingBuffer.h"
+#include "BlackboxSink.h"
 
 enum class BlackboxRecordType : uint8_t {
     Flight = 1,
@@ -37,6 +38,7 @@ class Blackbox {
     static constexpr uint8_t QUEUE_SLOTS = 8;
 
     void init();
+    void setSink(IBlackboxSink* sink);
     void setLogRateHz(uint8_t hz);
     void log(float roll, float pitch, float yaw,
              float gx, float gy, float gz,
@@ -63,6 +65,7 @@ class Blackbox {
     uint32_t _sequence = 0;
     uint32_t _droppedRecords = 0;
     ThreadSafeRingBuffer<Frame, QUEUE_SLOTS> _queue;
+    IBlackboxSink* _sink = nullptr;
 
     bool writeRecord(BlackboxRecordType type, const void* payload, uint16_t payloadSize);
 };

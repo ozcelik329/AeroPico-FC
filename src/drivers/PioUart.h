@@ -66,6 +66,6 @@ class PioUart : public IHALUART {
 };
 #endif
 
-extern PioUart espUart;
+extern PioUart telemetryUart;
 
 #endif
