@@ -180,36 +180,36 @@ export const content = {
       eyebrow: "AEROPICO CONFIGURATOR",
       title: "AeroPico Configurator",
       lead:
-        "AeroPico-FC için geliştirilen masaüstü kurulum aracı. Kartla USB üzerinden konuşur, MAVLink akışını okunabilir hale getirir ve uçuş öncesi ayar/test adımlarını tek arayüzde toplar.",
+        "AeroPico-FC için geliştirilen masaüstü kurulum ve bench doğrulama aracı. Kartla USB üzerinden gerçek MAVLink v2 akışıyla konuşur, firmware durumunu okunabilir hale getirir ve uçuş öncesi kritik ayar/test adımlarını tek kontrollü arayüzde toplar.",
       summary: [
         {
-          title: "Canlı MAVLink okuma",
-          text: "Heartbeat, SYS_STATUS, ATTITUDE, VFR_HUD ve STATUSTEXT mesajlarını takip edilebilir arayüz durumlarına çevirir.",
+          title: "Gerçek MAVLink izleme",
+          text: "Heartbeat, SYS_STATUS, ATTITUDE, VFR_HUD, COMMAND_ACK ve STATUSTEXT mesajlarını canlı durum kartlarına, olay kayıtlarına ve okunabilir önerilere dönüştürür.",
         },
         {
           title: "Ayar ve profil yönetimi",
-          text: "PID, servo, mixer, RC, safety ve battery parametrelerini okur/yazar; JSON profillerle gövde ayarlarını taşınabilir tutar.",
+          text: "PID, servo, mixer, RC, safety ve battery parametrelerini okur/yazar; JSON profillerle gövdeye özel ayarları sahada taşınabilir ve geri alınabilir tutar.",
         },
         {
-          title: "Bench doğrulama",
-          text: "Servo yön testi, RC kanal kontrolü, sensör kontrolü ve preflight sebep analizini uçuş öncesi masaya taşır.",
+          title: "Uçmadan önce bench kanıtı",
+          text: "Servo yön testi, RC kanal kontrolü, sensör sağlık kontrolü ve preflight sebep analizini modeli riske atmadan masa üstünde doğrulatır.",
         },
         {
           title: "Pin Mapper ve olay takibi",
-          text: "Pin eşleşmelerini, modül durumlarını, command ACK cevaplarını ve olay kayıtlarını tek yerde görünür kılar.",
+          text: "Pin eşleşmelerini, modül durumlarını, command ACK cevaplarını ve güvenlik kapısı kararlarını tek yerde görünür kılar.",
         },
       ],
       sourceAction: "Kaynak Kodları Aç",
       releaseAction: "Sürümlere Git",
-      videoLabel: "TANITIM VİDEOSU",
-      videoTitle: "Animasyonlu demo alanı",
-      videoNote: "Kısa tanıtım videosu bu alanda oynatılır.",
+      videoLabel: "ARAYÜZ ÖNİZLEMESİ",
+      videoTitle: "Uçuş öncesi kontrol masası",
+      videoNote: "Flight tuning, modül durumu, MAVLink izleme ve bench test ekranları aynı masaüstü deneyiminde.",
       previewAlt: "AeroPico Configurator masaüstü arayüzü",
       flow: {
         eyebrow: "NASIL ÇALIŞIR",
-        title: "Firmware mesajları ürün arayüzüne dönüşür.",
+        title: "Firmware mesajları karar verilebilir arayüze dönüşür.",
         text:
-          "Configurator, cihazdan gelen MAVLink paketlerini parse eder; parametre, hata, command ACK ve preflight durumlarını kullanıcıya okunabilir şekilde sunar.",
+          "Configurator, cihazdan gelen MAVLink paketlerini parse eder; parametre, hata, command ACK, modül sağlığı ve preflight durumlarını kullanıcıya okunabilir, izlenebilir ve tekrar edilebilir test adımlarına çevirir.",
         chart: {
           label: "AeroPico Configurator sistem akışı",
           source: {
@@ -228,58 +228,58 @@ export const content = {
       },
       experience: {
         eyebrow: "ÖNE ÇIKAN DENEYİM",
-        title: "Kurulum sırasında gereken ekranlar önde.",
+        title: "Uçuş zincirini masada kanıtlamak için gereken ekranlar önde.",
         items: [
           {
             title: "Flight tuning",
-            text: "PID, servo, mixer ve batarya ayarları uçuş yazılımındaki parametrelerle aynı mantıkta gruplanır.",
+            text: "PID, servo, mixer ve batarya ayarları firmware parametreleriyle aynı mantıkta gruplanır; değer yazma, toplu uygulama ve flash'a kayıt akışı ayrılır.",
           },
           {
             title: "MAVLink parser",
-            text: "Canlı paket akışı, command ACK, STATUSTEXT ve modül durumu terminale düşmeden ekranda okunur.",
+            text: "Canlı paket akışı, command ACK, STATUSTEXT ve modül durumu terminale düşmeden ekranda okunur; hata çıktısı doğrudan kullanıcı aksiyonuna bağlanır.",
           },
           {
             title: "Bench test",
-            text: "Servo yönü, RC kanalları, sensör sağlığı ve preflight sonuçları uçuş öncesi kontrollü şekilde denenir.",
+            text: "Servo yönü, RC kanalları, sensör sağlığı ve preflight sonuçları uçuş öncesi kontrollü şekilde denenir; riskli komutlar firmware güvenlik kapısından geçer.",
           },
           {
             title: "Pin Mapper",
-            text: "Kart üzerindeki pin görevleri ve ayar profilleri sahada karıştırmadan takip edilebilir.",
+            text: "Kart üzerindeki pin görevleri, modül rolleri ve ayar profilleri sahada karıştırmadan takip edilebilir.",
           },
         ],
       },
       groups: [
         {
           title: "Ayar akışı",
-          text: "Parametre okuma/yazma, flash'a kayıt, flight tuning, servo setup, mixer, RC mapping, safety ve battery ayarları aynı masaüstü deneyimi içinde toplanır.",
+          text: "Parametre okuma/yazma, flash'a kayıt, flight tuning, servo setup, mixer, RC mapping, safety ve battery ayarları tek bir kontrollü masaüstü iş akışında toplanır.",
         },
         {
           title: "Tanılama akışı",
-          text: "Bağlantı durumu, MAVLink packet monitor, modül health, preflight reason paneli ve olay kaydı sayesinde firmware davranışı hızlıca anlaşılır.",
+          text: "Bağlantı durumu, MAVLink packet monitor, modül health, preflight reason paneli ve olay kaydı sayesinde firmware davranışı terminal çıktısı okumadan anlaşılır.",
         },
         {
           title: "Güvenli test akışı",
-          text: "Kalibrasyon, servo testleri ve bench komutları firmware tarafındaki güvenlik kapılarından geçer; riskli işlemler armed durumda kabul edilmez.",
+          text: "Kalibrasyon, servo testleri ve bench komutları firmware tarafındaki güvenlik kapılarından geçer; riskli işlemler armed durumda veya uygun olmayan preflight koşullarında reddedilir.",
         },
       ],
       security: {
-        title: "Güvenli tarafta kalır.",
+        title: "Güvenlik kararını arayüz değil firmware verir.",
         text:
-          "Kritik komutlar firmware tarafındaki güvenlik kontrollerinden geçer.",
+          "Configurator komut gönderir; kabul veya ret kararı AeroPico-FC içindeki service command mailbox, preflight ve arming güvenlik kontrollerinden geçerek verilir.",
         items: [
           "Armed durumda riskli değişiklikler engellenir.",
           "Flash'a kayıt ayrı onay ister.",
-          "Servo testleri bench içindir.",
+          "Servo testleri bench içindir ve güvenlik kapısı dışında zorlanmaz.",
         ],
       },
       purpose: {
-        title: "GCS değil, kurulum aracı.",
+        title: "GCS değil, uçuşa hazırlık aracı.",
         text:
-          "Canlı harita veya görev planlama için değil; ilk kurulum, ayar ve doğrulama için kullanılır.",
+          "Canlı harita, görev planlama veya video link arayüzü değildir; ilk kurulum, ayar, tanılama ve uçuş öncesi masa doğrulaması için kullanılır.",
         items: [
           "İlk bağlantıyı kontrol et.",
           "Preflight sebebini gör.",
-          "Uçmadan önce masada doğrula.",
+          "Uçuş zincirini pervane takmadan masada doğrula.",
         ],
       },
       downloads: {
@@ -317,7 +317,7 @@ export const content = {
         },
       ],
     },
-    release: {
+      release: {
       eyebrow: "RELEASE GATE",
       title: "Yazılım RCI, uçuş öncesi kanıt ister.",
       gate: "Preflight Verified",
@@ -332,7 +332,7 @@ export const content = {
         "Pico firmware build",
         "Configurator statik kontrol",
       ],
-      configuratorDownloadText: "AeroPico Configurator masaüstü uygulaması için MacOS ve Windows paketleri burada yayınlanır.",
+      configuratorDownloadText: "AeroPico Configurator masaüstü paketleri burada yayınlanır. Firmware ayarı, bench doğrulama ve MAVLink tanılama için MacOS ve Windows hedefleri hazırlanır.",
       firmwareTitle: "Firmware Sürümleri",
       downloads: [
         {
@@ -672,36 +672,36 @@ export const content = {
       eyebrow: "AEROPICO CONFIGURATOR",
       title: "AeroPico Configurator",
       lead:
-        "A desktop setup tool built for AeroPico-FC. It talks to the board over USB, turns MAVLink traffic into readable interface state, and keeps preflight setup and bench checks in one place.",
+        "A desktop setup and bench-validation tool built for AeroPico-FC. It talks to the board over real MAVLink v2 over USB, turns firmware state into readable screens, and keeps critical preflight setup/test steps in one controlled interface.",
       summary: [
         {
-          title: "Live MAVLink reading",
-          text: "Heartbeat, SYS_STATUS, ATTITUDE, VFR_HUD, and STATUSTEXT messages become trackable UI state.",
+          title: "Real MAVLink monitoring",
+          text: "Heartbeat, SYS_STATUS, ATTITUDE, VFR_HUD, COMMAND_ACK, and STATUSTEXT messages become live status cards, event logs, and readable guidance.",
         },
         {
           title: "Tuning and profiles",
-          text: "PID, servo, mixer, RC, safety, and battery parameters can be read/written and kept portable through JSON profiles.",
+          text: "PID, servo, mixer, RC, safety, and battery parameters can be read/written, while JSON profiles keep airframe-specific settings portable and reversible.",
         },
         {
-          title: "Bench validation",
-          text: "Servo direction tests, RC channel checks, sensor checks, and preflight reason analysis move onto the desktop.",
+          title: "Bench evidence before flight",
+          text: "Servo direction tests, RC channel checks, sensor health checks, and preflight reason analysis can be verified on the bench before the model is put at risk.",
         },
         {
           title: "Pin Mapper and events",
-          text: "Pin assignments, module state, command ACK responses, and event logs are visible in one place.",
+          text: "Pin assignments, module state, command ACK responses, and safety-gate decisions are visible in one place.",
         },
       ],
       sourceAction: "Open Source Code",
       releaseAction: "Go to Releases",
-      videoLabel: "INTRO VIDEO",
-      videoTitle: "Animated demo area",
-      videoNote: "A short demo video plays in this area.",
+      videoLabel: "INTERFACE PREVIEW",
+      videoTitle: "Preflight control desk",
+      videoNote: "Flight tuning, module state, MAVLink monitoring, and bench-test screens in one desktop workflow.",
       previewAlt: "AeroPico Configurator desktop interface",
       flow: {
         eyebrow: "HOW IT WORKS",
-        title: "Firmware messages become a product interface.",
+        title: "Firmware messages become actionable interface state.",
         text:
-          "Configurator parses MAVLink packets from the device and turns parameters, faults, command ACKs, and preflight state into readable screens.",
+          "Configurator parses MAVLink packets from the device and turns parameters, faults, command ACKs, module health, and preflight state into readable, repeatable test steps.",
         chart: {
           label: "AeroPico Configurator system flow",
           source: {
@@ -720,58 +720,58 @@ export const content = {
       },
       experience: {
         eyebrow: "CORE EXPERIENCE",
-        title: "The setup screens stay upfront.",
+        title: "The screens needed to prove the flight chain stay upfront.",
         items: [
           {
             title: "Flight tuning",
-            text: "PID, servo, mixer, and battery settings follow the same grouping used by the flight software.",
+            text: "PID, servo, mixer, and battery settings follow the same grouping used by the firmware; write, apply-all, and flash-save flows stay separate.",
           },
           {
             title: "MAVLink parser",
-            text: "Live packets, command ACK, STATUSTEXT, and module state become readable without opening a terminal.",
+            text: "Live packets, command ACK, STATUSTEXT, and module state become readable without opening a terminal, with fault output tied to user action.",
           },
           {
             title: "Bench test",
-            text: "Servo direction, RC channels, sensor health, and preflight results can be checked before flight.",
+            text: "Servo direction, RC channels, sensor health, and preflight results can be checked before flight; risky commands pass through firmware safety gates.",
           },
           {
             title: "Pin Mapper",
-            text: "Board pin roles and setup profiles stay easy to follow while changing airframe settings.",
+            text: "Board pin roles, module roles, and setup profiles stay easy to follow while changing airframe settings.",
           },
         ],
       },
       groups: [
         {
           title: "Setup flow",
-          text: "Parameter read/write, flash save, flight tuning, servo setup, mixer, RC mapping, safety, and battery settings live in one desktop workflow.",
+          text: "Parameter read/write, flash save, flight tuning, servo setup, mixer, RC mapping, safety, and battery settings live in one controlled desktop workflow.",
         },
         {
           title: "Diagnostics flow",
-          text: "Connection state, MAVLink packet monitor, module health, preflight reason panel, and event log make firmware behavior easier to understand.",
+          text: "Connection state, MAVLink packet monitor, module health, preflight reason panel, and event log make firmware behavior understandable without reading raw terminal output.",
         },
         {
           title: "Safe bench flow",
-          text: "Calibration, servo tests, and bench commands pass through firmware-side safety gates; risky operations are rejected while armed.",
+          text: "Calibration, servo tests, and bench commands pass through firmware-side safety gates; risky operations are rejected while armed or outside valid preflight conditions.",
         },
       ],
       security: {
-        title: "Stays on the safe side.",
+        title: "The firmware makes the safety decision.",
         text:
-          "Critical commands pass through firmware-side safety checks.",
+          "Configurator sends commands; AeroPico-FC accepts or rejects them through its service command mailbox, preflight logic, and arming safety checks.",
         items: [
           "Risky changes are blocked while armed.",
           "Flash save needs a separate confirmation.",
-          "Servo tests are for bench use.",
+          "Servo tests are bench-only and are not forced around the safety gate.",
         ],
       },
       purpose: {
-        title: "Not a GCS. A setup tool.",
+        title: "Not a GCS. A preflight setup tool.",
         text:
-          "It is not for live maps or mission planning; it is for setup, tuning, and validation.",
+          "It is not for live maps, mission planning, or video link control; it is for setup, tuning, diagnostics, and bench validation before flight.",
         items: [
           "Check the first connection.",
           "See the preflight reason.",
-          "Validate on the bench before flight.",
+          "Validate the flight chain on the bench before installing the propeller.",
         ],
       },
       downloads: {
