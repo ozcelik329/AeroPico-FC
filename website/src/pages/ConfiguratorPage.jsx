@@ -1,5 +1,6 @@
 import configuratorPreview from "../assets/aeropico-configurator-dark.webp";
 import PageShell from "../components/layout/PageShell.jsx";
+import PlatformDownloadButtons from "../components/ui/PlatformDownloadButtons.jsx";
 import { useLanguage } from "../context/LanguageContext.jsx";
 import { repoUrl } from "../data/siteData.js";
 import { externalLinkProps } from "../utils/externalLinkProps.js";
@@ -102,10 +103,9 @@ export default function ConfiguratorPage() {
 
       <section className="site-container py-14 border-t border-slate-900/80 relative z-10">
         <div className="mb-8 max-w-3xl">
-          <div className="text-xs font-mono text-cyan-400 uppercase tracking-wider">{page.experience.eyebrow}</div>
-          <h2 className="text-3xl md:text-4xl font-extrabold text-white mt-2">{page.experience.title}</h2>
+          <h2 className="text-3xl md:text-4xl font-extrabold text-white">{page.experience.title}</h2>
         </div>
-        <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-4">
+        <div className="config-feature-list">
           {page.experience.items.map((item) => (
             <article className="config-feature-card" key={item.title}>
               <h3>{item.title}</h3>
@@ -116,7 +116,7 @@ export default function ConfiguratorPage() {
       </section>
 
       <section className="site-container py-14 border-t border-slate-900/80 relative z-10">
-        <div className="grid lg:grid-cols-3 gap-4">
+        <div className="config-list-strip">
           {page.groups.map((group) => (
             <article className="config-list-panel" key={group.title}>
               <h2>{group.title}</h2>
@@ -150,6 +150,17 @@ export default function ConfiguratorPage() {
               ))}
             </ul>
           </article>
+        </div>
+      </section>
+
+      <section className="site-container py-14 border-t border-slate-900/80 relative z-10">
+        <div className="config-download-panel">
+          <div className="space-y-3">
+            <div className="text-xs font-mono text-cyan-400 uppercase tracking-wider">{page.downloads.eyebrow}</div>
+            <h2>{page.downloads.title}</h2>
+            <p>{page.downloads.text}</p>
+          </div>
+          <PlatformDownloadButtons items={page.downloads.items} />
         </div>
       </section>
     </PageShell>

@@ -291,6 +291,16 @@ export const content = {
           "Release öncesi masaüstü doğrulama",
         ],
       },
+      downloads: {
+        eyebrow: "CONFIGURATOR İNDİRME",
+        title: "macOS ve Windows paketleri",
+        text:
+          "Electron paketleme tamamlandığında .dmg ve .exe bağlantıları buraya bağlanacak. Şimdilik butonlar paket yerleşimi için hazır tutulur.",
+        items: [
+          { platform: "macos", kicker: "Yakında", label: "macOS", ariaLabel: "macOS için AeroPico Configurator indir" },
+          { platform: "windows", kicker: "Yakında", label: "Windows", ariaLabel: "Windows için AeroPico Configurator indir" },
+        ],
+      },
     },
     docs: {
       eyebrow: "DÖKÜMANTASYON",
@@ -781,6 +791,16 @@ export const content = {
           "Sensor, servo, and RC bench tests",
           "Preflight reason analysis",
           "Desktop validation before releases",
+        ],
+      },
+      downloads: {
+        eyebrow: "CONFIGURATOR DOWNLOAD",
+        title: "macOS and Windows packages",
+        text:
+          "After Electron packaging is ready, the .dmg and .exe links will be connected here. For now, the buttons are prepared for package placement.",
+        items: [
+          { platform: "macos", kicker: "Soon", label: "macOS", ariaLabel: "Download AeroPico Configurator for macOS" },
+          { platform: "windows", kicker: "Soon", label: "Windows", ariaLabel: "Download AeroPico Configurator for Windows" },
         ],
       },
     },

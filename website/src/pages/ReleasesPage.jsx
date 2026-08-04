@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import ReleaseGate from "../components/ReleaseGate.jsx";
 import PageShell from "../components/layout/PageShell.jsx";
+import PlatformDownloadButtons from "../components/ui/PlatformDownloadButtons.jsx";
 import { useLanguage } from "../context/LanguageContext.jsx";
 import { repoUrl } from "../data/siteData.js";
 import { getLiveReleaseDownloads, getReleaseDownloads } from "../services/releaseService.js";
@@ -64,6 +65,15 @@ export default function ReleasesPage() {
 
         {status === "loading" ? <div className="mb-4 rounded-xl border border-slate-800 bg-slate-900/70 p-4 text-xs text-slate-400">{content.modals.loading}</div> : null}
         {status === "fallback" ? <div className="mb-4 rounded-xl border border-amber-500/20 bg-amber-500/10 p-4 text-xs text-amber-200">{content.modals.fallback}</div> : null}
+
+        <div className="config-download-panel mb-6">
+          <div className="space-y-3">
+            <div className="text-xs font-mono text-cyan-400 uppercase tracking-wider">{content.configuratorPage.downloads.eyebrow}</div>
+            <h2>{content.configuratorPage.downloads.title}</h2>
+            <p>{content.configuratorPage.downloads.text}</p>
+          </div>
+          <PlatformDownloadButtons items={content.configuratorPage.downloads.items} />
+        </div>
 
         <div className="space-y-4">
           {releases.map((release) => (
