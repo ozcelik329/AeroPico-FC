@@ -7,18 +7,20 @@ export default function HomeOverview() {
 
   return (
     <section className="site-container reveal-section py-16 border-t border-slate-900/80 relative z-10">
-      <div className="mb-10">
+      <div className="mb-10 max-w-3xl">
         <div className="text-xs uppercase font-mono text-cyan-400 font-semibold tracking-wider bg-cyan-500/10 border border-cyan-500/20 px-3 py-1 rounded-full inline-block">
           {content.home.overviewEyebrow}
         </div>
+        <h2 className="mt-4 text-3xl md:text-4xl font-extrabold text-white">{content.home.overviewTitle}</h2>
+        <p className="mt-3 text-sm leading-relaxed text-slate-400">{content.home.overviewDescription}</p>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[1.35fr_0.9fr]">
-        <div className="grid sm:grid-cols-2 gap-4">
+        <div className="home-route-list">
           {content.home.cards.map((card) => (
             <a
               href={card.href}
-              className="flat-card rounded-2xl p-5 min-h-40 flex flex-col justify-between hover:-translate-y-0.5 transition group"
+              className="home-route-item group"
               key={card.href}
             >
               <div>
@@ -50,6 +52,15 @@ export default function HomeOverview() {
             <p className="mt-3 text-xs leading-relaxed text-slate-300">{featuredRelease.text}</p>
             <span className="mt-4 inline-block text-xs font-bold text-cyan-200">{content.home.releaseAction} →</span>
           </a>
+
+          <div className="home-proof-strip">
+            <h3>{content.home.proofTitle}</h3>
+            <div>
+              {content.home.proofItems.map((item) => (
+                <span key={item}>{item}</span>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     </section>

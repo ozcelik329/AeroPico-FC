@@ -19,10 +19,10 @@ export default function Configurator() {
           {content.configurator.description}
         </p>
 
-        <div className="grid sm:grid-cols-2 gap-3 pt-2">
+        <div className="config-check-strip pt-2">
           {content.configurator.checks.map((check) => (
-            <div className="bg-slate-900/80 border border-slate-800 hover:border-cyan-500/40 p-4 rounded-xl flex items-center gap-3 transition" key={check}>
-              <span className="bg-emerald-500/10 text-emerald-400 font-mono text-xs px-2 py-1 rounded font-bold border border-emerald-500/20">OK</span>
+            <div className="config-check-pill" key={check}>
+              <span>OK</span>
               <span className="text-slate-200 text-xs font-semibold">{check}</span>
             </div>
           ))}
@@ -40,7 +40,8 @@ export default function Configurator() {
         </div>
       </div>
 
-      <div className="glass-card rounded-3xl p-3 shadow-2xl overflow-hidden group border-cyan-500/20">
+      <div className="configurator-preview-card glass-card rounded-3xl p-3 shadow-2xl overflow-hidden group border-cyan-500/20">
+        <div className="configurator-preview-label">{content.configurator.demoLabel}</div>
         <div className="rounded-2xl overflow-hidden border border-slate-800/80 bg-slate-950 aspect-[4/3] flex items-center justify-center relative">
           <img
             src={configuratorPreview}

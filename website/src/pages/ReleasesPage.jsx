@@ -67,9 +67,12 @@ export default function ReleasesPage() {
         <div className="config-download-panel mb-6">
           <div>
             <h2>{content.configuratorPage.downloads.title}</h2>
+            <p>{content.release.configuratorDownloadText}</p>
           </div>
           <PlatformDownloadButtons items={content.configuratorPage.downloads.items} />
         </div>
+
+        <div className="release-section-label">{content.release.firmwareTitle}</div>
 
         <div className="space-y-4">
           {releases.map((release) => (

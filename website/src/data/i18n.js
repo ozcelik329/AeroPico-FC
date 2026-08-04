@@ -34,12 +34,16 @@ export const content = {
     },
     home: {
       overviewEyebrow: "PROJE HARİTASI",
+      overviewTitle: "Nereden başlayacağını hızlı seç.",
+      overviewDescription: "Ana sayfa kısa karar akışı olarak kalır; detaylar gerektiğinde kendi sayfasına açılır.",
       cards: [
         { title: "Desteklenen Donanım", text: "Pico 2, sensörler, RC ve GCS uyumluluk listesini tablo düzeninde inceleyin.", href: "/hardware", action: "Donanımı Aç" },
         { title: "Mimari", text: "Kontrol yolu, sensör rolleri, kalıcı ayarlar ve release gate yaklaşımı.", href: "/#architecture", action: "Mimariye Git" },
         { title: "Sürümler", text: "GitHub release kayıtları, ZIP indirmeleri ve uçuş öncesi kabul koşulları.", href: "/releases", action: "Sürümleri Aç" },
         { title: "Dökümanlar", text: "Geliştirici kılavuzu, RCI release notları ve bench test checklist bağlantıları.", href: "/#docs", action: "Dökümanlara Git" },
       ],
+      proofTitle: "Doğrulama İzleri",
+      proofItems: ["native tests", "Pico firmware build", "Configurator lint", "bench checklist"],
       statusTitle: "Kısa Teknik Durum",
       statusItems: [
         { label: "CONTROL LOOP", value: "500 Hz" },
@@ -161,15 +165,14 @@ export const content = {
       eyebrow: "AEROPICO CONFIGURATOR",
       title: "Kurulum, kalibrasyon ve bench komutları tek arayüzde.",
       description:
-        "Configurator, firmware ile ACK-gated MAVLink servis komutları üzerinden konuşur. Parametreleri okur, flash üzerine kaydeder, sensör sağlığını kontrol eder ve güvenli testleri sadece disarmed durumda çalıştırır.",
+        "Kartı bağlayın, preflight sebebini görün, ayarları düzenleyin ve masaüstü testlerini aynı ekrandan yönetin.",
       action: "Detaylı İncele →",
+      demoLabel: "Masaüstü arayüz önizlemesi",
       checks: [
-        "USB Serial bağlantı",
-        "MAVLink parametre okuma/yazma",
-        "IMU ve mag kalibrasyon",
-        "Preflight ve sensor check",
+        "USB bağlantı",
+        "Parametre ayarı",
+        "Preflight sebebi",
         "RC monitor",
-        "Disarmed-only servo test",
       ],
       previewAlt: "AeroPico Configurator arayüzü",
     },
@@ -332,6 +335,8 @@ export const content = {
         "Pico firmware build",
         "Configurator statik kontrol",
       ],
+      configuratorDownloadText: "Masaüstü ayar aracı paketleri burada hazır durur. Electron paketleri bağlanınca MacOS ve Windows butonları doğrudan indirme verecek.",
+      firmwareTitle: "Firmware Sürümleri",
       downloads: [
         {
           title: "AeroPico-FC v1.0.0-rc1 Software RCI",
@@ -524,12 +529,16 @@ export const content = {
     },
     home: {
       overviewEyebrow: "PROJECT MAP",
+      overviewTitle: "Pick the right starting point fast.",
+      overviewDescription: "The home page stays as a short decision flow; deeper details open only when needed.",
       cards: [
         { title: "Supported Hardware", text: "Review Pico 2, sensors, RC input, and GCS compatibility in a list layout.", href: "/hardware", action: "Open Hardware" },
         { title: "Architecture", text: "Control path, sensor roles, persistent settings, and release-gate strategy.", href: "/#architecture", action: "Open Architecture" },
         { title: "Releases", text: "GitHub releases, ZIP downloads, and preflight acceptance conditions.", href: "/releases", action: "Open Releases" },
         { title: "Docs", text: "Developer guide, RCI release notes, and bench test checklist links.", href: "/#docs", action: "Open Docs" },
       ],
+      proofTitle: "Validation Traces",
+      proofItems: ["native tests", "Pico firmware build", "Configurator lint", "bench checklist"],
       statusTitle: "Technical Snapshot",
       statusItems: [
         { label: "CONTROL LOOP", value: "500 Hz" },
@@ -651,15 +660,14 @@ export const content = {
       eyebrow: "AEROPICO CONFIGURATOR",
       title: "Setup, calibration, and bench commands in one interface.",
       description:
-        "Configurator talks to the firmware through ACK-gated MAVLink service commands. It reads parameters, saves to flash, checks sensor health, and runs safe tests only while disarmed.",
+        "Connect the board, read the preflight reason, tune settings, and run bench checks from the same desktop screen.",
       action: "View Details →",
+      demoLabel: "Desktop interface preview",
       checks: [
-        "USB serial connection",
-        "MAVLink parameter read/write",
-        "IMU and magnetometer calibration",
-        "Preflight and sensor checks",
+        "USB connection",
+        "Parameter tuning",
+        "Preflight reason",
         "RC monitor",
-        "Disarmed-only servo test",
       ],
       previewAlt: "AeroPico Configurator interface",
     },
@@ -822,6 +830,8 @@ export const content = {
         "Pico firmware build",
         "Configurator static check",
       ],
+      configuratorDownloadText: "Desktop setup packages are reserved here. When the Electron packages are ready, the MacOS and Windows buttons will point to direct downloads.",
+      firmwareTitle: "Firmware Releases",
       downloads: [
         {
           title: "AeroPico-FC v1.0.0-rc1 Software RCI",
