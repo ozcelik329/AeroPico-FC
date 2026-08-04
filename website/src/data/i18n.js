@@ -11,7 +11,7 @@ export const content = {
       { label: "Başlangıç", href: "/#quickstart", highlighted: true },
       { label: "Donanım", href: "/hardware" },
       { label: "Mimari", href: "/#architecture" },
-      { label: "Configurator", href: "/#configurator" },
+      { label: "Configurator", href: "/configurator" },
       { label: "Dökümanlar", href: "/#docs" },
       { label: "Koşullar", href: "/releases" },
       { label: "İletişim", href: "/#contact" },
@@ -165,7 +165,7 @@ export const content = {
       title: "Kurulum, kalibrasyon ve bench komutları tek arayüzde.",
       description:
         "Configurator, firmware ile ACK-gated MAVLink servis komutları üzerinden konuşur. Parametreleri okur, flash üzerine kaydeder, sensör sağlığını kontrol eder ve güvenli testleri sadece disarmed durumda çalıştırır.",
-      action: "Configurator İndir (.zip)",
+      action: "Configurator Sayfasını Aç",
       checks: [
         "USB Serial bağlantı",
         "MAVLink parametre okuma/yazma",
@@ -175,6 +175,122 @@ export const content = {
         "Disarmed-only servo test",
       ],
       previewAlt: "AeroPico Configurator arayüzü",
+    },
+    configuratorPage: {
+      eyebrow: "AEROPICO CONFIGURATOR",
+      title: "Kurulum ve bench doğrulama arayüzü",
+      lead:
+        "AeroPico Configurator, AeroPico-FC uçuş kontrolcüsünü koda dokunmadan yapılandırmak, kalibre etmek, test etmek ve tanılamak için geliştirilen modern bir MAVLink masaüstü aracıdır.",
+      summary: [
+        "MAVLink v2 paket formatıyla USB bağlantı",
+        "PID, servo, mixer, RC, safety ve battery yönetimi",
+        "Canlı modül durumu ve preflight sebep analizi",
+        "Pin Mapper, profil yönetimi ve JSON yedekleme",
+      ],
+      sourceAction: "Kaynak Kodları Aç",
+      releaseAction: "Sürümlere Git",
+      videoLabel: "TANITIM VİDEOSU",
+      videoTitle: "Animasyonlu demo alanı",
+      videoNote: "Hazırlayacağın video buraya gömülebilir.",
+      previewAlt: "AeroPico Configurator masaüstü arayüzü",
+      flow: {
+        eyebrow: "SİSTEM AKIŞI",
+        title: "Firmware ile masaüstü arasında okunabilir MAVLink katmanı",
+        text:
+          "Configurator, cihazdan gelen durum mesajlarını, parametreleri, hata bildirimlerini ve komut yanıtlarını okunabilir hale getirir. Böylece firmware terminal çıktılarıyla takip edilen bir yapı olmaktan çıkar; kurulabilen, test edilebilen ve doğrulanabilen bir uçuş kontrol platformuna dönüşür.",
+        chart: {
+          label: "AeroPico Configurator sistem akışı",
+          source: {
+            kicker: "RP2350",
+            title: "AeroPico-FC",
+            meta: "Flight Controller",
+          },
+          transport: "USB / MAVLink v2",
+          target: {
+            kicker: "Desktop",
+            title: "Configurator",
+            meta: "Setup Tool",
+          },
+          branches: ["Parametre Yönetimi", "Kalibrasyon", "Bench Test", "Preflight Analizi", "MAVLink Paket İzleme"],
+        },
+      },
+      experience: {
+        eyebrow: "ÖNE ÇIKAN DENEYİM",
+        title: "Sahada anlaşılır, masada test edilebilir",
+        items: [
+          {
+            title: "Görsel Kurulum",
+            text: "PID, servo, batarya ve RC ayarları kart tabanlı arayüzle okunabilir hale gelir.",
+          },
+          {
+            title: "Akıllı Tanılama",
+            text: "Heartbeat, sistem durumu, command ACK ve STATUSTEXT mesajları sade açıklamalarla gösterilir.",
+          },
+          {
+            title: "Güvenli Masaüstü Testleri",
+            text: "Servo yönü, RC kanal eşleşmesi, sensör kontrolü ve preflight doğrulaması uçuş öncesi yapılabilir.",
+          },
+          {
+            title: "Taşınabilir Ayarlar",
+            text: "Profil sistemi ve JSON dışa/içe aktarma ile farklı gövde ve tuning denemeleri saklanabilir.",
+          },
+        ],
+      },
+      groups: [
+        {
+          title: "Temel Özellikler",
+          items: [
+            "MAVLink bağlantısı ve canlı paket çözümleme",
+            "Parametre okuma, düzenleme, yazma ve flash'a kayıt",
+            "Kontrollü gönderim kuyruğu",
+            "Flight tuning, servo setup, mixer ve RC mapping",
+            "Safety, battery ve telemetry ayarları",
+          ],
+        },
+        {
+          title: "Kalibrasyon ve Bench",
+          items: [
+            "IMU, manyetometre ve RC kalibrasyon komutları",
+            "Servo yön testi ve RC kanal kontrolü",
+            "Sensör kontrolü ve preflight doğrulaması",
+            "Pervane sökülüyken güvenli bench test akışı",
+            "Preflight ve olay kaydı sekmeleri",
+          ],
+        },
+        {
+          title: "Geliştirici Katmanı",
+          items: [
+            "MAVLink tabanlı genişletilebilir haberleşme mimarisi",
+            "Firmware servis komutlarıyla güvenli işlem akışı",
+            "Sensor backend ve modül setup altyapısına uyumlu arayüz",
+            "JSON tabanlı taşınabilir profil sistemi",
+            "Yeni parametre grupları eklemeye uygun yapı",
+          ],
+        },
+      ],
+      security: {
+        title: "Güvenlik Yaklaşımı",
+        text:
+          "Configurator uçuş kontrolcüsüne doğrudan düşük seviye müdahale etmez. Kritik işlemler MAVLink üzerinden firmware'e gönderilir ve firmware güvenlik koşullarına göre kabul edilir veya reddedilir.",
+        items: [
+          "Armed durumda kritik parametre değişiklikleri firmware tarafından engellenir.",
+          "Flash'a kayıt ayrı bir komut olarak yürütülür.",
+          "Servo test ve bench arm yalnızca masaüstü test ortamı için tasarlanır.",
+          "Gönderimler kontrollü kuyrukla iletilir; seri hattın boğulması engellenir.",
+        ],
+      },
+      purpose: {
+        title: "Kullanım Amacı",
+        text:
+          "AeroPico Configurator bir uçuş ekranı veya tam GCS değildir. İlk kurulum, ayar, kalibrasyon, bench doğrulama ve MAVLink tanılama için konumlanır.",
+        items: [
+          "İlk kurulum ve donanım bağlantı doğrulaması",
+          "Parametre ayarı ve kalibrasyon",
+          "Sensör, servo ve RC bench testleri",
+          "Preflight sebep analizi",
+          "Release öncesi masaüstü doğrulama",
+        ],
+      },
     },
     docs: {
       eyebrow: "DÖKÜMANTASYON",
@@ -387,7 +503,7 @@ export const content = {
       { label: "Start", href: "/#quickstart", highlighted: true },
       { label: "Hardware", href: "/hardware" },
       { label: "Architecture", href: "/#architecture" },
-      { label: "Configurator", href: "/#configurator" },
+      { label: "Configurator", href: "/configurator" },
       { label: "Docs", href: "/#docs" },
       { label: "Releases", href: "/releases" },
       { label: "Contact", href: "/#contact" },
@@ -541,7 +657,7 @@ export const content = {
       title: "Setup, calibration, and bench commands in one interface.",
       description:
         "Configurator talks to the firmware through ACK-gated MAVLink service commands. It reads parameters, saves to flash, checks sensor health, and runs safe tests only while disarmed.",
-      action: "Download Configurator (.zip)",
+      action: "Open Configurator Page",
       checks: [
         "USB serial connection",
         "MAVLink parameter read/write",
@@ -551,6 +667,122 @@ export const content = {
         "Disarmed-only servo test",
       ],
       previewAlt: "AeroPico Configurator interface",
+    },
+    configuratorPage: {
+      eyebrow: "AEROPICO CONFIGURATOR",
+      title: "Setup and bench validation interface",
+      lead:
+        "AeroPico Configurator is a modern MAVLink desktop tool for configuring, calibrating, testing, and diagnosing the AeroPico-FC flight controller without touching firmware code.",
+      summary: [
+        "USB connection with MAVLink v2 packet framing",
+        "PID, servo, mixer, RC, safety, and battery management",
+        "Live module status and preflight reason analysis",
+        "Pin Mapper, profile management, and JSON backup",
+      ],
+      sourceAction: "Open Source Code",
+      releaseAction: "Go to Releases",
+      videoLabel: "INTRO VIDEO",
+      videoTitle: "Animated demo area",
+      videoNote: "Your promotional video can be embedded here later.",
+      previewAlt: "AeroPico Configurator desktop interface",
+      flow: {
+        eyebrow: "SYSTEM FLOW",
+        title: "A readable MAVLink layer between firmware and desktop",
+        text:
+          "Configurator turns status messages, parameters, fault reports, and command responses from the device into readable interface states. The firmware becomes a setup, test, and validation platform instead of something followed only through terminal output.",
+        chart: {
+          label: "AeroPico Configurator system flow",
+          source: {
+            kicker: "RP2350",
+            title: "AeroPico-FC",
+            meta: "Flight Controller",
+          },
+          transport: "USB / MAVLink v2",
+          target: {
+            kicker: "Desktop",
+            title: "Configurator",
+            meta: "Setup Tool",
+          },
+          branches: ["Parameter Management", "Calibration", "Bench Test", "Preflight Analysis", "MAVLink Packet Monitor"],
+        },
+      },
+      experience: {
+        eyebrow: "CORE EXPERIENCE",
+        title: "Readable in the field, testable on the bench",
+        items: [
+          {
+            title: "Visual Setup",
+            text: "PID, servo, battery, and RC settings are presented through a readable card-based interface.",
+          },
+          {
+            title: "Smart Diagnostics",
+            text: "Heartbeat, system status, command ACK, and STATUSTEXT messages are shown with short explanations.",
+          },
+          {
+            title: "Safe Desktop Tests",
+            text: "Servo direction, RC channel mapping, sensor checks, and preflight validation can be done before flight.",
+          },
+          {
+            title: "Portable Settings",
+            text: "Profiles and JSON import/export make airframe setups and tuning experiments reusable.",
+          },
+        ],
+      },
+      groups: [
+        {
+          title: "Core Features",
+          items: [
+            "MAVLink connection and live packet decoding",
+            "Parameter read, edit, write, and flash save",
+            "Controlled send queue",
+            "Flight tuning, servo setup, mixer, and RC mapping",
+            "Safety, battery, and telemetry settings",
+          ],
+        },
+        {
+          title: "Calibration and Bench",
+          items: [
+            "IMU, magnetometer, and RC calibration commands",
+            "Servo direction test and RC channel check",
+            "Sensor checks and preflight validation",
+            "Safe bench-test flow with propeller removed",
+            "Preflight and event-log tabs",
+          ],
+        },
+        {
+          title: "Developer Layer",
+          items: [
+            "Extensible MAVLink-based communication architecture",
+            "Safe operation flow through firmware service commands",
+            "Interface aligned with sensor backend and module setup layers",
+            "Portable JSON profile system",
+            "Structure ready for new parameter groups",
+          ],
+        },
+      ],
+      security: {
+        title: "Safety Approach",
+        text:
+          "Configurator does not directly perform low-level intervention on the flight controller. Critical operations are sent to firmware over MAVLink and accepted or rejected according to firmware-side safety conditions.",
+        items: [
+          "Critical parameter changes are blocked by firmware while armed.",
+          "Saving to flash is handled as a separate command.",
+          "Servo test and bench arm are designed only for desktop bench scenarios.",
+          "Messages are transmitted through a controlled queue to avoid saturating the serial link.",
+        ],
+      },
+      purpose: {
+        title: "Intended Use",
+        text:
+          "AeroPico Configurator is not a flight display or full GCS. It is positioned for first setup, tuning, calibration, bench validation, and MAVLink diagnostics.",
+        items: [
+          "Initial setup and hardware connection validation",
+          "Parameter tuning and calibration",
+          "Sensor, servo, and RC bench tests",
+          "Preflight reason analysis",
+          "Desktop validation before releases",
+        ],
+      },
     },
     docs: {
       eyebrow: "DOCUMENTATION",

@@ -195,6 +195,237 @@ a {
   border: 1px solid rgba(34, 211, 238, 0.08);
 }
 
+.configurator-page-hero {
+  min-height: calc(100vh - 5.8rem);
+  display: grid;
+  align-items: center;
+}
+
+.config-mini-row {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.8rem 0.95rem;
+  border: 1px solid rgba(100, 116, 139, 0.32);
+  border-radius: 0.9rem;
+  background: rgba(15, 23, 42, 0.42);
+  color: #dbeafe;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.config-mini-row span {
+  width: 0.45rem;
+  height: 0.45rem;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: #60a5fa;
+  box-shadow: 0 0 0 4px rgba(96, 165, 250, 0.12);
+}
+
+.config-preview-shell {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(96, 165, 250, 0.2);
+  border-radius: 1.6rem;
+  background:
+    linear-gradient(180deg, rgba(15, 23, 42, 0.66), rgba(2, 6, 23, 0.82)),
+    rgba(15, 23, 42, 0.64);
+  box-shadow: 0 30px 90px -70px rgba(37, 99, 235, 0.72);
+}
+
+.config-preview-image {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
+  border-top: 1px solid rgba(100, 116, 139, 0.28);
+}
+
+.config-video-slot {
+  display: grid;
+  gap: 0.35rem;
+  padding: 1.15rem 1.25rem;
+}
+
+.config-video-slot span,
+.config-flow-node span {
+  color: #93c5fd;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.config-video-slot strong {
+  color: #f8fafc;
+  font-size: 1rem;
+}
+
+.config-video-slot small,
+.config-flow-node small {
+  color: #94a3b8;
+  font-size: 0.78rem;
+}
+
+.config-flow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  gap: 1rem;
+  align-items: center;
+  padding: 1.1rem;
+  border: 1px solid rgba(100, 116, 139, 0.32);
+  border-radius: 1.35rem;
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.48), rgba(2, 6, 23, 0.42));
+}
+
+.config-flow-node,
+.config-flow-branch {
+  border: 1px solid rgba(100, 116, 139, 0.3);
+  background: rgba(15, 23, 42, 0.52);
+}
+
+.config-flow-node {
+  min-height: 8.5rem;
+  display: grid;
+  align-content: center;
+  gap: 0.35rem;
+  padding: 1.2rem;
+  border-radius: 1.1rem;
+}
+
+.config-flow-node strong {
+  color: #f8fafc;
+  font-size: clamp(1.3rem, 2.6vw, 2rem);
+  line-height: 1.05;
+}
+
+.config-flow-link {
+  position: relative;
+  min-width: 8.5rem;
+  height: 2px;
+  background: linear-gradient(90deg, rgba(96, 165, 250, 0.1), rgba(96, 165, 250, 0.9), rgba(96, 165, 250, 0.1));
+}
+
+.config-flow-link::before,
+.config-flow-link::after {
+  position: absolute;
+  top: 50%;
+  width: 0.55rem;
+  height: 0.55rem;
+  content: "";
+  border-radius: 999px;
+  background: #60a5fa;
+  transform: translateY(-50%);
+}
+
+.config-flow-link::before {
+  left: 0;
+}
+
+.config-flow-link::after {
+  right: 0;
+}
+
+.config-flow-link span {
+  position: absolute;
+  left: 50%;
+  bottom: 0.65rem;
+  width: max-content;
+  padding: 0.38rem 0.6rem;
+  border: 1px solid rgba(96, 165, 250, 0.25);
+  border-radius: 999px;
+  background: rgba(2, 6, 23, 0.8);
+  color: #bfdbfe;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 0.68rem;
+  font-weight: 800;
+  transform: translateX(-50%);
+}
+
+.config-flow-branches {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.7rem;
+}
+
+.config-flow-branch {
+  padding: 0.8rem;
+  border-radius: 0.8rem;
+  color: #cbd5e1;
+  font-size: 0.74rem;
+  font-weight: 800;
+  text-align: center;
+}
+
+.config-feature-card,
+.config-list-panel,
+.config-text-panel {
+  border: 1px solid rgba(100, 116, 139, 0.3);
+  background: rgba(15, 23, 42, 0.48);
+  box-shadow: 0 24px 70px -60px rgba(37, 99, 235, 0.55);
+}
+
+.config-feature-card {
+  min-height: 12rem;
+  padding: 1.2rem;
+  border-radius: 1rem;
+}
+
+.config-feature-card h3,
+.config-list-panel h2,
+.config-text-panel h2 {
+  color: #f8fafc;
+  font-weight: 850;
+}
+
+.config-feature-card h3 {
+  font-size: 1.05rem;
+}
+
+.config-feature-card p,
+.config-text-panel p {
+  margin-top: 0.7rem;
+  color: #94a3b8;
+  font-size: 0.86rem;
+  line-height: 1.65;
+}
+
+.config-list-panel,
+.config-text-panel {
+  padding: 1.25rem;
+  border-radius: 1.1rem;
+}
+
+.config-list-panel ul,
+.config-text-panel ul {
+  display: grid;
+  gap: 0.65rem;
+  margin-top: 1rem;
+  color: #cbd5e1;
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.config-list-panel li,
+.config-text-panel li {
+  position: relative;
+  padding-left: 1rem;
+}
+
+.config-list-panel li::before,
+.config-text-panel li::before {
+  position: absolute;
+  left: 0;
+  top: 0.6em;
+  width: 0.35rem;
+  height: 0.35rem;
+  content: "";
+  border-radius: 999px;
+  background: #60a5fa;
+}
+
 .page-transition {
   animation: page-enter 260ms ease both;
 }
@@ -647,6 +878,51 @@ section.reveal-section .glass-card {
 
   .configurator-band::before {
     inset: 0.75rem -0.25rem;
+  }
+
+  .configurator-page-hero {
+    min-height: auto;
+  }
+
+  .config-flow {
+    grid-template-columns: 1fr;
+  }
+
+  .config-flow-link {
+    width: 2px;
+    min-width: 0;
+    height: 4rem;
+    margin-inline: auto;
+    background: linear-gradient(180deg, rgba(96, 165, 250, 0.1), rgba(96, 165, 250, 0.9), rgba(96, 165, 250, 0.1));
+  }
+
+  .config-flow-link::before,
+  .config-flow-link::after {
+    left: 50%;
+    top: auto;
+    transform: translateX(-50%);
+  }
+
+  .config-flow-link::before {
+    top: 0;
+  }
+
+  .config-flow-link::after {
+    bottom: 0;
+  }
+
+  .config-flow-link span {
+    left: calc(50% + 1rem);
+    bottom: 50%;
+    transform: translateY(50%);
+  }
+
+  .config-flow-branches {
+    grid-template-columns: 1fr;
+  }
+
+  .config-preview-image {
+    aspect-ratio: 4 / 3;
   }
 
   code {

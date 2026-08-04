@@ -4,10 +4,12 @@ import { LanguageProvider } from "./context/LanguageContext.jsx";
 import { ModalProvider } from "./context/ModalContext.jsx";
 import HardwarePage from "./pages/HardwarePage.jsx";
 import Home from "./pages/Home.jsx";
+import ConfiguratorPage from "./pages/ConfiguratorPage.jsx";
 import ReleasesPage from "./pages/ReleasesPage.jsx";
 
 const routes = {
   "/": Home,
+  "/configurator": ConfiguratorPage,
   "/hardware": HardwarePage,
   "/releases": ReleasesPage,
 };
