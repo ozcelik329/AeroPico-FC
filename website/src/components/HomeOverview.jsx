@@ -12,7 +12,9 @@ export default function HomeOverview() {
           {content.home.overviewEyebrow}
         </div>
         <h2 className="mt-4 text-3xl md:text-4xl font-extrabold text-white">{content.home.overviewTitle}</h2>
-        <p className="mt-3 text-sm leading-relaxed text-slate-400">{content.home.overviewDescription}</p>
+        {content.home.overviewDescription ? (
+          <p className="mt-3 text-sm leading-relaxed text-slate-400">{content.home.overviewDescription}</p>
+        ) : null}
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[1.35fr_0.9fr]">

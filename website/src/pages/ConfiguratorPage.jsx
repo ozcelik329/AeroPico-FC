@@ -50,9 +50,12 @@ export default function ConfiguratorPage() {
             </div>
             <div className="grid sm:grid-cols-2 gap-3">
               {page.summary.map((item) => (
-                <div className="config-mini-row" key={item}>
+                <div className="config-mini-row" key={typeof item === "string" ? item : item.title}>
                   <span />
-                  {item}
+                  <div>
+                    <strong>{typeof item === "string" ? item : item.title}</strong>
+                    {typeof item === "string" ? null : <p>{item.text}</p>}
+                  </div>
                 </div>
               ))}
             </div>
@@ -120,11 +123,15 @@ export default function ConfiguratorPage() {
           {page.groups.map((group) => (
             <article className="config-list-panel" key={group.title}>
               <h2>{group.title}</h2>
-              <ul>
-                {group.items.map((item) => (
-                  <li key={item}>{item}</li>
-                ))}
-              </ul>
+              {group.text ? (
+                <p>{group.text}</p>
+              ) : (
+                <ul>
+                  {group.items.map((item) => (
+                    <li key={item}>{item}</li>
+                  ))}
+                </ul>
+              )}
             </article>
           ))}
         </div>

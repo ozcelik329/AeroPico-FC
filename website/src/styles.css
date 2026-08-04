@@ -74,7 +74,7 @@ a {
 }
 
 .header-spacer {
-  height: 5.8rem;
+  height: 5.15rem;
 }
 
 .header-shell {
@@ -89,7 +89,7 @@ a {
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  padding: 0.75rem 1.25rem;
+  padding: 0.55rem 1rem;
   animation: header-drop 420ms ease both;
 }
 
@@ -98,6 +98,11 @@ a {
   align-items: center;
   gap: 0.75rem;
   min-width: 0;
+}
+
+.header-brand > span:first-child {
+  padding: 0.38rem 0.65rem !important;
+  border-radius: 0.95rem !important;
 }
 
 .header-left {
@@ -109,7 +114,7 @@ a {
 
 .header-logo {
   width: auto;
-  height: 2.5rem;
+  height: 2.15rem;
 }
 
 .header-mobile-title {
@@ -124,6 +129,13 @@ a {
 
 .header-actions {
   gap: 0.75rem;
+}
+
+.header-actions a,
+.header-actions button,
+.header-feature-button {
+  padding-top: 0.48rem !important;
+  padding-bottom: 0.48rem !important;
 }
 
 .header-nav {
@@ -145,9 +157,9 @@ a {
 }
 
 .header-nav-link {
-  padding: 0.55rem 0.8rem;
+  padding: 0.42rem 0.72rem;
   border: 1px solid transparent;
-  border-radius: 0.85rem;
+  border-radius: 0.72rem;
   transition:
     color 150ms ease,
     border-color 150ms ease,
@@ -330,16 +342,18 @@ a {
 }
 
 .configurator-page-hero {
-  min-height: calc(100vh - 5.8rem);
+  min-height: calc(100vh - 5.15rem);
   display: grid;
   align-items: center;
 }
 
 .config-mini-row {
-  display: flex;
-  align-items: center;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
   gap: 0.7rem;
-  padding: 0.8rem 0.95rem;
+  min-height: 7rem;
+  padding: 0.95rem;
   border: 1px solid rgba(100, 116, 139, 0.32);
   border-radius: 0.9rem;
   background: rgba(15, 23, 42, 0.42);
@@ -355,6 +369,21 @@ a {
   border-radius: 999px;
   background: #60a5fa;
   box-shadow: 0 0 0 4px rgba(96, 165, 250, 0.12);
+}
+
+.config-mini-row strong {
+  display: block;
+  color: #f8fafc;
+  font-size: 0.88rem;
+  line-height: 1.25;
+}
+
+.config-mini-row p {
+  margin-top: 0.38rem;
+  color: #94a3b8;
+  font-size: 0.76rem;
+  font-weight: 600;
+  line-height: 1.55;
 }
 
 .config-preview-shell {
@@ -550,7 +579,8 @@ a {
 }
 
 .config-feature-card p,
-.config-text-panel p {
+.config-text-panel p,
+.config-list-panel p {
   margin-top: 0.7rem;
   color: #94a3b8;
   font-size: 0.86rem;
