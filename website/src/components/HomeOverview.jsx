@@ -43,7 +43,7 @@ export default function HomeOverview() {
             </div>
           </div>
 
-          <a href="/downloads" className="block rounded-2xl border border-cyan-500/20 bg-cyan-500/10 p-5 hover:bg-cyan-500/15 transition">
+          <a href="/releases" className="block rounded-2xl border border-cyan-500/20 bg-cyan-500/10 p-5 hover:bg-cyan-500/15 transition">
             <div className="text-[10px] font-mono uppercase tracking-wider text-cyan-300">{content.home.releaseTitle}</div>
             <h3 className="mt-2 text-base font-extrabold text-white">{featuredRelease.title}</h3>
             <div className="mt-1 text-[11px] font-mono text-slate-400">{featuredRelease.version} · {featuredRelease.published}</div>
