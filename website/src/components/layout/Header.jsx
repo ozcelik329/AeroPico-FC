@@ -30,26 +30,25 @@ export default function Header() {
   useEffect(() => {
     const updateActiveLocation = () => setActiveLocation(`${window.location.pathname}${window.location.hash}`);
     const onScroll = () => {
-      if (window.location.pathname !== "/") {
-        updateActiveLocation();
-        return;
-      }
+        if (window.location.pathname !== "/") {
+          updateActiveLocation();
+          return;
+        }
 
-      const sections = ["quickstart", "docs", "contact"];
-      const current = sections.find((id) => {
-        const element = document.getElementById(id);
-        if (!element) return false;
-        const box = element.getBoundingClientRect();
-        return box.top <= 150 && box.bottom > 150;
-      });
+        const sections = ["project-map", "quickstart", "docs", "contact"];
+        const current = sections.find((id) => {
+          const element = document.getElementById(id);
+          if (!element) return false;
+          const box = element.getBoundingClientRect();
+          return box.top <= 150 && box.bottom > 150;
+        });
 
-      if (current) {
-        setActiveLocation(`/#${current}`);
-      } else {
-        updateActiveLocation();
-      }
-    };
-
+        if (current) {
+          setActiveLocation(`/#${current}`);
+        } else {
+          updateActiveLocation();
+        }
+      };
     updateActiveLocation();
     window.addEventListener("popstate", updateActiveLocation);
     window.addEventListener("hashchange", updateActiveLocation);
@@ -105,6 +104,13 @@ export default function Header() {
           {content.languageLabel}
         </motion.button>
         <motion.a
+          href="/#contact"
+          className="border border-slate-700 bg-slate-900/70 hover:border-cyan-500/35 text-slate-300 font-semibold px-4 py-2 rounded-xl transition text-sm flex items-center gap-2"
+          {...pressFeedback}
+        >
+          {content.header.contact}
+        </motion.a>
+        <motion.a
           href={repoUrl}
           className="bg-slate-900/75 border border-slate-800 hover:border-cyan-500/40 text-slate-300 font-semibold px-4 py-2 rounded-xl transition text-sm flex items-center gap-2"
           {...externalLinkProps}
@@ -157,6 +163,9 @@ export default function Header() {
                 {item.label}
               </a>
             ))}
+            <a href="/#contact" onClick={closeMenu} className={`mobile-menu-item ${isActive("/#contact") ? "is-active" : ""}`}>
+              {content.header.contact}
+            </a>
           </motion.div>
         ) : null}
       </AnimatePresence>

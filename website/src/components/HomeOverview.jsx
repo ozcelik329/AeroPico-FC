@@ -6,7 +6,7 @@ export default function HomeOverview() {
   const statusItems = content.home.statusItems;
 
   return (
-    <section className="site-container reveal-section py-16 border-t border-slate-900/80 relative z-10">
+    <section id="project-map" className="site-container reveal-section py-16 border-t border-slate-900/80 relative z-10">
       <div className="mb-10 max-w-3xl">
         <div className="text-xs uppercase font-mono text-cyan-400 font-semibold tracking-wider bg-cyan-500/10 border border-cyan-500/20 px-3 py-1 rounded-full inline-block">
           {content.home.overviewEyebrow}
