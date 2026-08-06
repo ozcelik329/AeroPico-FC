@@ -10,6 +10,7 @@ export const content = {
     navItems: [
       { label: "Proje Haritası", href: "/#project-map" },
       { label: "Hızlı Başlangıç", href: "/#quickstart", highlighted: true },
+      { label: "Configurator", href: "/#configurator" },
       { label: "Dökümanlar", href: "/#docs" },
     ],
     header: {
@@ -502,6 +503,7 @@ export const content = {
     navItems: [
       { label: "Project Map", href: "/#project-map" },
       { label: "Quick Start", href: "/#quickstart", highlighted: true },
+      { label: "Configurator", href: "/#configurator" },
       { label: "Docs", href: "/#docs" },
     ],
     header: {

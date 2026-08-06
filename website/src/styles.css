@@ -127,7 +127,8 @@ a {
   transform: translateX(-50%);
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
+  flex-wrap: wrap;
   gap: 1rem;
   padding: 0.55rem 1rem;
   animation: header-drop 420ms ease both;
@@ -185,6 +186,7 @@ a {
   font-size: 0.875rem;
   font-weight: 500;
   white-space: nowrap;
+  flex-wrap: wrap;
 }
 
 .header-nav-item,
