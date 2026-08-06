@@ -127,8 +127,7 @@ a {
   transform: translateX(-50%);
   display: flex;
   align-items: center;
-  justify-content: center;
-  flex-wrap: wrap;
+  justify-content: space-between;
   gap: 1rem;
   padding: 0.55rem 1rem;
   animation: header-drop 420ms ease both;
@@ -170,6 +169,18 @@ a {
 
 .header-actions {
   gap: 0.75rem;
+  display: flex;
+  align-items: center;
+}
+
+.header-contact-button {
+  width: 2.6rem;
+  height: 2.6rem;
+  min-width: 2.6rem;
+  padding: 0;
+  border-radius: 999px;
+  font-size: 1rem;
+  line-height: 1;
 }
 
 .header-actions a,
@@ -180,6 +191,7 @@ a {
 }
 
 .header-nav {
+  flex: 1;
   justify-content: center;
   gap: 0.35rem;
   color: #cbd5e1;

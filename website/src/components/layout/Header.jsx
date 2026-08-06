@@ -9,7 +9,7 @@ import { pressFeedback, spring, springSheet } from "../../utils/motionPresets.js
 
 export default function Header() {
   const { content, toggleLanguage } = useLanguage();
-  const { openSpecs } = useModal();
+  const { openSpecs, openContact } = useModal();
   const [menuOpen, setMenuOpen] = useState(false);
   const [activeLocation, setActiveLocation] = useState(() => `${window.location.pathname}${window.location.hash}`);
   const navItems = content.navItems;
@@ -73,7 +73,7 @@ export default function Header() {
         <motion.button
           type="button"
           onClick={openSpecs}
-          className="header-nav-item header-feature-button hover:text-cyan-400 transition cursor-pointer font-semibold text-cyan-300 bg-cyan-500/10 border border-cyan-500/20 rounded-xl shadow-sm flex items-center gap-2 group"
+          className="header-feature-button hover:text-cyan-400 transition cursor-pointer font-semibold text-cyan-300 bg-cyan-500/10 border border-cyan-500/20 rounded-xl shadow-sm flex items-center gap-2 group"
           {...pressFeedback}
         >
           {content.header.features}
@@ -87,6 +87,7 @@ export default function Header() {
             href={item.href}
             key={item.href}
             aria-current={isActive(item.href) ? "page" : undefined}
+            onClick={() => setActiveLocation(item.href)}
           >
             {item.label}
           </a>
@@ -103,13 +104,16 @@ export default function Header() {
         >
           {content.languageLabel}
         </motion.button>
-        <motion.a
-          href="/#contact"
-          className="border border-slate-700 bg-slate-900/70 hover:border-cyan-500/35 text-slate-300 font-semibold px-4 py-2 rounded-xl transition text-sm flex items-center gap-2"
+        <motion.button
+          type="button"
+          onClick={openContact}
+          className="header-contact-button border border-slate-700 bg-slate-900/70 hover:border-cyan-500/35 text-slate-300 rounded-xl transition cursor-pointer flex items-center justify-center"
+          aria-label={content.header.contact}
           {...pressFeedback}
         >
-          {content.header.contact}
-        </motion.a>
+          <span className="text-base">✉</span>
+          <span className="sr-only">{content.header.contact}</span>
+        </motion.button>
         <motion.a
           href={repoUrl}
           className="bg-slate-900/75 border border-slate-800 hover:border-cyan-500/40 text-slate-300 font-semibold px-4 py-2 rounded-xl transition text-sm flex items-center gap-2"
@@ -163,9 +167,9 @@ export default function Header() {
                 {item.label}
               </a>
             ))}
-            <a href="/#contact" onClick={closeMenu} className={`mobile-menu-item ${isActive("/#contact") ? "is-active" : ""}`}>
+            <button type="button" onClick={() => { openContact(); closeMenu(); }} className="mobile-menu-item text-left">
               {content.header.contact}
-            </a>
+            </button>
           </motion.div>
         ) : null}
       </AnimatePresence>
