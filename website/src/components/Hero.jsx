@@ -1,11 +1,18 @@
+import { motion } from "motion/react";
 import logo from "../assets/aeropico-logo-hero.webp";
 import { useLanguage } from "../context/LanguageContext.jsx";
 import { heroStats, telemetryRows } from "../data/siteData.js";
 import { useModal } from "../hooks/useModal.js";
+import { pressFeedback, spring } from "../utils/motionPresets.js";
 
 function TelemetryPanel() {
   return (
-    <div className="telemetry-panel glass-card rounded-3xl p-6 glow-effect relative overflow-hidden min-h-[400px] flex flex-col justify-between z-10">
+    <motion.div
+      className="telemetry-panel glass-card rounded-3xl p-6 glow-effect relative overflow-hidden min-h-[400px] flex flex-col justify-between z-10"
+      initial={{ opacity: 0, scale: 0.97, y: 14 }}
+      animate={{ opacity: 1, scale: 1, y: 0 }}
+      transition={spring({ type: "spring", bounce: 0, duration: 0.5, delay: 0.15 })}
+    >
       <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/5 via-transparent to-emerald-500/5 pointer-events-none" />
 
       <div className="telemetry-header flex items-center justify-between pb-4 border-b border-slate-800/80">
@@ -42,9 +49,22 @@ function TelemetryPanel() {
           </div>
         ))}
       </div>
-    </div>
+    </motion.div>
   );
 }
+
+// Small stagger container so the eyebrow, title, copy, and CTAs settle in
+// sequence rather than all landing on the same frame — hierarchy carried by
+// motion, not just layout.
+const copyContainer = {
+  hidden: {},
+  show: { transition: { staggerChildren: 0.07, delayChildren: 0.05 } },
+};
+
+const copyItem = {
+  hidden: { opacity: 0, y: 12 },
+  show: { opacity: 1, y: 0 },
+};
 
 export default function Hero() {
   const { content } = useLanguage();
@@ -62,42 +82,67 @@ export default function Hero() {
       </div>
 
       <div className="grid md:grid-cols-2 gap-8 md:gap-12 items-center">
-        <section className="hero-copy space-y-4 md:space-y-6 relative z-10" aria-labelledby="hero-title">
-          <div className="inline-flex items-center gap-2 bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-xs px-3.5 py-1.5 rounded-full font-semibold">
+        <motion.section
+          className="hero-copy space-y-4 md:space-y-6 relative z-10"
+          aria-labelledby="hero-title"
+          variants={copyContainer}
+          initial="hidden"
+          animate="show"
+        >
+          <motion.div
+            variants={copyItem}
+            transition={spring()}
+            className="inline-flex items-center gap-2 bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-xs px-3.5 py-1.5 rounded-full font-semibold"
+          >
             <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
             {content.hero.eyebrow}
-          </div>
+          </motion.div>
 
-          <h1 id="hero-title" className="text-3xl sm:text-4xl md:text-6xl font-extrabold tracking-tight leading-tight">
+          <motion.h1
+            variants={copyItem}
+            transition={spring()}
+            id="hero-title"
+            className="text-3xl sm:text-4xl md:text-6xl font-extrabold tracking-tight leading-tight"
+          >
             {content.hero.titleA} <br />
             <span className="text-cyan-400">{content.hero.titleB}</span>
-          </h1>
+          </motion.h1>
 
-          <p className="text-slate-400 text-sm sm:text-base md:text-lg leading-relaxed">
+          <motion.p
+            variants={copyItem}
+            transition={spring()}
+            className="text-slate-400 text-sm sm:text-base md:text-lg leading-relaxed"
+          >
             {content.hero.description}
-          </p>
+          </motion.p>
 
-          <div className="flex flex-col sm:flex-row gap-4 pt-2">
-            <a
+          <motion.div variants={copyItem} transition={spring()} className="flex flex-col sm:flex-row gap-4 pt-2">
+            <motion.a
               href="/releases"
-              className="bg-cyan-500 hover:bg-cyan-400 active:scale-95 text-slate-950 font-bold px-6 py-3.5 rounded-xl text-center transition-all duration-150 shadow-lg shadow-cyan-500/20 cursor-pointer"
+              className="bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold px-6 py-3.5 rounded-xl text-center shadow-lg shadow-cyan-500/20 cursor-pointer"
+              {...pressFeedback}
             >
               {content.hero.primary}
-            </a>
-            <button
+            </motion.a>
+            <motion.button
               type="button"
               onClick={openSpecs}
-              className="border border-slate-800 hover:border-cyan-500/50 bg-slate-900/50 hover:bg-slate-900 active:scale-95 text-slate-300 font-semibold px-6 py-3.5 rounded-xl text-center transition-all duration-150 cursor-pointer flex items-center justify-center gap-2"
+              className="border border-slate-800 hover:border-cyan-500/50 bg-slate-900/50 hover:bg-slate-900 text-slate-300 font-semibold px-6 py-3.5 rounded-xl text-center cursor-pointer flex items-center justify-center gap-2"
+              {...pressFeedback}
             >
               <span>{content.hero.secondary}</span>
               <span className="text-cyan-400 font-mono text-xs">→</span>
-            </button>
-          </div>
+            </motion.button>
+          </motion.div>
 
-          <p className="hero-note text-xs text-amber-400/90 font-medium bg-amber-500/10 border border-amber-500/20 px-3 py-1.5 rounded-lg inline-block">
+          <motion.p
+            variants={copyItem}
+            transition={spring()}
+            className="hero-note text-xs text-amber-400/90 font-medium bg-amber-500/10 border border-amber-500/20 px-3 py-1.5 rounded-lg inline-block"
+          >
             {content.hero.note}
-          </p>
-        </section>
+          </motion.p>
+        </motion.section>
 
         <TelemetryPanel />
       </div>

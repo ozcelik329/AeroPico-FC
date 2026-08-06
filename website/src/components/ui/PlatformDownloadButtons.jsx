@@ -1,3 +1,6 @@
+import { motion } from "motion/react";
+import { springSnappy } from "../../utils/motionPresets.js";
+
 function MacIcon() {
   return (
     <svg aria-hidden="true" viewBox="0 0 24 24" className="platform-icon">
@@ -29,19 +32,22 @@ export default function PlatformDownloadButtons({ items, className = "" }) {
         const Icon = icons[item.platform] || WindowsIcon;
 
         return (
-          <a
+          <motion.a
             className="platform-download-button"
             href={item.href || "#"}
             aria-label={item.ariaLabel}
             onClick={item.href ? undefined : (event) => event.preventDefault()}
             key={item.platform}
+            whileHover={{ y: -2 }}
+            whileTap={{ scale: 0.97, y: 0 }}
+            transition={springSnappy}
           >
             <Icon />
             <span>
               <small>{item.kicker}</small>
               <strong>{item.label}</strong>
             </span>
-          </a>
+          </motion.a>
         );
       })}
     </div>

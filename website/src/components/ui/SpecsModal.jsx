@@ -1,6 +1,8 @@
+import { motion } from "motion/react";
 import { modalNames } from "../../context/ModalContext.jsx";
 import { useLanguage } from "../../context/LanguageContext.jsx";
 import { useModal } from "../../hooks/useModal.js";
+import { pressFeedback } from "../../utils/motionPresets.js";
 import Modal from "./Modal.jsx";
 
 export default function SpecsModal() {
@@ -16,14 +18,15 @@ export default function SpecsModal() {
           <h3 className="text-xl font-extrabold text-white">{content.modals.specsTitle}</h3>
           <p className="text-slate-400 text-xs mt-1">{content.modals.specsDescription}</p>
         </div>
-        <button
+        <motion.button
           type="button"
           onClick={closeModal}
-          className="w-8 h-8 rounded-full bg-slate-900 border border-slate-800 text-slate-400 hover:text-white flex items-center justify-center font-bold transition cursor-pointer"
+          className="w-8 h-8 rounded-full bg-slate-900 border border-slate-800 text-slate-400 hover:text-white flex items-center justify-center font-bold cursor-pointer"
           aria-label={content.modals.close}
+          {...pressFeedback}
         >
           x
-        </button>
+        </motion.button>
       </div>
 
       <div className="space-y-6 overflow-y-auto pr-2 flex-grow">
@@ -71,9 +74,14 @@ export default function SpecsModal() {
       </div>
 
       <div className="pt-2 border-t border-slate-800 flex justify-end">
-        <button type="button" onClick={closeModal} className="bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold px-5 py-2.5 rounded-xl transition cursor-pointer">
+        <motion.button
+          type="button"
+          onClick={closeModal}
+          className="bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold px-5 py-2.5 rounded-xl cursor-pointer"
+          {...pressFeedback}
+        >
           {content.modals.close}
-        </button>
+        </motion.button>
       </div>
     </Modal>
   );

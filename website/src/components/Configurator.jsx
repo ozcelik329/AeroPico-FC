@@ -1,5 +1,7 @@
+import { motion } from "motion/react";
 import configuratorPreview from "../assets/aeropico-configurator-dark.webp";
 import { useLanguage } from "../context/LanguageContext.jsx";
+import { pressFeedback } from "../utils/motionPresets.js";
 import PlatformDownloadButtons from "./ui/PlatformDownloadButtons.jsx";
 
 export default function Configurator() {
@@ -31,12 +33,13 @@ export default function Configurator() {
         <PlatformDownloadButtons items={content.configuratorPage.downloads.items} className="configurator-inline-downloads" />
 
         <div className="pt-1">
-          <a
+          <motion.a
             href="/configurator"
-            className="border border-cyan-500/35 bg-cyan-500/10 hover:bg-cyan-500/15 active:scale-95 text-cyan-200 font-bold px-6 py-3.5 rounded-xl transition-all duration-150 inline-flex items-center gap-2 text-sm"
+            className="border border-cyan-500/35 bg-cyan-500/10 hover:bg-cyan-500/15 text-cyan-200 font-bold px-6 py-3.5 rounded-xl transition-colors inline-flex items-center gap-2 text-sm"
+            {...pressFeedback}
           >
             {content.configurator.action}
-          </a>
+          </motion.a>
         </div>
       </div>
 

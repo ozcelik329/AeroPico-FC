@@ -27,6 +27,41 @@
   box-sizing: border-box;
 }
 
+/*
+ * Typography discipline (Apple "Details of UI Typography", WWDC 2020):
+ * tracking and leading are size-specific, never one fixed value. Large
+ * display text gets negative tracking + tight leading; small/body text
+ * relaxes toward 0 tracking and looser leading. These are defaults for
+ * bare heading tags used without an explicit Tailwind tracking utility
+ * (e.g. modal/card headings) — components that already set their own
+ * tracking-* class win via specificity.
+ */
+h1 {
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+}
+
+h2 {
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+
+h3,
+h4 {
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+}
+
+h5,
+h6 {
+  letter-spacing: 0;
+  line-height: 1.35;
+}
+
+p {
+  letter-spacing: 0;
+}
+
 body {
   margin: 0;
   min-width: 320px;
@@ -677,8 +712,7 @@ a {
   box-shadow: 0 18px 45px -38px rgba(96, 165, 250, 0.8);
   transition:
     border-color 180ms ease,
-    box-shadow 180ms ease,
-    transform 180ms ease;
+    box-shadow 180ms ease;
 }
 
 .platform-download-button::before {
@@ -697,16 +731,11 @@ a {
 .platform-download-button:hover {
   border-color: rgba(147, 197, 253, 0.55);
   box-shadow: 0 20px 60px -36px rgba(96, 165, 250, 0.95);
-  transform: translateY(-2px);
 }
 
 .platform-download-button:hover::before {
   opacity: 1;
   transform: translateX(70%);
-}
-
-.platform-download-button:active {
-  transform: translateY(0) scale(0.98);
 }
 
 .platform-icon {
@@ -844,6 +873,41 @@ a {
 
   .reveal-section {
     animation: none;
+  }
+}
+
+/*
+ * Reduced transparency: translucent surfaces go frostier/solid instead of
+ * blurry — raise background opacity, drop the blur radius.
+ */
+@media (prefers-reduced-transparency: reduce) {
+  .glass-card,
+  .flat-card,
+  .telemetry-panel,
+  .header-shell,
+  .mobile-menu-panel,
+  .configurator-preview-label {
+    background: #0b1120;
+    backdrop-filter: none;
+  }
+}
+
+/*
+ * High contrast: near-solid backgrounds with a clearly defined border,
+ * rather than relying on translucency to separate surfaces.
+ */
+@media (prefers-contrast: more) {
+  .glass-card,
+  .flat-card,
+  .telemetry-panel,
+  .header-shell {
+    background: #0b1120;
+    border-color: rgba(148, 163, 184, 0.55);
+  }
+
+  .header-nav-link,
+  .mobile-menu-item {
+    border-color: rgba(148, 163, 184, 0.35);
   }
 }
 
