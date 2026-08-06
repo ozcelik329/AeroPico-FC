@@ -53,6 +53,12 @@ export default function App() {
 
       event.preventDefault();
 
+      const isSamePageHash = url.pathname === window.location.pathname && url.hash;
+      if (isSamePageHash) {
+        updateRoute(url);
+        return;
+      }
+
       if (document.startViewTransition && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
         document.startViewTransition(() => updateRoute(url));
       } else {

@@ -26,7 +26,6 @@ function TelemetryPanel() {
           <div className="w-3 h-3 rounded-full bg-green-500/85" />
         </div>
         <div className="flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
           <span className="text-xs font-mono text-cyan-400 bg-cyan-500/10 px-2.5 py-1 rounded-md border border-cyan-500/20">
             MAVLink Stream: Active
           </span>

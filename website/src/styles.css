@@ -201,9 +201,9 @@ a {
   border: 1px solid transparent;
   border-radius: 0.72rem;
   transition:
-    color 150ms ease,
-    border-color 150ms ease,
-    background-color 150ms ease;
+    color 220ms cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 220ms cubic-bezier(0.22, 1, 0.36, 1),
+    background-color 220ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .header-nav-link:hover {
@@ -784,11 +784,11 @@ a {
 }
 
 .page-transition {
-  animation: page-enter 260ms ease both;
+  animation: page-enter 340ms cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 
 .page-transition .site-container:first-of-type {
-  animation: content-rise 320ms ease 40ms both;
+  animation: content-rise 380ms cubic-bezier(0.22, 1, 0.36, 1) 60ms both;
 }
 
 .flat-card,
@@ -800,8 +800,8 @@ a {
 
 .reveal-section {
   opacity: 0;
-  transform: translateY(18px);
-  transition: opacity 420ms ease, transform 420ms ease;
+  transform: translateY(22px);
+  transition: opacity 520ms ease-out, transform 520ms ease-out;
   will-change: opacity, transform;
 }
 
@@ -927,8 +927,8 @@ a {
 @supports (view-transition-name: root) {
   ::view-transition-old(root),
   ::view-transition-new(root) {
-    animation-duration: 260ms;
-    animation-timing-function: ease;
+    animation-duration: 340ms;
+    animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
   }
 
   ::view-transition-old(root) {
