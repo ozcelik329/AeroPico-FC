@@ -107,13 +107,14 @@ export default function Header() {
         <motion.button
           type="button"
           onClick={openContact}
-          className="header-contact-button border border-slate-700 bg-slate-900/70 hover:border-cyan-500/35 text-slate-300 rounded-full transition cursor-pointer flex items-center justify-center"
+          className="header-contact-button border border-cyan-500/20 bg-cyan-500/10 text-cyan-200 hover:border-cyan-400/50 hover:bg-cyan-500/15 rounded-full transition-transform duration-200 ease-out cursor-pointer flex items-center justify-center shadow-sm"
           aria-label={content.header.contact}
+          title={content.header.contact}
           {...pressFeedback}
         >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5" aria-hidden="true">
-            <path d="M3 7.5l9 6 9-6" />
-            <path d="M21 7.5v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-9" />
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5" aria-hidden="true">
+            <rect x="3" y="6" width="18" height="12" rx="2" />
+            <path d="M3 6l9 7 9-7" />
           </svg>
           <span className="sr-only">{content.header.contact}</span>
         </motion.button>
