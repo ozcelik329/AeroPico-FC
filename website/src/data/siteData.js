@@ -1,12 +1,10 @@
 export const repoUrl = "https://github.com/ozcelik329/AeroPico-FC";
 
 export const navItems = [
+  { label: "Proje Haritası", href: "#project-map" },
   { label: "Hızlı Başlangıç", href: "#quickstart", highlighted: true },
-  { label: "Mimari", href: "#architecture" },
   { label: "Configurator", href: "#configurator" },
   { label: "Dökümanlar", href: "#docs" },
-  { label: "Koşullar", href: "#release" },
-  { label: "İletişim", href: "#contact" },
 ];
 
 export const telemetryRows = [
