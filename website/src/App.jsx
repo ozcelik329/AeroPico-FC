@@ -26,9 +26,13 @@ export default function App() {
 
       requestAnimationFrame(() => {
         if (url.hash) {
-          document.querySelector(url.hash)?.scrollIntoView();
+          document.querySelector(url.hash)?.scrollIntoView({
+            behavior: "smooth",
+            block: "start",
+            inline: "nearest",
+          });
         } else {
-          window.scrollTo({ top: 0 });
+          window.scrollTo({ top: 0, behavior: "smooth" });
         }
       });
     };

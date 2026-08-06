@@ -71,11 +71,16 @@ body {
 
 html {
   scroll-behavior: smooth;
+  scroll-padding-top: 5.5rem;
 }
 
 button,
 a {
   -webkit-tap-highlight-color: transparent;
+}
+
+[id] {
+  scroll-margin-top: 6rem;
 }
 
 .glass-card {
