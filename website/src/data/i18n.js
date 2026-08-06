@@ -409,6 +409,13 @@ export const content = {
       hardwareLinkTitle: "Hardware Platform",
       hardwareLinkText: "Donanım uyumluluğu, hedef kart ve sensör desteği ayrı sayfada listelenir.",
       hardwareLinkAction: "Hardware Sayfasını Aç",
+      contactTitle: "İletişim",
+      contactDescription: "Bize ulaşmak ve geri bildirim göndermek için aşağıdaki seçenekleri kullanın.",
+      contactText: "Sorularınız, iş birlikleri ve teknik destek talepleri için e-posta veya GitHub bağlantısını kullanabilirsiniz.",
+      contactEmailLabel: "E-posta",
+      contactEmail: "fatihemreozcelik@gmail.com",
+      contactLinksLabel: "Bağlantılar",
+      contactGithub: "https://github.com/ozcelik329",
       close: "Kapat",
     },
     specsIntro:

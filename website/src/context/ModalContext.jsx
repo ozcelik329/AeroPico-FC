@@ -3,6 +3,7 @@ import { useBodyScrollLock } from "../hooks/useBodyScrollLock.js";
 
 export const modalNames = {
   specs: "specs",
+  contact: "contact",
 };
 
 export const ModalContext = createContext(null);
@@ -17,6 +18,7 @@ export function ModalProvider({ children }) {
       activeModal,
       closeModal: () => setActiveModal(null),
       openSpecs: () => setActiveModal(modalNames.specs),
+      openContact: () => setActiveModal(modalNames.contact),
     }),
     [activeModal],
   );

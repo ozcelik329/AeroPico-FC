@@ -6,6 +6,7 @@ import HardwarePage from "./pages/HardwarePage.jsx";
 import Home from "./pages/Home.jsx";
 import ConfiguratorPage from "./pages/ConfiguratorPage.jsx";
 import ReleasesPage from "./pages/ReleasesPage.jsx";
+import ContactModal from "./components/ui/ContactModal.jsx";
 
 const routes = {
   "/": Home,
@@ -87,6 +88,7 @@ export default function App() {
           <Page />
         </div>
         <SpecsModal />
+        <ContactModal />
       </ModalProvider>
     </LanguageProvider>
   );
