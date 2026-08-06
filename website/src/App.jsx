@@ -21,8 +21,13 @@ export default function App() {
   useEffect(() => {
     const onPopState = () => setPath(window.location.pathname);
     const updateRoute = (url) => {
+      const oldURL = window.location.href;
       window.history.pushState({}, "", `${url.pathname}${url.hash}`);
       setPath(url.pathname);
+
+      if (url.hash && url.pathname === window.location.pathname && window.location.hash !== url.hash) {
+        window.dispatchEvent(new HashChangeEvent("hashchange", { oldURL, newURL: url.href }));
+      }
 
       requestAnimationFrame(() => {
         if (url.hash) {
