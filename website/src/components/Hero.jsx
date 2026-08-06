@@ -14,6 +14,10 @@ function TelemetryPanel() {
       transition={spring({ type: "spring", bounce: 0, duration: 0.5, delay: 0.15 })}
     >
       <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/5 via-transparent to-emerald-500/5 pointer-events-none" />
+      <div className="absolute top-4 right-4 w-10 h-10 rounded-full border border-cyan-400/25 flex items-center justify-center">
+        <span className="absolute inset-0 rounded-full border border-cyan-300/40 animate-ping" />
+        <span className="relative w-2.5 h-2.5 rounded-full bg-cyan-300 shadow-[0_0_12px_rgba(56,189,248,0.35)]" />
+      </div>
 
       <div className="telemetry-header flex items-center justify-between pb-4 border-b border-slate-800/80">
         <div className="flex items-center gap-2">
@@ -120,6 +124,7 @@ export default function Hero() {
             <motion.a
               href="/releases"
               className="bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold px-6 py-3.5 rounded-xl text-center shadow-lg shadow-cyan-500/20 cursor-pointer"
+              whileHover={{ scale: 1.02 }}
               {...pressFeedback}
             >
               {content.hero.primary}
@@ -128,6 +133,7 @@ export default function Hero() {
               type="button"
               onClick={openSpecs}
               className="border border-slate-800 hover:border-cyan-500/50 bg-slate-900/50 hover:bg-slate-900 text-slate-300 font-semibold px-6 py-3.5 rounded-xl text-center cursor-pointer flex items-center justify-center gap-2"
+              whileHover={{ scale: 1.02 }}
               {...pressFeedback}
             >
               <span>{content.hero.secondary}</span>

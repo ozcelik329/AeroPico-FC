@@ -799,9 +799,15 @@ a {
 }
 
 .reveal-section {
-  animation: section-fade-up both;
-  animation-timeline: view();
-  animation-range: entry 8% cover 26%;
+  opacity: 0;
+  transform: translateY(18px);
+  transition: opacity 420ms ease, transform 420ms ease;
+  will-change: opacity, transform;
+}
+
+.reveal-section.is-visible {
+  opacity: 1;
+  transform: translateY(0);
 }
 
 @keyframes page-enter {
@@ -877,7 +883,9 @@ a {
   }
 
   .reveal-section {
-    animation: none;
+    transition: none !important;
+    opacity: 1 !important;
+    transform: none !important;
   }
 }
 
