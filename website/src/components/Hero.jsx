@@ -97,7 +97,6 @@ export default function Hero() {
             transition={spring()}
             className="inline-flex items-center gap-2 bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-xs px-3.5 py-1.5 rounded-full font-semibold"
           >
-            <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
             {content.hero.eyebrow}
           </motion.div>
 

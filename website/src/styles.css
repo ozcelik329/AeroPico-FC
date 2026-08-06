@@ -1100,11 +1100,6 @@ body::after {
   backdrop-filter: blur(8px);
 }
 
-.telemetry-header .animate-ping {
-  display: inline-block;
-  background-color: #60a5fa !important;
-  animation: status-pulse 1.8s ease-in-out infinite !important;
-}
 
 .telemetry-list,
 .telemetry-stats > div {

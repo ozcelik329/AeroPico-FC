@@ -77,7 +77,6 @@ export default function Header() {
           className="header-nav-item header-feature-button hover:text-cyan-400 transition cursor-pointer font-semibold text-cyan-300 bg-cyan-500/10 border border-cyan-500/20 rounded-xl shadow-sm flex items-center gap-2 group"
           {...pressFeedback}
         >
-          <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
           {content.header.features}
         </motion.button>
       </div>
