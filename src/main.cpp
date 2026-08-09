@@ -9,9 +9,10 @@
 #include "core/scheduling/SystemTimer.h"
 #include "core/safety/WatchdogGate.h"
 #include "core/safety/BenchAdminGate.h"
+#include "core/safety/ModuleSetupRuntime.h"
+#include "core/safety/PreflightRuntime.h"
 #include "core/scheduling/Scheduler.h"
 #include "core/safety/PreflightHealth.h"
-#include "core/sensors/SensorPreflightEvaluator.h"
 #include "core/safety/BatteryMonitor.h"
 #include "core/events/SystemEventBus.h"
 #include "storage/CalibrationStorage.h"
@@ -21,6 +22,9 @@
 #include "app/MavlinkServiceCommands.h"
 #include "app/ServiceCommandMailbox.h"
 #include "app/ServiceCommandProcessor.h"
+#include "app/ConfiguratorParamRuntime.h"
+#include "app/RuntimeHealthReporter.h"
+#include "app/SensorBootSequence.h"
 #include "telemetry/MavlinkHandler.h"
 #include "telemetry/Blackbox.h"
 #if BLACKBOX_SD_ENABLED
@@ -48,6 +52,9 @@ static constexpr uint32_t WATCHDOG_BLOCK_LOG_PERIOD_MS = 500;
 static Scheduler core0Scheduler;
 static Scheduler telemetryScheduler;
 static PreflightHealth preflightHealth;
+static ModuleSetupRuntime moduleSetupRuntime;
+static PreflightRuntime preflightRuntime;
+static RuntimeHealthReporter runtimeHealthReporter;
 static BatteryMonitor batteryMonitor;
 static RPFlashCalibrationStorage calibrationStorage;
 #ifdef MAVLINK_PARAMS_ENABLED
@@ -61,28 +68,11 @@ static RP2350SPI blackboxSpi;
 static BlackboxSdSink blackboxSdSink(PIN_BLACKBOX_SPI_CS, BLACKBOX_SPI_HZ, BLACKBOX_SD_FILE);
 #endif
 static PreflightResult lastPreflightResult = {false, "not evaluated", 0};
-static constexpr uint32_t PREFLIGHT_MIN_FREE_HEAP_BYTES = 24 * 1024;
-static uint8_t preflightMinSensorQuality = 60;
-static char sensorPreflightReason[72] = "Sensor not evaluated";
-static char moduleSetupPreflightReason[96] = "Module setup not evaluated";
 static uint32_t lastWatchdogBlockLogMs = 0;
 static constexpr uint32_t CONTROL_LOOP_HZ = 1000000UL / FLIGHT_LOOP_PERIOD_US;
-static uint32_t lastBlackboxDroppedRecords = 0;
-static bool batteryWarningLatched = false;
 static bool latestBatteryCritical = false;
 static bool magCalibrationActive = false;
 static uint8_t batteryAdcChannel = BATTERY_ADC_CHANNEL;
-static bool baroModuleEnabled = true;
-static bool magModuleEnabled = true;
-static bool gpsModuleEnabled = GPS_MODULE_ENABLED != 0;
-static bool batteryModuleEnabled = false;
-static bool rcModuleEnabled = true;
-static uint8_t imuModuleType = 1;
-static uint8_t baroModuleType = 1;
-static uint8_t magModuleType = 0;
-static uint8_t gpsModuleType = 1;
-static uint8_t rcModuleType = 1;
-static uint8_t batteryModuleType = 0;
 static bool bootServoPinConfigValid = true;
 static MavlinkServiceCommands mavlinkServiceCommands;
 static ServiceCommandMailbox serviceCommandMailbox;
@@ -90,9 +80,7 @@ static ServiceCommandProcessor serviceCommandProcessor;
 static TaskHandle_t sensorTaskHandle = nullptr;
 static TaskHandle_t flightTaskHandle = nullptr;
 static TaskHandle_t telemetryTaskHandle = nullptr;
-static RuntimeHealthStatus runtimeHealth = {};
 static PreflightResult evaluatePreflight();
-static uint16_t clampStackWords(UBaseType_t value) { return value > 0xFFFFu ? 0xFFFFu : (uint16_t)value; }
 
 static WatchdogDecision evaluateWatchdogGate() {
     return WatchdogGate::evaluate(
@@ -133,31 +121,7 @@ static uint8_t adcChannelForPin(uint8_t pin) {
     return (uint8_t)(pin - 26);
 }
 
-static void refreshModuleSetupFromParams() {
-#ifdef MAVLINK_PARAMS_ENABLED
-    baroModuleEnabled = paramManager.isBaroEnabled();
-    magModuleEnabled = paramManager.isMagEnabled();
-    gpsModuleEnabled = paramManager.isGpsEnabled();
-    batteryModuleEnabled = paramManager.isBatteryEnabled();
-    rcModuleEnabled = paramManager.isRcEnabled();
-    imuModuleType = paramManager.getImuType();
-    baroModuleType = paramManager.getBaroType();
-    magModuleType = paramManager.getMagType();
-    gpsModuleType = paramManager.getGpsType();
-    rcModuleType = paramManager.getRcType();
-    batteryModuleType = paramManager.getBatteryType();
-    flightManager.setRcRequired(rcModuleEnabled && rcModuleType != 0);
-#endif
-}
-
-static bool isSupportedImuType(uint8_t type) { return type <= 1; }      // 0=Auto, 1=MPU6050
-static bool isSupportedBaroType(uint8_t type) { return type <= 1; }     // 0=Auto, 1=BMP180/BMP085
-static bool isSupportedMagType(uint8_t type) { return type <= 2; }      // 0=Auto, 1=HMC5883L, 2=QMC5883
-static bool isSupportedGpsType(uint8_t type) { return type <= 1; }      // 0=Auto, 1=NMEA UART
-static bool isSupportedRcType(uint8_t type) { return type <= 1; }       // 0=Auto, 1=SBUS
-static bool isSupportedBatteryType(uint8_t type) { return type <= 1; }  // 0=None, 1=ADC voltage
-
-static ServoPinConfig servoPinsFromParams() {
+static ModuleServoPinConfig moduleServoPinsFromParams() {
 #ifdef MAVLINK_PARAMS_ENABLED
     return {
         paramManager.getPinAileron(),
@@ -170,41 +134,45 @@ static ServoPinConfig servoPinsFromParams() {
 #endif
 }
 
-static bool isReservedServoSetupPin(uint8_t pin) {
-    return pin == PIN_SBUS_RX ||
-           pin == PIN_SDA ||
-           pin == PIN_SCL ||
-           pin == PIN_BENCH_ADMIN_GND ||
-           pin == PIN_BENCH_ADMIN_SENSE;
+static ServoPinConfig outputServoPinsFromModulePins(const ModuleServoPinConfig& pins) {
+    return {pins.aileron, pins.elevator, pins.rudder, pins.throttle};
 }
 
-static bool isValidServoSetupPin(uint8_t pin) {
-    return pin <= 28 && !isReservedServoSetupPin(pin);
-}
-
-static bool validateServoPinSetup(const ServoPinConfig& pins) {
-    if (!isValidServoSetupPin(pins.aileron) ||
-        !isValidServoSetupPin(pins.elevator) ||
-        !isValidServoSetupPin(pins.rudder) ||
-        !isValidServoSetupPin(pins.throttle)) {
-        return false;
-    }
-
-    return pins.aileron != pins.elevator &&
-           pins.aileron != pins.rudder &&
-           pins.aileron != pins.throttle &&
-           pins.elevator != pins.rudder &&
-           pins.elevator != pins.throttle &&
-           pins.rudder != pins.throttle;
+static void refreshModuleSetupFromParams() {
+    ModuleSetupSnapshot snapshot = {};
+    snapshot.baroEnabled = true;
+    snapshot.magEnabled = true;
+    snapshot.gpsEnabled = GPS_MODULE_ENABLED != 0;
+    snapshot.batteryEnabled = false;
+    snapshot.rcEnabled = true;
+    snapshot.imuType = 1;
+    snapshot.baroType = 1;
+    snapshot.magType = 0;
+    snapshot.gpsType = 1;
+    snapshot.rcType = 1;
+    snapshot.batteryType = 0;
+    snapshot.bootServoPinConfigValid = bootServoPinConfigValid;
+    snapshot.servoPins = moduleServoPinsFromParams();
+#ifdef MAVLINK_PARAMS_ENABLED
+    snapshot.baroEnabled = paramManager.isBaroEnabled();
+    snapshot.magEnabled = paramManager.isMagEnabled();
+    snapshot.gpsEnabled = paramManager.isGpsEnabled();
+    snapshot.batteryEnabled = paramManager.isBatteryEnabled();
+    snapshot.rcEnabled = paramManager.isRcEnabled();
+    snapshot.imuType = paramManager.getImuType();
+    snapshot.baroType = paramManager.getBaroType();
+    snapshot.magType = paramManager.getMagType();
+    snapshot.gpsType = paramManager.getGpsType();
+    snapshot.rcType = paramManager.getRcType();
+    snapshot.batteryType = paramManager.getBatteryType();
+#endif
+    moduleSetupRuntime.update(snapshot);
+    flightManager.setRcRequired(moduleSetupRuntime.rcRequired());
 }
 
 static uint16_t enabledSensorMask(uint16_t detectedMask) {
     refreshModuleSetupFromParams();
-    uint16_t mask = detectedMask;
-    if (!baroModuleEnabled) mask &= ~(uint16_t)SENSOR_CAP_BARO;
-    if (!magModuleEnabled) mask &= ~(uint16_t)SENSOR_CAP_MAG;
-    if (!gpsModuleEnabled) mask &= ~(uint16_t)SENSOR_CAP_GPS;
-    return mask;
+    return moduleSetupRuntime.enabledSensorMask(detectedMask);
 }
 
 static uint16_t provideEnabledSensorCapabilities() {
@@ -238,7 +206,7 @@ static void provideRcMapping(uint8_t& roll, uint8_t& pitch, uint8_t& throttle, u
 }
 static void applyMavlinkRates(uint8_t attitudeHz, uint8_t rcHz, uint8_t sysStatusHz) { mavlink.setStreamRates(attitudeHz, rcHz, sysStatusHz); }
 static void applyBlackboxRate(uint8_t logHz) { blackbox.setLogRateHz(logHz); }
-static void applyPreflightQuality(uint8_t minQuality) { preflightMinSensorQuality = minQuality > 100 ? 100 : minQuality; }
+static void applyPreflightQuality(uint8_t minQuality) { preflightRuntime.setMinSensorQuality(minQuality); }
 static void applyBatteryProfile(uint8_t cells, float nominalVoltage, uint16_t capacityMah, uint8_t cRating,
                                 float lowVoltage, float brownoutVoltage, float maxVoltage) {
     (void)nominalVoltage;
@@ -250,106 +218,15 @@ static void applyBatteryProfile(uint8_t cells, float nominalVoltage, uint16_t ca
                         cells, capacityMah, cRating);
 #endif
 }
-static bool evaluateSensorPreflight() {
-    SensorBuffer latest = sensorManager.getLatest();
-    const SensorPreflightStatus status = SensorPreflightEvaluator::evaluate(
-        sensorManager.isImuAvailable(),
-        latest,
-        preflightMinSensorQuality
-    );
-    SensorPreflightEvaluator::formatReason(status, sensorPreflightReason, sizeof(sensorPreflightReason));
-    return status.passed;
-}
-
-static bool evaluateModuleSetupPreflight() {
-    refreshModuleSetupFromParams();
-
-    const ServoPinConfig servoPins = servoPinsFromParams();
-    if (!bootServoPinConfigValid || !validateServoPinSetup(servoPins)) {
-        strncpy(moduleSetupPreflightReason, "Setup servo pin map invalid", sizeof(moduleSetupPreflightReason) - 1);
-        moduleSetupPreflightReason[sizeof(moduleSetupPreflightReason) - 1] = '\0';
-        return false;
-    }
-
-    const SensorCapabilityStatus sensorCaps = sensorManager.capabilities();
-    const SensorCapabilityStatus gpsCaps = gpsManager.capabilities();
-    const uint16_t detectedMask = sensorCaps.functionMask | gpsCaps.functionMask;
-
-    if (!isSupportedImuType(imuModuleType) ||
-        !isSupportedBaroType(baroModuleType) ||
-        !isSupportedMagType(magModuleType) ||
-        !isSupportedGpsType(gpsModuleType) ||
-        !isSupportedRcType(rcModuleType) ||
-        !isSupportedBatteryType(batteryModuleType)) {
-        strncpy(moduleSetupPreflightReason, "Setup contains unsupported module type", sizeof(moduleSetupPreflightReason) - 1);
-        moduleSetupPreflightReason[sizeof(moduleSetupPreflightReason) - 1] = '\0';
-        return false;
-    }
-
-    if (batteryModuleEnabled && batteryModuleType == 0) {
-        strncpy(moduleSetupPreflightReason, "Setup enables battery but type is None", sizeof(moduleSetupPreflightReason) - 1);
-        moduleSetupPreflightReason[sizeof(moduleSetupPreflightReason) - 1] = '\0';
-        return false;
-    }
-
-    if (baroModuleEnabled && !hasSensorCapability(detectedMask, SENSOR_CAP_BARO)) {
-        strncpy(moduleSetupPreflightReason, "Setup requires BARO but barometer is missing", sizeof(moduleSetupPreflightReason) - 1);
-        moduleSetupPreflightReason[sizeof(moduleSetupPreflightReason) - 1] = '\0';
-        return false;
-    }
-    if (magModuleEnabled && !hasSensorCapability(detectedMask, SENSOR_CAP_MAG)) {
-        strncpy(moduleSetupPreflightReason, "Setup requires MAG but magnetometer is missing", sizeof(moduleSetupPreflightReason) - 1);
-        moduleSetupPreflightReason[sizeof(moduleSetupPreflightReason) - 1] = '\0';
-        return false;
-    }
-    if (gpsModuleEnabled && !hasSensorCapability(detectedMask, SENSOR_CAP_GPS)) {
-        strncpy(moduleSetupPreflightReason, "Setup requires GPS but no valid fix is available", sizeof(moduleSetupPreflightReason) - 1);
-        moduleSetupPreflightReason[sizeof(moduleSetupPreflightReason) - 1] = '\0';
-        return false;
-    }
-
-    snprintf(moduleSetupPreflightReason,
-             sizeof(moduleSetupPreflightReason),
-             "Module setup OK BARO=%u MAG=%u GPS=%u BATT=%u",
-             baroModuleEnabled ? 1u : 0u,
-             magModuleEnabled ? 1u : 0u,
-             gpsModuleEnabled ? 1u : 0u,
-             batteryModuleEnabled ? 1u : 0u);
-    return true;
-}
-
 static PreflightResult evaluatePreflight() {
-    BatteryStatus battery = batteryMonitor.evaluate();
-    uint32_t freeHeap = rp2040.getFreeHeap();
-    bool sensorOk = evaluateSensorPreflight();
-    bool moduleSetupOk = evaluateModuleSetupPreflight();
-    const bool batteryRequired = batteryModuleEnabled;
-    const bool rcRequired = rcModuleEnabled && rcModuleType != 0;
-    const bool batteryOk = !batteryRequired || (battery.configured && battery.healthy);
-    const bool rcOk = rxManager.isValid() && !rxManager.isFailsafe();
-    latestBatteryCritical = batteryRequired && battery.configured && battery.brownout;
-
-    preflightHealth.reset();
-    preflightHealth.setCheck(PreflightCheckId::Boot, true, true, "");
-    preflightHealth.setCheck(PreflightCheckId::Sensor, true, sensorOk, sensorPreflightReason);
-    preflightHealth.setCheck(PreflightCheckId::RC,
-                             rcRequired,
-                             rcOk,
-                             rcRequired ? "RC signal invalid" : "RC disabled in setup");
-    preflightHealth.setCheck(PreflightCheckId::ModuleSetup, true, moduleSetupOk, moduleSetupPreflightReason);
-    preflightHealth.setCheck(PreflightCheckId::Battery,
-                             batteryRequired,
-                             batteryOk,
-                             batteryRequired ? battery.reason : "Battery disabled in setup");
-    preflightHealth.setCheck(PreflightCheckId::Memory, true, freeHeap >= PREFLIGHT_MIN_FREE_HEAP_BYTES, "Free heap too low");
-    preflightHealth.setCheck(PreflightCheckId::Actuator, true, SystemTimer::outputsReady(), "Actuator output not ready");
-    preflightHealth.setCheck(PreflightCheckId::Failsafe,
-                             rcRequired,
-                             !rxManager.isFailsafe(),
-                             rcRequired ? "RC failsafe active" : "RC disabled in setup");
-    preflightHealth.setCheck(PreflightCheckId::Scheduler, true, SystemTimer::checkTimingBudgets(), "Timing budget exceeded");
-    preflightHealth.setCheck(PreflightCheckId::GPS, false, false, "GPS not configured");
-    return preflightHealth.evaluate();
+    refreshModuleSetupFromParams();
+    PreflightResult result = preflightRuntime.evaluate(
+        rp2040.getFreeHeap(),
+        SystemTimer::outputsReady(),
+        SystemTimer::checkTimingBudgets()
+    );
+    latestBatteryCritical = preflightRuntime.latestBatteryCritical();
+    return result;
 }
 
 static void updatePreflightArmGate() {
@@ -424,64 +301,11 @@ static void runBlackboxLog() {
 }
 
 static void runBlackboxDrain() { blackbox.drain(2); }
-
 static void runHealthReport() {
     lastPreflightResult = evaluatePreflight();
-    BatteryStatus battery = batteryMonitor.evaluate();
     refreshModuleSetupFromParams();
-    latestBatteryCritical = batteryModuleEnabled && battery.configured && battery.brownout;
-    runtimeHealth.sensorStackHighWaterWords = sensorTaskHandle
-        ? clampStackWords(uxTaskGetStackHighWaterMark(sensorTaskHandle)) : 0;
-    runtimeHealth.flightStackHighWaterWords = flightTaskHandle
-        ? clampStackWords(uxTaskGetStackHighWaterMark(flightTaskHandle)) : 0;
-    runtimeHealth.telemetryStackHighWaterWords = telemetryTaskHandle
-        ? clampStackWords(uxTaskGetStackHighWaterMark(telemetryTaskHandle)) : 0;
-    runtimeHealth.eventQueueDrops = systemEventBus.droppedCount() > 0xFFFFu
-        ? 0xFFFFu : (uint16_t)systemEventBus.droppedCount();
-
-    if (!lastPreflightResult.canArm) {
-        mavlink.sendStatusText(lastPreflightResult.firstFailureReason);
-    }
-
-    if (battery.configured && !battery.healthy && !batteryWarningLatched) {
-        batteryWarningLatched = true;
-        systemEventBus.publish({
-            SystemEventType::BatteryWarning,
-            micros(),
-            battery.brownout ? 2u : 1u
-        });
-        mavlink.sendStatusText(battery.reason);
-    } else if (battery.configured && battery.healthy) {
-        batteryWarningLatched = false;
-    }
-
-    if (sensorManager.getFaultCode() != SensorFaultCode::None) {
-        mavlink.sendStatusText(sensorManager.getFaultText());
-    }
-
-    if (!SystemTimer::checkTimingBudgets()) {
-        TimingBudgetStatus status = SystemTimer::getTimingBudgetStatus();
-        blackbox.logTimingBudget(status);
-        mavlink.sendStatusText("Timing budget exceeded");
-        systemEventBus.publish({
-            SystemEventType::TimingOverrun,
-            micros(),
-            ((uint32_t)status.totalDeadlineMisses << 16) | status.totalLoadPermille
-        });
-    }
-    const uint32_t droppedBlackbox = blackbox.droppedRecords();
-    runtimeHealth.blackboxDrops = droppedBlackbox > 0xFFFFu ? 0xFFFFu : (uint16_t)droppedBlackbox;
-    blackbox.logRuntimeHealth(runtimeHealth);
-    if (droppedBlackbox != lastBlackboxDroppedRecords) {
-        lastBlackboxDroppedRecords = droppedBlackbox;
-        systemEventBus.publish({
-            SystemEventType::BlackboxDrop,
-            micros(),
-            droppedBlackbox
-        });
-        mavlink.sendStatusText("Blackbox records dropped");
-    }
-    SystemTimer::requestTimingWindowReset();
+    latestBatteryCritical = moduleSetupRuntime.batteryRequired() &&
+        runtimeHealthReporter.run(lastPreflightResult, sensorTaskHandle, flightTaskHandle, telemetryTaskHandle);
 }
 
 extern "C" void vApplicationStackOverflowHook(TaskHandle_t xTask, char* pcTaskName) {
@@ -544,18 +368,16 @@ void setup() {
     paramManager.setArmStateProvider(provideArmState);
     paramManager.setStorage(&paramStorage);
     paramManager.init();
-    const ServoPinConfig servoPins = servoPinsFromParams();
-    bootServoPinConfigValid = validateServoPinSetup(servoPins);
+    refreshModuleSetupFromParams();
+    const ModuleServoPinConfig moduleServoPins = moduleSetupRuntime.snapshot().servoPins;
+    const ServoPinConfig servoPins = outputServoPinsFromModulePins(moduleServoPins);
+    bootServoPinConfigValid = ModuleSetupRuntime::validateServoPinSetup(moduleServoPins);
     if (bootServoPinConfigValid) {
         configureServoOutputPins(servoPins);
     } else {
         BootLogger::warn("Servo Pins", "Gecersiz pin haritasi, varsayilan cikislar korunuyor");
     }
     batteryAdcChannel = adcChannelForPin(paramManager.getPinBatteryAdc());
-    baroModuleEnabled = paramManager.isBaroEnabled();
-    magModuleEnabled = paramManager.isMagEnabled();
-    gpsModuleEnabled = paramManager.isGpsEnabled();
-    batteryModuleEnabled = paramManager.isBatteryEnabled();
 #endif
 #if BATTERY_ADC_ENABLED
     batteryAdc.init(
@@ -571,47 +393,21 @@ void setup() {
     batteryMonitor.init();
 #endif
     flightManager.init(&sensorManager, &rxManager);
+    preflightRuntime.init({
+        &sensorManager,
+        &gpsManager,
+        &rxManager,
+        &batteryMonitor,
+        &moduleSetupRuntime,
+        &preflightHealth
+    });
 
-    SensorCapabilityStatus sensorCapabilities = sensorManager.capabilities();
-    bool imuOk = sensorCapabilities.imuAvailable;
-    if (imuOk) {
-        char whoamiText[16];
-        snprintf(whoamiText, sizeof(whoamiText), "WHOAMI=0x%02X", sensorManager.getLastWhoAmI());
-        BootLogger::okWithValue("MPU6050", whoamiText);
+    const bool imuOk = SensorBootSequence::run(sensorManager, calibrationStorage);
 
-        CalibrationBlob calibrationBlob = {};
-        if (calibrationStorage.load(calibrationBlob)) {
-            sensorManager.setImuCalibration(calibrationBlob.imu);
-            sensorManager.setMagCalibration(calibrationBlob.mag);
-            BootLogger::ok("Calibration Load");
-        } else if (sensorManager.runBootCalibration()) {
-            BootLogger::ok("Gyro/Accel Bias Cal");
-            CalibrationBlob savedCalibration = CalibrationStorage::makeBlob(sensorManager.getImuCalibration(),
-                                                                            sensorManager.getMagCalibration());
-            if (calibrationStorage.save(savedCalibration)) {
-                BootLogger::ok("Calibration Save");
-            } else {
-                BootLogger::warn("Calibration Save", "Flash kaydi basarisiz");
-            }
-        } else {
-            BootLogger::warn("Gyro/Accel Bias Cal", "Yetersiz ornek veya basarisiz");
-        }
-    } else {
-        BootLogger::fail("MPU6050", "WHOAMI dogrulanamadi veya bagli degil");
-        BootLogger::warn("Sensor Fault", sensorManager.getFaultText());
-    }
-
-#ifdef USE_GY87
-    sensorCapabilities = sensorManager.capabilities();
-    if (sensorCapabilities.baroAvailable) BootLogger::ok("BMP085");
-    else BootLogger::fail("BMP085", "Barometre bulunamadi");
-
-    if (sensorCapabilities.magAvailable) BootLogger::ok("HMC5883L");
-    else BootLogger::fail("HMC5883L", "Manyetometre bulunamadi");
-#endif
-
-    gpsManager.init(nullptr, gpsModuleEnabled, GPS_UART_BAUD);
-    if (gpsModuleEnabled) BootLogger::warn("GPS", "UART baglantisi bekleniyor");
+    refreshModuleSetupFromParams();
+    const bool gpsEnabled = moduleSetupRuntime.snapshot().gpsEnabled;
+    gpsManager.init(nullptr, gpsEnabled, GPS_UART_BAUD);
+    if (gpsEnabled) BootLogger::warn("GPS", "UART baglantisi bekleniyor");
     else BootLogger::warn("GPS", "Kapali; takili degilse navigation devreye girmez");
 
     BootLogger::ok("RC Receiver (SBUS/UART0)");
@@ -653,41 +449,27 @@ void setup() {
     blackbox.setSink(&blackboxSdSink);
 #endif
     blackbox.init();
-
+    runtimeHealthReporter.init({
+        &batteryMonitor,
+        &blackbox,
+        &mavlink,
+        &sensorManager,
+        &systemEventBus
+    });
 #ifdef MAVLINK_PARAMS_ENABLED
-    paramManager.setPidGainsApplyHandler(applyPidGains);
-    paramManager.setMixerSettingsApplyHandler(applyMixerSettings);
-    paramManager.setFailsafeTimeoutApplyHandler(applyFailsafeTimeout);
-    paramManager.setRcMappingApplyHandler(applyRcMapping);
-    paramManager.setMavlinkRatesApplyHandler(applyMavlinkRates);
-    paramManager.setBlackboxRateApplyHandler(applyBlackboxRate);
-    paramManager.setPreflightQualityApplyHandler(applyPreflightQuality);
-    paramManager.setBatteryProfileApplyHandler(applyBatteryProfile);
-    applyPidGains(paramManager.getAngleP(), paramManager.getAngleI(), paramManager.getAngleD(),
-                  paramManager.getRateP(), paramManager.getRateI(), paramManager.getRateD());
-    applyMixerSettings(paramManager.getMixerSettings());
-    applyFailsafeTimeout(paramManager.getFailsafeTimeoutMs());
-    applyRcMapping(paramManager.getRcRollChannel(), paramManager.getRcPitchChannel(),
-                   paramManager.getRcThrottleChannel(), paramManager.getRcYawChannel(),
-                   paramManager.getRcModeChannel());
-    applyMavlinkRates(paramManager.getMavlinkAttitudeHz(),
-                      paramManager.getMavlinkRcHz(),
-                      paramManager.getMavlinkSysStatusHz());
-    applyBlackboxRate(paramManager.getBlackboxLogHz());
-    applyPreflightQuality(paramManager.getPreflightMinQuality());
-    applyBatteryProfile(paramManager.getBatteryCellCount(), paramManager.getBatteryNominalVoltage(),
-                        paramManager.getBatteryCapacityMah(), paramManager.getBatteryCRating(),
-                        paramManager.getBatteryLowVoltage(), paramManager.getBatteryBrownoutVoltage(),
-                        paramManager.getBatteryMaxVoltage());
-    baroModuleEnabled = paramManager.isBaroEnabled();
-    magModuleEnabled = paramManager.isMagEnabled();
-    gpsModuleEnabled = paramManager.isGpsEnabled();
-    batteryModuleEnabled = paramManager.isBatteryEnabled();
-    rcModuleEnabled = paramManager.isRcEnabled();
-    flightManager.setRcRequired(rcModuleEnabled && paramManager.getRcType() != 0);
+    ConfiguratorParamRuntime::bindAndApply(paramManager,
+                                           applyPidGains,
+                                           applyMixerSettings,
+                                           applyFailsafeTimeout,
+                                           applyRcMapping,
+                                           applyMavlinkRates,
+                                           applyBlackboxRate,
+                                           applyPreflightQuality,
+                                           applyBatteryProfile);
+    refreshModuleSetupFromParams();
 #endif
 
-    sensorCapabilities = sensorManager.capabilities();
+    SensorCapabilityStatus sensorCapabilities = sensorManager.capabilities();
     SensorCapabilityStatus gpsCapabilities = gpsManager.capabilities();
     const uint16_t functionMask = enabledSensorMask(sensorCapabilities.functionMask | gpsCapabilities.functionMask);
     bool baroOk = hasSensorCapability(functionMask, SENSOR_CAP_BARO);
