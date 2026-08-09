@@ -1359,7 +1359,7 @@ body.app-ready .app-shell {
   display: grid;
   gap: 5px;
   padding: 7px;
-  flex: 1 1 auto;
+  flex: 0 0 auto;
   min-height: 0;
   overflow: hidden;
   align-content: start;
@@ -1625,7 +1625,7 @@ body.app-ready .app-shell {
   background: color-mix(in srgb, var(--glass-strong) 84%, var(--surface-solid));
   box-shadow: var(--shadow-sm), inset 0 1px 0 var(--glass-shine);
   overflow: hidden;
-  flex: 0 0 176px;
+  flex: 0 0 220px;
   display: flex;
   flex-direction: column;
 }
