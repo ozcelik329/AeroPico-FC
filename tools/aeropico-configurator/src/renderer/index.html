@@ -200,7 +200,6 @@
         <div class="terminal-header">
           <div class="terminal-tabs" role="tablist" aria-label="Terminal görünümü">
             <button id="terminalPreflightBtn" class="terminal-tab active" type="button">Preflight</button>
-            <button id="terminalMavlinkBtn" class="terminal-tab" type="button">MAVLink Parser</button>
             <button id="terminalLogBtn" class="terminal-tab" type="button">Olay Kaydı</button>
           </div>
           <button id="clearLogBtn" class="small">Temizle</button>
@@ -208,11 +207,6 @@
         <div class="terminal-body">
           <div id="preflightPane" class="terminal-pane active">
             <div id="preflightText" class="terminal-preflight">Cihazdan durum bekleniyor.</div>
-          </div>
-          <div id="terminalMavlinkPane" class="terminal-pane">
-            <div id="terminalMavlinkList" class="terminal-mavlink-list">
-              <p class="hint">Cihazdan MAVLink paketi bekleniyor.</p>
-            </div>
           </div>
           <div id="logPane" class="terminal-pane">
             <div id="log" class="log"></div>
@@ -319,21 +313,26 @@
         </div>
       </section>
 
-      <section class="panel command-panel">
+      <section class="panel command-panel flow-panel">
         <div class="panel-title">
-          <span>Komut Durumu</span>
-          <span id="commandSummary" class="status-pill muted">Bekliyor</span>
-        </div>
-        <div id="commandStatusList" class="command-status-list"></div>
-      </section>
-
-      <section class="panel command-panel">
-        <div class="panel-title">
-          <span>MAVLink Akışı</span>
+          <span>Akış</span>
           <span id="mavlinkInspectorSummary" class="status-pill muted">Bekliyor</span>
         </div>
-        <div id="mavlinkInspectorList" class="mavlink-inspector-list">
-          <p class="hint">Cihazdan MAVLink paketi bekleniyor.</p>
+        <div class="side-tool-tabs flow-tabs" role="tablist" aria-label="Akış paneli">
+          <button class="side-tool-tab active" data-flow-tab="command" type="button">Komut</button>
+          <button class="side-tool-tab" data-flow-tab="mavlink" type="button">MAVLink</button>
+        </div>
+        <div class="flow-pane active" data-flow-pane="command">
+          <div class="panel-title compact-title">
+            <span>Komut Durumu</span>
+            <span id="commandSummary" class="status-pill muted">Bekliyor</span>
+          </div>
+          <div id="commandStatusList" class="command-status-list"></div>
+        </div>
+        <div class="flow-pane" data-flow-pane="mavlink">
+          <div id="mavlinkInspectorList" class="mavlink-inspector-list">
+            <p class="hint">Cihazdan MAVLink paketi bekleniyor.</p>
+          </div>
         </div>
       </section>
 

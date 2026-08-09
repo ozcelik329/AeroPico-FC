@@ -1748,7 +1748,8 @@ input[type="number"]::-webkit-inner-spin-button {
 }
 
 .tools-panel,
-.system-panel {
+.system-panel,
+.flow-panel {
   display: grid;
   gap: 8px;
 }
@@ -1764,6 +1765,10 @@ input[type="number"]::-webkit-inner-spin-button {
 }
 
 .module-tabs {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.flow-tabs {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
@@ -1793,15 +1798,22 @@ input[type="number"]::-webkit-inner-spin-button {
 }
 
 .side-tool-pane,
-.module-pane {
+.module-pane,
+.flow-pane {
   display: none;
   min-height: 0;
 }
 
 .side-tool-pane.active,
-.module-pane.active {
+.module-pane.active,
+.flow-pane.active {
   display: grid;
   gap: 6px;
+}
+
+.compact-title {
+  margin-bottom: 6px;
+  font-size: 11.5px;
 }
 
 .terminal-mavlink-list {

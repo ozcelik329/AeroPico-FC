@@ -177,19 +177,6 @@
       note: "Şu an gerçek protokol SBUS'tur; Auto da firmware tarafında SBUS backend'e çözülür."
     },
     {
-      id: "servo",
-      title: "Servo / ESC",
-      role: "Actuator output",
-      pins: "GP16-GP19 varsayilan",
-      pinParams: [
-        ["PIN_AIL", "Aileron"],
-        ["PIN_ELE", "Elevator"],
-        ["PIN_RUD", "Rudder"],
-        ["PIN_THR", "Throttle"]
-      ],
-      note: "Pin degisimi boot sirasinda uygulanir; runtime servo pin switch yapilmaz."
-    },
-    {
       id: "battery",
       title: "Batarya",
       enableParam: "EN_BATT",
@@ -404,11 +391,8 @@
     mavlinkInspectorSummary: document.getElementById("mavlinkInspectorSummary"),
     mavlinkInspectorList: document.getElementById("mavlinkInspectorList"),
     terminalPreflightBtn: document.getElementById("terminalPreflightBtn"),
-    terminalMavlinkBtn: document.getElementById("terminalMavlinkBtn"),
     terminalLogBtn: document.getElementById("terminalLogBtn"),
     preflightPane: document.getElementById("preflightPane"),
-    terminalMavlinkPane: document.getElementById("terminalMavlinkPane"),
-    terminalMavlinkList: document.getElementById("terminalMavlinkList"),
     logPane: document.getElementById("logPane"),
     toastStack: document.getElementById("toastStack")
   };
@@ -569,6 +553,20 @@
         });
         document.querySelectorAll("[data-module-pane]").forEach((pane) => {
           pane.classList.toggle("active", pane.dataset.modulePane === target);
+        });
+      });
+    });
+  }
+
+  function bindFlowTabs() {
+    document.querySelectorAll("[data-flow-tab]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const target = button.dataset.flowTab;
+        document.querySelectorAll("[data-flow-tab]").forEach((tab) => {
+          tab.classList.toggle("active", tab.dataset.flowTab === target);
+        });
+        document.querySelectorAll("[data-flow-pane]").forEach((pane) => {
+          pane.classList.toggle("active", pane.dataset.flowPane === target);
         });
       });
     });
@@ -2348,12 +2346,10 @@
   /* ── Bindings ──────────────────────────────── */
 
   function showTerminalPane(name) {
-    const pane = name === "mavlink" ? "mavlink" : name === "log" ? "log" : "preflight";
+    const pane = name === "log" ? "log" : "preflight";
     els.terminalPreflightBtn.classList.toggle("active", pane === "preflight");
-    els.terminalMavlinkBtn?.classList.toggle("active", pane === "mavlink");
     els.terminalLogBtn.classList.toggle("active", pane === "log");
     els.preflightPane.classList.toggle("active", pane === "preflight");
-    els.terminalMavlinkPane?.classList.toggle("active", pane === "mavlink");
     els.logPane.classList.toggle("active", pane === "log");
   }
 
@@ -2366,7 +2362,6 @@
       els.log.textContent = "";
     });
     els.terminalPreflightBtn.addEventListener("click", () => showTerminalPane("preflight"));
-    els.terminalMavlinkBtn?.addEventListener("click", () => showTerminalPane("mavlink"));
     els.terminalLogBtn.addEventListener("click", () => showTerminalPane("log"));
     els.exportBtn.addEventListener("click", exportParams);
     els.importBtn.addEventListener("click", () => els.importInput.click());
@@ -2408,6 +2403,7 @@
     bindCollapsibles();
     bindSideToolTabs();
     bindModuleTabs();
+    bindFlowTabs();
     bindRightbarTabs();
     bindBaudSelect();
     bindSerialBridge();
