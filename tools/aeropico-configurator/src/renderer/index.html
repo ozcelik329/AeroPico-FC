@@ -234,6 +234,26 @@
           </div>
         </div>
       </section>
+
+      <section class="bottom-diagnostics" aria-label="Komut ve MAVLink tanılama">
+        <section class="panel command-panel">
+          <div class="panel-title">
+            <span>Komut Durumu</span>
+            <span id="commandSummary" class="status-pill muted">Bekliyor</span>
+          </div>
+          <div id="commandStatusList" class="command-status-list"></div>
+        </section>
+
+        <section class="panel mavlink-inspector-panel">
+          <div class="panel-title">
+            <span>MAVLink Akışı</span>
+            <span id="mavlinkInspectorSummary" class="status-pill muted">Bekliyor</span>
+          </div>
+          <div id="mavlinkInspectorList" class="mavlink-inspector-list">
+            <p class="hint">Cihazdan MAVLink paketi bekleniyor.</p>
+          </div>
+        </section>
+      </section>
     </main>
 
     <aside class="rightbar">
@@ -331,24 +351,6 @@
         </div>
         <div class="side-tool-pane" data-tool-pane="audit">
           <div id="configAudit" class="config-audit"></div>
-        </div>
-      </section>
-
-      <section class="panel command-panel">
-        <div class="panel-title">
-          <span>Komut Durumu</span>
-          <span id="commandSummary" class="status-pill muted">Bekliyor</span>
-        </div>
-        <div id="commandStatusList" class="command-status-list"></div>
-      </section>
-
-      <section class="panel mavlink-inspector-panel">
-        <div class="panel-title">
-          <span>MAVLink Akışı</span>
-          <span id="mavlinkInspectorSummary" class="status-pill muted">Bekliyor</span>
-        </div>
-        <div id="mavlinkInspectorList" class="mavlink-inspector-list">
-          <p class="hint">Cihazdan MAVLink paketi bekleniyor.</p>
         </div>
       </section>
 
