@@ -120,7 +120,7 @@
     "Servo 1": "PIN_AIL",
     "Servo 2": "PIN_ELE",
     "Servo 3": "PIN_RUD",
-    "Servo 4": "PIN_THR",
+    "ESC": "PIN_THR",
     "ADC Batarya Voltaj": "PIN_BATT_ADC"
   });
   const SERVO_RESERVED_GPIOS = new Set([1, 4, 5, 20, 21]);
@@ -201,7 +201,7 @@
     [40, "Servo 1"],
     [39, "Servo 2"],
     [37, "Servo 3"],
-    [36, "Servo 4"]
+    [36, "ESC"]
   ]);
 
   const PARAM_RULES = Object.freeze({
@@ -264,7 +264,7 @@
      (bottom-right). */
   const PIN_ROLES = [
     "Kullanılmıyor",
-    "Servo 1", "Servo 2", "Servo 3", "Servo 4",
+    "Servo 1", "Servo 2", "Servo 3", "ESC",
     "ADC Batarya Voltaj"
   ];
 
