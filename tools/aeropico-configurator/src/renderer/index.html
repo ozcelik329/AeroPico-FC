@@ -222,6 +222,8 @@
           <div class="terminal-tabs" role="tablist" aria-label="Terminal görünümü">
             <button id="terminalPreflightBtn" class="terminal-tab active" type="button">Preflight</button>
             <button id="terminalLogBtn" class="terminal-tab" type="button">Olay Kaydı</button>
+            <button id="terminalCommandBtn" class="terminal-tab" type="button">Komut Durumu</button>
+            <button id="terminalMavlinkBtn" class="terminal-tab" type="button">MAVLink Akışı</button>
           </div>
           <button id="clearLogBtn" class="small">Temizle</button>
         </div>
@@ -232,27 +234,23 @@
           <div id="logPane" class="terminal-pane">
             <div id="log" class="log"></div>
           </div>
+          <div id="commandPane" class="terminal-pane">
+            <div class="terminal-pane-head">
+              <span>Komut Durumu</span>
+              <span id="commandSummary" class="status-pill muted">Bekliyor</span>
+            </div>
+            <div id="commandStatusList" class="command-status-list"></div>
+          </div>
+          <div id="mavlinkPane" class="terminal-pane">
+            <div class="terminal-pane-head">
+              <span>MAVLink Akışı</span>
+              <span id="mavlinkInspectorSummary" class="status-pill muted">Bekliyor</span>
+            </div>
+            <div id="mavlinkInspectorList" class="mavlink-inspector-list">
+              <p class="hint">Cihazdan MAVLink paketi bekleniyor.</p>
+            </div>
+          </div>
         </div>
-      </section>
-
-      <section class="bottom-diagnostics" aria-label="Komut ve MAVLink tanılama">
-        <section class="panel command-panel">
-          <div class="panel-title">
-            <span>Komut Durumu</span>
-            <span id="commandSummary" class="status-pill muted">Bekliyor</span>
-          </div>
-          <div id="commandStatusList" class="command-status-list"></div>
-        </section>
-
-        <section class="panel mavlink-inspector-panel">
-          <div class="panel-title">
-            <span>MAVLink Akışı</span>
-            <span id="mavlinkInspectorSummary" class="status-pill muted">Bekliyor</span>
-          </div>
-          <div id="mavlinkInspectorList" class="mavlink-inspector-list">
-            <p class="hint">Cihazdan MAVLink paketi bekleniyor.</p>
-          </div>
-        </section>
       </section>
     </main>
 

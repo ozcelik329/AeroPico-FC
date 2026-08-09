@@ -399,8 +399,12 @@
     mavlinkInspectorList: document.getElementById("mavlinkInspectorList"),
     terminalPreflightBtn: document.getElementById("terminalPreflightBtn"),
     terminalLogBtn: document.getElementById("terminalLogBtn"),
+    terminalCommandBtn: document.getElementById("terminalCommandBtn"),
+    terminalMavlinkBtn: document.getElementById("terminalMavlinkBtn"),
     preflightPane: document.getElementById("preflightPane"),
     logPane: document.getElementById("logPane"),
+    commandPane: document.getElementById("commandPane"),
+    mavlinkPane: document.getElementById("mavlinkPane"),
     toastStack: document.getElementById("toastStack")
   };
 
@@ -2380,11 +2384,16 @@
   /* ── Bindings ──────────────────────────────── */
 
   function showTerminalPane(name) {
-    const pane = name === "log" ? "log" : "preflight";
+    const panes = new Set(["preflight", "log", "command", "mavlink"]);
+    const pane = panes.has(name) ? name : "preflight";
     els.terminalPreflightBtn.classList.toggle("active", pane === "preflight");
     els.terminalLogBtn.classList.toggle("active", pane === "log");
+    els.terminalCommandBtn.classList.toggle("active", pane === "command");
+    els.terminalMavlinkBtn.classList.toggle("active", pane === "mavlink");
     els.preflightPane.classList.toggle("active", pane === "preflight");
     els.logPane.classList.toggle("active", pane === "log");
+    els.commandPane.classList.toggle("active", pane === "command");
+    els.mavlinkPane.classList.toggle("active", pane === "mavlink");
   }
 
   function bind() {
@@ -2397,6 +2406,8 @@
     });
     els.terminalPreflightBtn.addEventListener("click", () => showTerminalPane("preflight"));
     els.terminalLogBtn.addEventListener("click", () => showTerminalPane("log"));
+    els.terminalCommandBtn.addEventListener("click", () => showTerminalPane("command"));
+    els.terminalMavlinkBtn.addEventListener("click", () => showTerminalPane("mavlink"));
     els.exportBtn.addEventListener("click", exportParams);
     els.importBtn.addEventListener("click", () => els.importInput.click());
     els.importInput.addEventListener("change", () => {
