@@ -250,15 +250,12 @@
           <div class="module-grid" id="moduleGrid"></div>
         </div>
         <div class="module-pane" data-module-pane="setup">
-          <div class="module-setup-grid" aria-label="Modül rol seçimi">
-            <label><span>IMU</span><select><option>Auto detect</option><option>MPU6050</option><option>MPU6500</option><option>ICM42688</option><option>Disabled</option></select></label>
-            <label><span>Baro</span><select><option>Auto detect</option><option>BMP180/BMP085</option><option>BMP280</option><option>BMP390</option><option>Disabled</option></select></label>
-            <label><span>Mag</span><select><option>Auto detect</option><option>HMC5883L</option><option>QMC5883L/P</option><option>Disabled</option></select></label>
-            <label><span>GPS</span><select><option>Auto detect</option><option>NMEA UART</option><option>UBlox UART</option><option>Disabled</option></select></label>
-            <label><span>RC</span><select><option>SBUS</option><option>CRSF/ELRS</option><option>IBUS</option><option>PPM</option><option>Disabled</option></select></label>
-            <label><span>Battery</span><select><option>ADC voltage</option><option>Power module</option><option>Disabled</option></select></label>
+          <div class="module-setup-actions">
+            <button id="applyDefaultModuleSetupBtn" class="small" type="button">Varsayılan Setup</button>
+            <button id="openPinsFromModuleSetupBtn" class="small" type="button">Pin Mapper</button>
           </div>
-          <p class="hint">Bu alan rol/backend mimarisi icin hazirliktir; firmware destekleri arttikca aktif secimler parametreye baglanir.</p>
+          <div id="moduleSetupGrid" class="module-setup-grid" aria-label="Modül rol seçimi"></div>
+          <p class="hint">Bu seçimler EN_*/TYPE_* ve pin parametrelerine yazılır; arm/preflight akışı firmware tarafında bu setup'a göre değerlendirilir.</p>
         </div>
       </section>
 

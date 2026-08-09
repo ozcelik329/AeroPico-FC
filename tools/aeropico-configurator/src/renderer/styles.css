@@ -763,6 +763,84 @@ body.app-ready .app-shell {
   gap: 6px;
 }
 
+.module-setup-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.module-setup-card {
+  display: grid;
+  gap: 7px;
+  padding: 9px;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+}
+
+.module-setup-card.ok {
+  border-color: rgba(16, 185, 129, 0.32);
+}
+
+.module-setup-card.bad {
+  border-color: rgba(239, 68, 68, 0.36);
+}
+
+.module-setup-head,
+.module-setup-meta {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.module-setup-head strong {
+  display: block;
+  color: var(--text-primary);
+  font-size: 12px;
+}
+
+.module-setup-head span,
+.module-setup-meta,
+.module-setup-card p {
+  color: var(--text-secondary);
+  font-size: 10.5px;
+  line-height: 1.35;
+}
+
+.module-setup-health {
+  flex: 0 0 auto;
+  color: var(--text-primary) !important;
+  font-weight: 800;
+}
+
+.setup-switch {
+  display: inline-flex !important;
+  grid-template-columns: none !important;
+  align-items: center;
+  gap: 5px !important;
+  min-height: auto;
+}
+
+.setup-switch input {
+  width: 14px;
+  height: 14px;
+}
+
+.module-type-control,
+.module-pin-controls label {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr);
+  align-items: center;
+  gap: 7px;
+}
+
+.module-pin-controls {
+  display: grid;
+  gap: 6px;
+}
+
 .module-setup-grid label {
   display: grid;
   grid-template-columns: 52px minmax(0, 1fr);
