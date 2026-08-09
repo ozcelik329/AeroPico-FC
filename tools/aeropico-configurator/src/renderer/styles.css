@@ -289,6 +289,8 @@ input[type="number"]::-webkit-inner-spin-button {
 .rightbar {
   border-right: 0;
   border-left: 1px solid var(--line);
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .rightbar .panel {
@@ -1743,6 +1745,63 @@ input[type="number"]::-webkit-inner-spin-button {
   grid-template-columns: 1fr 1fr;
   gap: 6px;
   margin-top: 8px;
+}
+
+.tools-panel,
+.system-panel {
+  display: grid;
+  gap: 8px;
+}
+
+.side-tool-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 4px;
+  padding: 3px;
+  border: 1px solid var(--glass-border);
+  border-radius: 9px;
+  background: var(--surface-2);
+}
+
+.module-tabs {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.side-tool-tab {
+  min-height: 30px;
+  padding: 0 8px;
+  border: 0;
+  box-shadow: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 750;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.side-tool-tab:hover:not(:disabled) {
+  transform: none;
+  box-shadow: none;
+}
+
+.side-tool-tab.active {
+  background: var(--surface-solid);
+  color: var(--accent);
+  box-shadow: var(--shadow-sm);
+}
+
+.side-tool-pane,
+.module-pane {
+  display: none;
+  min-height: 0;
+}
+
+.side-tool-pane.active,
+.module-pane.active {
+  display: grid;
+  gap: 6px;
 }
 
 .terminal-mavlink-list {

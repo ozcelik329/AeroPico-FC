@@ -76,27 +76,6 @@
         ["MAV_SYS_HZ", "System Hz", "System telemetry frekansi."],
         ["BB_LOG_HZ", "Blackbox Hz", "Blackbox kayit frekansi."]
       ]
-    },
-    {
-      id: "pins",
-      label: "Pinler & Modüller",
-      params: [
-        ["PIN_AIL", "Aileron Pin", "Servo aileron GPIO pini. Flash'a kaydet + yeniden baslat."],
-        ["PIN_ELE", "Elevator Pin", "Servo elevator GPIO pini. Flash'a kaydet + yeniden baslat."],
-        ["PIN_RUD", "Rudder Pin", "Servo rudder GPIO pini. Flash'a kaydet + yeniden baslat."],
-        ["PIN_THR", "Throttle Pin", "Throttle/ESC GPIO pini. Flash'a kaydet + yeniden baslat."],
-        ["PIN_BATT_ADC", "Battery ADC Pin", "Batarya voltaj ADC pini. GP26-GP28 arasi."],
-        ["EN_BARO", "Baro Enable", "Barometre backend'i SYS_STATUS/preflight akışında etkin tutar."],
-        ["EN_MAG", "Mag Enable", "Manyetometre backend'i SYS_STATUS/preflight akışında etkin tutar."],
-        ["EN_GPS", "GPS Enable", "GPS rolünü ve MAVLink health raporunu etkin tutar."],
-        ["EN_BATT", "Battery Enable", "Kapalıysa batarya preflight/arm zincirine alınmaz."],
-        ["TYPE_IMU", "IMU Type", "IMU backend seçimi."],
-        ["TYPE_BARO", "Baro Type", "Barometre backend seçimi."],
-        ["TYPE_MAG", "Mag Type", "Manyetometre backend seçimi."],
-        ["TYPE_GPS", "GPS Type", "GPS backend seçimi."],
-        ["TYPE_RC", "RC Type", "RC protokol seçimi."],
-        ["TYPE_BATT", "Battery Type", "Batarya izleme backend seçimi."]
-      ]
     }
   ];
 

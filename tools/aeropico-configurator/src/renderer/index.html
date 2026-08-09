@@ -227,18 +227,14 @@
           <span>Modüller</span>
           <span id="moduleSummary" class="status-pill muted">Bekliyor</span>
         </div>
-        <div class="module-grid" id="moduleGrid"></div>
-      </section>
-
-      <section class="panel collapsible collapsed" data-collapsible>
-        <button class="panel-title collapse-trigger" type="button">
-          <span>Modül Setup</span>
-          <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-            stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="6 9 12 15 18 9" />
-          </svg>
-        </button>
-        <div class="collapse-body">
+        <div class="side-tool-tabs module-tabs" role="tablist" aria-label="Modül paneli">
+          <button class="side-tool-tab active" data-module-tab="status" type="button">Durum</button>
+          <button class="side-tool-tab" data-module-tab="setup" type="button">Setup</button>
+        </div>
+        <div class="module-pane active" data-module-pane="status">
+          <div class="module-grid" id="moduleGrid"></div>
+        </div>
+        <div class="module-pane" data-module-pane="setup">
           <div id="moduleSetupGrid" class="module-setup-grid"></div>
           <div class="module-setup-actions">
             <button id="applyDefaultModuleSetupBtn" class="small" type="button">AeroPico Varsayılan</button>
@@ -248,15 +244,16 @@
         </div>
       </section>
 
-      <section class="panel collapsible" data-collapsible>
-        <button class="panel-title collapse-trigger" type="button">
-          <span>Kalibrasyon</span>
-          <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-            stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="6 9 12 15 18 9" />
-          </svg>
-        </button>
-        <div class="collapse-body">
+      <section class="panel tools-panel">
+        <div class="panel-title">
+          <span>Araçlar</span>
+        </div>
+        <div class="side-tool-tabs" role="tablist" aria-label="Araç paneli">
+          <button class="side-tool-tab active" data-tool-tab="calibration" type="button">Kalibrasyon</button>
+          <button class="side-tool-tab" data-tool-tab="bench" type="button">Bench</button>
+          <button class="side-tool-tab" data-tool-tab="audit" type="button">Denetim</button>
+        </div>
+        <div class="side-tool-pane active" data-tool-pane="calibration">
           <button data-command="CAL_IMU">
             <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
               stroke-linecap="round" stroke-linejoin="round">
@@ -284,17 +281,7 @@
           </button>
           <p class="hint">Komutlar MAVLink servis kapısından geçer; firmware güvenli değilse reddeder.</p>
         </div>
-      </section>
-
-      <section class="panel collapsible" data-collapsible>
-        <button class="panel-title collapse-trigger" type="button">
-          <span>Bench Test</span>
-          <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-            stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="6 9 12 15 18 9" />
-          </svg>
-        </button>
-        <div class="collapse-body">
+        <div class="side-tool-pane" data-tool-pane="bench">
           <button data-command="SERVO_TEST">
             <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
               stroke-linecap="round" stroke-linejoin="round">
@@ -327,17 +314,7 @@
           </button>
           <p class="hint">Pervane mutlaka sökülü olmalıdır.</p>
         </div>
-      </section>
-
-      <section class="panel collapsible" data-collapsible>
-        <button class="panel-title collapse-trigger" type="button">
-          <span>Config Denetimi</span>
-          <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-            stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="6 9 12 15 18 9" />
-          </svg>
-        </button>
-        <div class="collapse-body">
+        <div class="side-tool-pane" data-tool-pane="audit">
           <div id="configAudit" class="config-audit"></div>
         </div>
       </section>
