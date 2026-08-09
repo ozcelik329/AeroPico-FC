@@ -16,6 +16,7 @@ struct MavlinkServiceContext {
     bool (*isArmed)() = nullptr;
     PreflightResult (*evaluatePreflight)() = nullptr;
     bool (*requestServoTest)(uint8_t surface, uint16_t pulseUs, uint16_t durationMs) = nullptr;
+    void (*provideRcMapping)(uint8_t& roll, uint8_t& pitch, uint8_t& throttle, uint8_t& yaw, uint8_t& mode) = nullptr;
     PreflightResult* lastPreflightResult = nullptr;
     ServiceCommandMailbox* mailbox = nullptr;
 };

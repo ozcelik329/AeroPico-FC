@@ -76,6 +76,27 @@
         ["MAV_SYS_HZ", "System Hz", "System telemetry frekansi."],
         ["BB_LOG_HZ", "Blackbox Hz", "Blackbox kayit frekansi."]
       ]
+    },
+    {
+      id: "pins",
+      label: "Pinler & Modüller",
+      params: [
+        ["PIN_AIL", "Aileron Pin", "Servo aileron GPIO pini. Flash'a kaydet + yeniden baslat."],
+        ["PIN_ELE", "Elevator Pin", "Servo elevator GPIO pini. Flash'a kaydet + yeniden baslat."],
+        ["PIN_RUD", "Rudder Pin", "Servo rudder GPIO pini. Flash'a kaydet + yeniden baslat."],
+        ["PIN_THR", "Throttle Pin", "Throttle/ESC GPIO pini. Flash'a kaydet + yeniden baslat."],
+        ["PIN_BATT_ADC", "Battery ADC Pin", "Batarya voltaj ADC pini. GP26-GP28 arasi."],
+        ["EN_BARO", "Baro Enable", "Barometre backend'i SYS_STATUS/preflight akışında etkin tutar."],
+        ["EN_MAG", "Mag Enable", "Manyetometre backend'i SYS_STATUS/preflight akışında etkin tutar."],
+        ["EN_GPS", "GPS Enable", "GPS rolünü ve MAVLink health raporunu etkin tutar."],
+        ["EN_BATT", "Battery Enable", "Kapalıysa batarya preflight/arm zincirine alınmaz."],
+        ["TYPE_IMU", "IMU Type", "IMU backend seçimi."],
+        ["TYPE_BARO", "Baro Type", "Barometre backend seçimi."],
+        ["TYPE_MAG", "Mag Type", "Manyetometre backend seçimi."],
+        ["TYPE_GPS", "GPS Type", "GPS backend seçimi."],
+        ["TYPE_RC", "RC Type", "RC protokol seçimi."],
+        ["TYPE_BATT", "Battery Type", "Batarya izleme backend seçimi."]
+      ]
     }
   ];
 
@@ -109,19 +130,105 @@
   });
 
   const MAV_CMD_COMPONENT_ARM_DISARM = 400;
+  const MAV_SENSOR_BITS = Object.freeze({
+    gyro: 1 << 0,
+    accel: 1 << 1,
+    mag: 1 << 2,
+    pressure: 1 << 3,
+    gps: 1 << 5
+  });
+  const PIN_ROLE_PARAMS = Object.freeze({
+    "Servo 1": "PIN_AIL",
+    "Servo 2": "PIN_ELE",
+    "Servo 3": "PIN_RUD",
+    "Servo 4": "PIN_THR",
+    "ADC Batarya Voltaj": "PIN_BATT_ADC"
+  });
+  const SERVO_RESERVED_GPIOS = new Set([1, 4, 5, 20, 21]);
+  const MODULE_TYPE_OPTIONS = Object.freeze({
+    TYPE_IMU: [[0, "Auto"], [1, "MPU6050"]],
+    TYPE_BARO: [[0, "Auto"], [1, "BMP180/BMP085"]],
+    TYPE_MAG: [[0, "Auto"], [1, "HMC5883L"], [2, "QMC5883"]],
+    TYPE_GPS: [[0, "Auto"], [1, "NMEA UART"]],
+    TYPE_RC: [[0, "Auto"], [1, "SBUS"]],
+    TYPE_BATT: [[0, "Yok"], [1, "ADC voltaj"]]
+  });
+  const MODULE_SETUP_ITEMS = Object.freeze([
+    {
+      id: "imu",
+      title: "IMU",
+      role: "Attitude referansi",
+      pins: "I2C bus",
+      typeParam: "TYPE_IMU",
+      note: "IMU uçuş için zorunludur; type seçimi firmware preflight setup doğrulamasına girer."
+    },
+    {
+      id: "baro",
+      title: "Barometre",
+      enableParam: "EN_BARO",
+      role: "Irtifa kestirimi",
+      pins: "I2C bus",
+      typeParam: "TYPE_BARO",
+      note: "BMP180/BMP085 backend'i. Disable edilirse SYS_STATUS baro capability raporlamaz."
+    },
+    {
+      id: "mag",
+      title: "Manyetometre",
+      enableParam: "EN_MAG",
+      role: "Heading / yaw referansi",
+      pins: "I2C bus",
+      typeParam: "TYPE_MAG",
+      note: "HMC/QMC uyumlu backend. Sabit kanat stabilize testinde opsiyonel tutulabilir."
+    },
+    {
+      id: "gps",
+      title: "GPS",
+      enableParam: "EN_GPS",
+      role: "Konum telemetrisi",
+      pins: "UART GPS",
+      typeParam: "TYPE_GPS",
+      note: "GPS akisi etkinse SYS_STATUS GPS capability ve GPS_RAW_INT anlamli hale gelir."
+    },
+    {
+      id: "rc",
+      title: "RC Alıcı",
+      role: "Pilot komutu",
+      pins: "SBUS RX",
+      typeParam: "TYPE_RC",
+      note: "Şu an gerçek protokol SBUS'tur; Auto da firmware tarafında SBUS backend'e çözülür."
+    },
+    {
+      id: "servo",
+      title: "Servo / ESC",
+      role: "Actuator output",
+      pins: "GP16-GP19 varsayilan",
+      pinParams: [
+        ["PIN_AIL", "Aileron"],
+        ["PIN_ELE", "Elevator"],
+        ["PIN_RUD", "Rudder"],
+        ["PIN_THR", "Throttle"]
+      ],
+      note: "Pin degisimi boot sirasinda uygulanir; runtime servo pin switch yapilmaz."
+    },
+    {
+      id: "battery",
+      title: "Batarya",
+      enableParam: "EN_BATT",
+      role: "Voltaj izleme",
+      pins: "GP26-GP28",
+      typeParam: "TYPE_BATT",
+      pinParams: [["PIN_BATT_ADC", "ADC Pin"]],
+      note: "Yok seçilirse batarya preflight/arm engeli olmaz; ADC seçilirse voltaj sağlıklı olmalıdır."
+    }
+  ]);
   const PROFILE_STORAGE_KEY = "aeropico-param-profiles-v1";
 
   const DEFAULT_WIRING = Object.freeze([
-    [2, "RC Giriş (SBUS/PPM)"],
-    [6, "I2C SDA (IMU/MAG/BARO)"],
-    [7, "I2C SCL (IMU/MAG/BARO)"],
-    [11, "UART TX (GPS/Telemetri)"],
-    [12, "UART RX (GPS/Telemetri)"],
-    [16, "ADC Batarya Voltaj"],
-    [36, "Servo 1"],
-    [37, "Servo 2"],
-    [39, "Servo 3"],
-    [40, "Servo 4"]
+    [30, "ADC Batarya Voltaj"],
+    [40, "Servo 1"],
+    [39, "Servo 2"],
+    [37, "Servo 3"],
+    [36, "Servo 4"]
   ]);
 
   const PARAM_RULES = Object.freeze({
@@ -156,6 +263,21 @@
     BATT_C_RATE: { min: 1, max: 200, step: 1, integer: true },
     BATT_LOW_V: { min: 3.0, max: 26.0, step: 0.1 },
     BATT_BRN_V: { min: 3.0, max: 26.0, step: 0.1 },
+    PIN_AIL: { min: 0, max: 28, step: 1, integer: true },
+    PIN_ELE: { min: 0, max: 28, step: 1, integer: true },
+    PIN_RUD: { min: 0, max: 28, step: 1, integer: true },
+    PIN_THR: { min: 0, max: 28, step: 1, integer: true },
+    PIN_BATT_ADC: { min: 26, max: 28, step: 1, integer: true },
+    EN_BARO: { min: 0, max: 1, step: 1, integer: true },
+    EN_MAG: { min: 0, max: 1, step: 1, integer: true },
+    EN_GPS: { min: 0, max: 1, step: 1, integer: true },
+    EN_BATT: { min: 0, max: 1, step: 1, integer: true },
+    TYPE_IMU: { min: 0, max: 1, step: 1, integer: true },
+    TYPE_BARO: { min: 0, max: 1, step: 1, integer: true },
+    TYPE_MAG: { min: 0, max: 2, step: 1, integer: true },
+    TYPE_GPS: { min: 0, max: 1, step: 1, integer: true },
+    TYPE_RC: { min: 0, max: 1, step: 1, integer: true },
+    TYPE_BATT: { min: 0, max: 1, step: 1, integer: true },
     MAV_ATT_HZ: { min: 0, max: 100, step: 1, integer: true },
     MAV_RC_HZ: { min: 0, max: 100, step: 1, integer: true },
     MAV_SYS_HZ: { min: 0, max: 50, step: 1, integer: true },
@@ -169,13 +291,8 @@
      (bottom-right). */
   const PIN_ROLES = [
     "Kullanılmıyor",
-    "Servo 1", "Servo 2", "Servo 3", "Servo 4", "Servo 5", "Servo 6",
-    "RC Giriş (SBUS/PPM)",
-    "RC Kanal 1", "RC Kanal 2", "RC Kanal 3", "RC Kanal 4",
-    "I2C SDA (IMU/MAG/BARO)", "I2C SCL (IMU/MAG/BARO)",
-    "UART TX (GPS/Telemetri)", "UART RX (GPS/Telemetri)",
-    "ADC Batarya Voltaj", "ADC Batarya Akım",
-    "Buzzer", "Status LED", "Kill Switch"
+    "Servo 1", "Servo 2", "Servo 3", "Servo 4",
+    "ADC Batarya Voltaj"
   ];
 
   const PIN_DEFS = [
@@ -271,6 +388,7 @@
     tabs: document.getElementById("tabs"),
     settingsGrid: document.getElementById("settingsGrid"),
     moduleGrid: document.getElementById("moduleGrid"),
+    moduleSetupGrid: document.getElementById("moduleSetupGrid"),
     moduleSummary: document.getElementById("moduleSummary"),
     preflightText: document.getElementById("preflightText"),
     log: document.getElementById("log"),
@@ -295,6 +413,8 @@
     pinAssignmentList: document.getElementById("pinAssignmentList"),
     configAudit: document.getElementById("configAudit"),
     applyDefaultPinsBtn: document.getElementById("applyDefaultPinsBtn"),
+    applyDefaultModuleSetupBtn: document.getElementById("applyDefaultModuleSetupBtn"),
+    openPinsFromModuleSetupBtn: document.getElementById("openPinsFromModuleSetupBtn"),
     linkSummary: document.getElementById("linkSummary"),
     paramSummary: document.getElementById("paramSummary"),
     moduleSummaryTop: document.getElementById("moduleSummaryTop"),
@@ -305,8 +425,11 @@
     mavlinkInspectorSummary: document.getElementById("mavlinkInspectorSummary"),
     mavlinkInspectorList: document.getElementById("mavlinkInspectorList"),
     terminalPreflightBtn: document.getElementById("terminalPreflightBtn"),
+    terminalMavlinkBtn: document.getElementById("terminalMavlinkBtn"),
     terminalLogBtn: document.getElementById("terminalLogBtn"),
     preflightPane: document.getElementById("preflightPane"),
+    terminalMavlinkPane: document.getElementById("terminalMavlinkPane"),
+    terminalMavlinkList: document.getElementById("terminalMavlinkList"),
     logPane: document.getElementById("logPane"),
     toastStack: document.getElementById("toastStack")
   };
@@ -472,6 +595,20 @@
     });
   }
 
+  function bindRightbarTabs() {
+    document.querySelectorAll("[data-rightbar-tab]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const target = button.dataset.rightbarTab;
+        document.querySelectorAll("[data-rightbar-tab]").forEach((tab) => {
+          tab.classList.toggle("active", tab.dataset.rightbarTab === target);
+        });
+        document.querySelectorAll("[data-rightbar-pane]").forEach((pane) => {
+          pane.classList.toggle("active", pane.dataset.rightbarPane === target);
+        });
+      });
+    });
+  }
+
   /* ── Sections (formerly sidebar tabs) ─────── */
 
   function renderTabs() {
@@ -499,16 +636,189 @@
       const card = document.createElement("div");
       card.className = `module ${value === "ok" ? "ok" : value === "bad" ? "bad" : ""}`;
       const icon = MODULE_ICONS[id] || "";
-      card.innerHTML = `<strong>${icon} ${label}</strong><span>${desc}<br>${moduleText(value)}</span>`;
+      const enableParam = moduleEnableParam(id);
+      const enabled = !enableParam || getConfigValue(enableParam, 1) >= 0.5;
+      card.classList.toggle("disabled", !enabled);
+      card.innerHTML = `
+        <div class="module-main">
+          <strong>${icon} ${label}</strong>
+          <span>${desc}<br>${enabled ? moduleText(value) : "Devre dışı"}</span>
+        </div>
+        ${enableParam ? `
+          <label class="module-enable-toggle" title="${enableParam}">
+            <input type="checkbox" data-module-enable="${enableParam}" ${enabled ? "checked" : ""} ${state.connected ? "" : "disabled"}>
+            <span>Etkin</span>
+          </label>` : ""}
+      `;
       els.moduleGrid.appendChild(card);
-      if (value === "ok") okCount++;
+      if (enabled && value === "ok") okCount++;
     }
+    els.moduleGrid.querySelectorAll("[data-module-enable]").forEach((input) => {
+      input.addEventListener("change", () => {
+        const next = input.checked ? 1 : 0;
+        if (!setParam(input.dataset.moduleEnable, next)) {
+          input.checked = !input.checked;
+        }
+      });
+    });
     els.moduleSummary.textContent = okCount === 0 ? "Bekliyor" : `${okCount}/${MODULES.length}`;
     els.moduleSummary.className = `status-pill ${okCount > 0 ? "ok" : "muted"}`;
     setStatusValue(els.moduleSummaryTop, okCount > 0 ? "ok" : "muted", okCount === 0 ? "Bekliyor" : `${okCount}/${MODULES.length} hazır`);
+    renderModuleSetup();
+  }
+
+  function renderModuleSetup() {
+    if (!els.moduleSetupGrid) return;
+    els.moduleSetupGrid.innerHTML = "";
+    MODULE_SETUP_ITEMS.forEach((item) => {
+      const card = document.createElement("div");
+      const isDisabled = item.enableParam && getConfigValue(item.enableParam, 1) < 0.5;
+      const health = isDisabled
+        ? "disabled"
+        : item.id === "servo" ? actuatorSetupHealth() : item.id === "battery" ? state.modules.battery : state.modules[item.id];
+      card.className = `module-setup-card ${health === "ok" ? "ok" : health === "bad" ? "bad" : ""}`;
+      const enableControl = item.enableParam ? renderModuleEnableControl(item.enableParam) : "";
+      const typeControl = item.typeParam ? renderModuleTypeControl(item.typeParam) : "";
+      const pinControls = item.pinParams ? renderModulePinControls(item.pinParams) : "";
+      card.innerHTML = `
+        <div class="module-setup-head">
+          <div>
+            <strong>${item.title}</strong>
+            <span>${item.role}</span>
+          </div>
+          <span class="module-setup-health">${moduleText(health)}</span>
+        </div>
+        <div class="module-setup-meta">
+          <span>${item.pins}</span>
+          ${enableControl}
+        </div>
+        ${typeControl}
+        ${pinControls}
+        <p>${item.note}</p>
+      `;
+      els.moduleSetupGrid.appendChild(card);
+    });
+
+    els.moduleSetupGrid.querySelectorAll("[data-setup-enable]").forEach((input) => {
+      input.addEventListener("change", () => {
+        const next = input.checked ? 1 : 0;
+        if (!setParam(input.dataset.setupEnable, next)) {
+          input.checked = !input.checked;
+          return;
+        }
+        toast("Modül ayarı gönderildi. Kalıcı kayıt için Flash'a Kaydet.", "warn");
+      });
+    });
+
+    els.moduleSetupGrid.querySelectorAll("[data-setup-pin]").forEach((select) => {
+      select.addEventListener("change", () => {
+        const paramName = select.dataset.setupPin;
+        const value = Number(select.value);
+        if (!setParam(paramName, value)) {
+          const current = getParamValue(paramName, "");
+          select.value = String(current);
+          return;
+        }
+        toast("Pin ayarı gönderildi. Etkinleşmesi için Flash'a Kaydet + reboot.", "warn");
+      });
+    });
+
+    els.moduleSetupGrid.querySelectorAll("[data-setup-type]").forEach((select) => {
+      select.addEventListener("change", () => {
+        const paramName = select.dataset.setupType;
+        const value = Number(select.value);
+        if (!setParam(paramName, value)) {
+          select.value = String(getConfigValue(paramName, ""));
+          return;
+        }
+        toast("Modül tipi gönderildi. Arm akışı bu setup'a göre değerlendirilecek.", "warn");
+        renderModuleSetup();
+      });
+    });
+  }
+
+  function renderModuleEnableControl(paramName) {
+    const enabled = getConfigValue(paramName, 1) >= 0.5;
+    const disabled = state.connected ? "" : "disabled";
+    return `
+      <label class="setup-switch" title="${paramName}">
+        <input type="checkbox" data-setup-enable="${paramName}" ${enabled ? "checked" : ""} ${disabled}>
+        <span>${enabled ? "Etkin" : "Kapalı"}</span>
+      </label>
+    `;
+  }
+
+  function renderModuleTypeControl(paramName) {
+    const current = getConfigValue(paramName, 0);
+    const options = MODULE_TYPE_OPTIONS[paramName] || [];
+    return `
+      <label class="module-type-control">
+        <span>Tip</span>
+        <select data-setup-type="${paramName}" ${state.connected ? "" : "disabled"}>
+          ${options.map(([value, label]) => `
+            <option value="${value}" ${Number(current) === value ? "selected" : ""}>${label}</option>
+          `).join("")}
+        </select>
+      </label>
+    `;
+  }
+
+  function renderModulePinControls(pinParams) {
+    return `
+      <div class="module-pin-controls">
+        ${pinParams.map(([paramName, label]) => `
+          <label>
+            <span>${label}</span>
+            <select data-setup-pin="${paramName}" ${state.connected ? "" : "disabled"}>
+              ${pinOptionsForParam(paramName)}
+            </select>
+          </label>
+        `).join("")}
+      </div>
+    `;
+  }
+
+  function pinOptionsForParam(paramName) {
+    const current = getConfigValue(paramName, "");
+    const min = paramName === "PIN_BATT_ADC" ? 26 : 0;
+    const max = 28;
+    const options = [];
+    for (let gpio = min; gpio <= max; gpio++) {
+      if (paramName !== "PIN_BATT_ADC" && SERVO_RESERVED_GPIOS.has(gpio)) continue;
+      const label = paramName === "PIN_BATT_ADC" ? `GP${gpio} / ADC${gpio - 26}` : `GP${gpio}`;
+      options.push(`<option value="${gpio}" ${Number(current) === gpio ? "selected" : ""}>${label}</option>`);
+    }
+    if (current === "") options.unshift('<option value="" selected disabled>Parametre bekleniyor</option>');
+    return options.join("");
+  }
+
+  function actuatorSetupHealth() {
+    const required = ["PIN_AIL", "PIN_ELE", "PIN_RUD", "PIN_THR"];
+    const values = required.map((name) => getConfigValue(name, null));
+    if (values.some((value) => value === null)) return "unknown";
+    return new Set(values).size === values.length ? "ok" : "bad";
+  }
+
+  function moduleEnableParam(id) {
+    if (id === "baro") return "EN_BARO";
+    if (id === "mag") return "EN_MAG";
+    if (id === "gps") return "EN_GPS";
+    if (id === "battery") return "EN_BATT";
+    return null;
+  }
+
+  function getParamValue(name, fallback = null) {
+    const param = state.params.get(name);
+    return param && Number.isFinite(param.value) ? param.value : fallback;
+  }
+
+  function getConfigValue(name, fallback = null) {
+    if (state.dirtyParams.has(name)) return state.dirtyParams.get(name);
+    return getParamValue(name, fallback);
   }
 
   function moduleText(value) {
+    if (value === "disabled") return "Devre dışı";
     if (value === "ok") return "✓ Algılandı";
     if (value === "bad") return "✗ Yok / pasif";
     return "— Bilinmiyor";
@@ -521,9 +831,13 @@
     els.settingsGrid.innerHTML = "";
     for (const [name, label, description] of group.params) {
       const param = state.params.get(name);
+      const hasDraft = state.dirtyParams.has(name);
+      const displayValue = hasDraft ? state.dirtyParams.get(name) : (param ? param.value : null);
       const card = document.createElement("article");
-      card.className = "setting-card";
-      const meta = param ? `#${param.index + 1}/${param.count || state.expectedParamCount || "?"}` : "Okunmadı";
+      card.className = `setting-card ${hasDraft ? "dirty" : ""}`;
+      const meta = param
+        ? `#${param.index + 1}/${param.count || state.expectedParamCount || "?"}`
+        : hasDraft ? "Gönderilmedi" : "Okunmadı";
 
       const header = document.createElement("header");
       const title = document.createElement("h3");
@@ -544,14 +858,14 @@
       input.step = String(rule.step || 0.001);
       if (Number.isFinite(rule.min)) input.min = String(rule.min);
       if (Number.isFinite(rule.max)) input.max = String(rule.max);
-      if (param) input.value = String(param.value);
+      if (displayValue !== null) input.value = String(displayValue);
 
       const button = document.createElement("button");
       button.textContent = "Yaz";
       button.disabled = !state.connected;
       footer.append(input, button);
 
-      const visual = createParamVisual(name, param ? param.value : null);
+      const visual = createParamVisual(name, displayValue);
 
       const metaEl = document.createElement("div");
       metaEl.className = "value-meta";
@@ -862,7 +1176,9 @@
     });
     document.querySelectorAll("[data-arm-command]").forEach((button) => {
       const command = button.dataset.armCommand;
-      button.disabled = !state.connected || (command === "normal" && state.armed === true) || (command === "disarm" && state.armed !== true);
+      button.disabled = !state.connected ||
+        ((command === "normal" || command === "force") && state.armed === true) ||
+        (command === "disarm" && state.armed !== true);
     });
     renderSettings();
     renderSummary();
@@ -1233,14 +1549,15 @@
     for (const [name, value] of Object.entries(profile.params)) {
       const validation = validateParam(name, Number(value));
       if (!validation.ok) continue;
-      state.params.set(name, { name, value: validation.value, index: 0, count: state.expectedParamCount || 0 });
+      state.dirtyParams.set(name, validation.value);
       loaded++;
     }
     renderSettings();
     renderSummary();
     renderProfiles();
-    log(`Profil arayuze yuklendi: ${profile.name} (${loaded} parametre).`);
-    toast("Profil arayüze yüklendi.", "ok");
+    updateDirtyButton();
+    log(`Profil degisiklik olarak yuklendi: ${profile.name} (${loaded} parametre).`);
+    toast("Profil değişiklik olarak yüklendi; uygulamak için gönder.", "ok");
   }
 
   function applyProfileToFirmware(profileName) {
@@ -1434,7 +1751,7 @@
   }
 
   function renderMavlinkInspector() {
-    if (!els.mavlinkInspectorList) return;
+    if (!els.mavlinkInspectorList && !els.terminalMavlinkList) return;
     const latest = state.mavlinkHistory[0];
     if (latest) {
       els.mavlinkInspectorSummary.textContent = latest.kind === "bad" ? "Uyarı" : latest.kind === "warn" ? "Dikkat" : "Canlı";
@@ -1442,17 +1759,25 @@
     } else {
       els.mavlinkInspectorSummary.textContent = "Bekliyor";
       els.mavlinkInspectorSummary.className = "status-pill muted";
-      els.mavlinkInspectorList.innerHTML = `<p class="hint">Cihazdan MAVLink paketi bekleniyor.</p>`;
+      const empty = `<p class="hint">Cihazdan MAVLink paketi bekleniyor.</p>`;
+      if (els.mavlinkInspectorList) els.mavlinkInspectorList.innerHTML = empty;
+      if (els.terminalMavlinkList) els.terminalMavlinkList.innerHTML = empty;
       return;
     }
 
-    els.mavlinkInspectorList.innerHTML = "";
-    for (const item of state.mavlinkHistory) {
-      const row = document.createElement("div");
-      row.className = `mavlink-inspector-row ${item.kind}`;
-      row.innerHTML = `<div><strong>${item.title}</strong><time>${item.at}</time></div><span>${item.detail}</span><em>${item.advice}</em>`;
-      els.mavlinkInspectorList.appendChild(row);
-    }
+    const renderRows = (container) => {
+      if (!container) return;
+      container.innerHTML = "";
+      for (const item of state.mavlinkHistory) {
+        const row = document.createElement("div");
+        row.className = `mavlink-inspector-row ${item.kind}`;
+        row.innerHTML = `<div><strong>${escapeHtml(item.title)}</strong><time>${escapeHtml(item.at)}</time></div><span>${escapeHtml(item.detail)}</span><em>${escapeHtml(item.advice)}</em>`;
+        container.appendChild(row);
+      }
+    };
+
+    renderRows(els.mavlinkInspectorList);
+    renderRows(els.terminalMavlinkList);
   }
 
   function describeMavlinkMessage(message) {
@@ -1552,14 +1877,30 @@
     }
   }
 
+  function updateModulesFromSysStatus(message) {
+    const present = message.onboardControlSensorsPresent || 0;
+    const enabled = message.onboardControlSensorsEnabled || 0;
+    const healthy = message.onboardControlSensorsHealth || 0;
+    const hasImu = (present & MAV_SENSOR_BITS.gyro) && (present & MAV_SENSOR_BITS.accel);
+    const imuHealthy = (healthy & MAV_SENSOR_BITS.gyro) && (healthy & MAV_SENSOR_BITS.accel);
+    state.modules.imu = hasImu ? (imuHealthy ? "ok" : "bad") : "bad";
+    state.modules.baro = present & MAV_SENSOR_BITS.pressure
+      ? ((enabled & MAV_SENSOR_BITS.pressure) && (healthy & MAV_SENSOR_BITS.pressure) ? "ok" : "bad")
+      : "bad";
+    state.modules.mag = present & MAV_SENSOR_BITS.mag
+      ? ((enabled & MAV_SENSOR_BITS.mag) && (healthy & MAV_SENSOR_BITS.mag) ? "ok" : "bad")
+      : "bad";
+    state.modules.gps = present & MAV_SENSOR_BITS.gps
+      ? ((enabled & MAV_SENSOR_BITS.gps) && (healthy & MAV_SENSOR_BITS.gps) ? "ok" : "bad")
+      : "bad";
+  }
+
   function handleMavlinkMessage(message) {
     pushMavlinkInspector(message);
 
     if (message.type === "heartbeat") {
       state.lastHeartbeatMs = Date.now();
       state.armed = (message.baseMode & 0x80) !== 0;
-      state.modules.imu = "ok";
-      state.modules.rc = "ok";
       els.preflightText.textContent = `Heartbeat alindi. System status: ${message.systemStatus}. Parametreleri okuyup preflight sonucunu kontrol et.`;
       renderModules();
       updateButtons();
@@ -1570,6 +1911,7 @@
       state.params.set(message.name, message);
       state.expectedParamCount = message.count;
       renderSettings();
+      renderModules();
       if (state.params.size === message.count) log(`${message.count} parametre okundu.`);
       renderConfigAudit();
       renderSummary();
@@ -1578,11 +1920,13 @@
 
     if (message.type === "sysStatus") {
       state.modules.battery = message.voltageBatteryMv > 0 && message.voltageBatteryMv < 65535 ? "ok" : "bad";
+      updateModulesFromSysStatus(message);
       renderModules();
       renderConfigAudit();
       renderSummary();
       return;
     }
+
 
     if (message.type === "commandAck") {
       const accepted = message.result === 0;
@@ -1602,7 +1946,7 @@
     if (message.type === "statusText") {
       log(`FC: ${message.text}`);
       const text = message.text.toUpperCase();
-      if (text.includes("IMU CALIBRATION SAVED") || text.includes("SENSOR_CHECK_OK") || text.includes("PREFLIGHT_OK")) state.modules.imu = "ok";
+      if (text.includes("IMU CALIBRATION SAVED") || text.includes("SENSOR_CHECK_OK")) state.modules.imu = "ok";
       if (text.includes("IMU MISSING") || text.includes("WHOAMI")) state.modules.imu = "bad";
       if (text.includes("BMP") || text.includes("BARO")) state.modules.baro = text.includes("HAZIR") || text.includes("OK") ? "ok" : "bad";
       if (text.includes("MAG")) state.modules.mag = text.includes("MISSING") || text.includes("FAILED") ? "bad" : "ok";
@@ -1610,8 +1954,15 @@
       if (text.includes("GPS")) state.modules.gps = text.includes("FIX") || text.includes("HAZIR") ? "ok" : "bad";
       if (text.includes("RC_MONITOR_OK")) state.modules.rc = "ok";
       if (text.includes("RC_MONITOR_FAIL")) state.modules.rc = "bad";
+      if (text.includes("RC_MAP_OK")) {
+        state.modules.rc = "ok";
+        els.preflightText.textContent = message.text;
+      }
+      if (text.includes("RC_MAP_FAIL")) {
+        state.modules.rc = "bad";
+        els.preflightText.textContent = message.text;
+      }
       if (text.includes("SENSOR_CHECK_PARTIAL")) {
-        state.modules.imu = "ok";
         els.preflightText.textContent = "Sensor kontrolu kismi basarili: opsiyonel sensorlerden biri eksik.";
       }
       if (text.includes("PREFLIGHT_OK")) els.preflightText.textContent = "Preflight OK: sistem arm icin yazilim tarafinda hazir.";
@@ -1703,7 +2054,7 @@
     if (state.modules.battery === "bad") items.push(["warn", "Batarya ölçümü yok veya geçersiz görünüyor."]);
     if (state.modules.imu === "bad") items.push(["bad", "IMU algılanmadıysa arming yapılmamalı."]);
     if (!hasAssignedRole("ADC Batarya Voltaj")) items.push(["warn", "Pin Mapper'da batarya ADC ataması yok."]);
-    if (!hasAssignedRole("RC Giriş (SBUS/PPM)")) items.push(["warn", "Pin Mapper'da SBUS/RC giriş ataması yok."]);
+    if (state.modules.rc === "bad") items.push(["warn", "RC modülü geçerli kanal akışı bildirmiyor."]);
 
     if (items.length === 0) items.push(["muted", "Parametre ve modül verisi bekleniyor."]);
 
@@ -1747,13 +2098,15 @@
       if (typeof value !== "number") continue;
       const validation = validateParam(name, value);
       if (validation.ok) {
-        state.params.set(name, { name, value: validation.value, index: 0, count: 0 });
+        state.dirtyParams.set(name, validation.value);
       } else {
         log(`${name}: ice aktarilmadi, ${validation.reason}`);
       }
     }
     renderSettings();
-    log("JSON parametre dosyasi yuklendi. Yazmak icin her parametrede Yaz butonunu kullan.");
+    renderSummary();
+    updateDirtyButton();
+    log("JSON parametre dosyasi degisiklik olarak yuklendi. Gondermek icin Degisenleri Uygula kullan.");
     toast("JSON içe aktarıldı.", "ok");
   }
 
@@ -1889,12 +2242,51 @@
         state.pinMap.delete(pin.n);
         log(`Pin ${pin.n} (${pin.gpio}) atamasi kaldirildi.`);
       } else {
-        state.pinMap.set(pin.n, role);
-        log(`Pin ${pin.n} (${pin.gpio}) -> ${role} olarak atandi.`);
+        if (writePinRoleParam(pin, role)) {
+          for (const [mappedPin, mappedRole] of state.pinMap.entries()) {
+            if (mappedPin !== pin.n && mappedRole === role) state.pinMap.delete(mappedPin);
+          }
+          state.pinMap.set(pin.n, role);
+          log(`Pin ${pin.n} (${pin.gpio}) -> ${role} olarak atandi.`);
+        }
       }
       highlightAssignedPins();
       renderPinAssignments();
     });
+  }
+
+  function gpioNumberFromPin(pin) {
+    const match = /^GP(\d+)$/.exec(pin && pin.gpio ? pin.gpio : "");
+    return match ? Number(match[1]) : null;
+  }
+
+  function writePinRoleParam(pin, role) {
+    const paramName = PIN_ROLE_PARAMS[role];
+    if (!paramName) {
+      toast("Bu rol bu firmware'de desteklenmiyor.", "bad");
+      log(`${role}: firmware param karsiligi yok, atama uygulanmadi.`);
+      return false;
+    }
+    const gpio = gpioNumberFromPin(pin);
+    if (!Number.isFinite(gpio)) {
+      toast("Bu pin GPIO değil.", "warn");
+      return false;
+    }
+    if (paramName === "PIN_BATT_ADC" && (gpio < 26 || gpio > 28)) {
+      toast("Batarya ADC icin GP26-GP28 secilmeli.", "warn");
+      log("PIN_BATT_ADC reddedildi: RP2350 ADC pinleri GP26, GP27, GP28.");
+      return false;
+    }
+    if (paramName !== "PIN_BATT_ADC" && SERVO_RESERVED_GPIOS.has(gpio)) {
+      toast("Bu GPIO servo cikisi icin ayrilmis/uygunsuz.", "warn");
+      log(`Servo pin reddedildi: GP${gpio} SBUS/I2C/admin hattiyla cakisiyor.`);
+      return false;
+    }
+    const ok = setParam(paramName, gpio);
+    if (ok) {
+      toast(`${paramName}=GP${gpio}; Flash'a Kaydet + yeniden baslat.`, "ok");
+    }
+    return ok;
   }
 
   function renderPinAssignments() {
@@ -1940,17 +2332,50 @@
   function applyDefaultPinMap(announce = true) {
     state.pinMap.clear();
     for (const [pin, role] of DEFAULT_WIRING) state.pinMap.set(pin, role);
-    if (announce) log("AeroPico varsayilan pin haritasi uygulandi.");
+    if (announce) {
+      log("AeroPico varsayilan pin haritasi uygulandi.");
+      for (const [pinNum, role] of DEFAULT_WIRING) {
+        const paramName = PIN_ROLE_PARAMS[role];
+        const pin = PIN_DEFS.find((item) => item.n === pinNum);
+        if (paramName && pin) writePinRoleParam(pin, role);
+      }
+      toast("Varsayilan servo/ADC pinleri gonderildi; Flash'a Kaydet + yeniden baslat.", "ok");
+    }
+  }
+
+  function applyDefaultModuleSetup() {
+    applyDefaultPinMap(true);
+    const moduleDefaults = [
+      ["EN_BARO", 1],
+      ["EN_MAG", 1],
+      ["EN_GPS", 0],
+      ["EN_BATT", 0],
+      ["TYPE_IMU", 1],
+      ["TYPE_BARO", 1],
+      ["TYPE_MAG", 0],
+      ["TYPE_GPS", 1],
+      ["TYPE_RC", 1],
+      ["TYPE_BATT", 0]
+    ];
+    let sent = 0;
+    for (const [name, value] of moduleDefaults) {
+      if (setParam(name, value, false)) sent++;
+    }
+    renderModuleSetup();
+    log(`Modul setup varsayilanlari gonderildi (${sent}/${moduleDefaults.length}).`);
+    toast("Modül setup varsayılanları gönderildi. Flash'a Kaydet önerilir.", "warn");
   }
 
   /* ── Bindings ──────────────────────────────── */
 
   function showTerminalPane(name) {
-    const showLog = name === "log";
-    els.terminalPreflightBtn.classList.toggle("active", !showLog);
-    els.terminalLogBtn.classList.toggle("active", showLog);
-    els.preflightPane.classList.toggle("active", !showLog);
-    els.logPane.classList.toggle("active", showLog);
+    const pane = name === "mavlink" ? "mavlink" : name === "log" ? "log" : "preflight";
+    els.terminalPreflightBtn.classList.toggle("active", pane === "preflight");
+    els.terminalMavlinkBtn?.classList.toggle("active", pane === "mavlink");
+    els.terminalLogBtn.classList.toggle("active", pane === "log");
+    els.preflightPane.classList.toggle("active", pane === "preflight");
+    els.terminalMavlinkPane?.classList.toggle("active", pane === "mavlink");
+    els.logPane.classList.toggle("active", pane === "log");
   }
 
   function bind() {
@@ -1962,6 +2387,7 @@
       els.log.textContent = "";
     });
     els.terminalPreflightBtn.addEventListener("click", () => showTerminalPane("preflight"));
+    els.terminalMavlinkBtn?.addEventListener("click", () => showTerminalPane("mavlink"));
     els.terminalLogBtn.addEventListener("click", () => showTerminalPane("log"));
     els.exportBtn.addEventListener("click", exportParams);
     els.importBtn.addEventListener("click", () => els.importInput.click());
@@ -1992,11 +2418,18 @@
         renderPinDetail();
       });
     }
+    if (els.applyDefaultModuleSetupBtn) {
+      els.applyDefaultModuleSetupBtn.addEventListener("click", applyDefaultModuleSetup);
+    }
+    if (els.openPinsFromModuleSetupBtn) {
+      els.openPinsFromModuleSetupBtn.addEventListener("click", () => openModal(els.pinMapperModal));
+    }
 
     bindModals();
     bindCollapsibles();
     bindSideToolTabs();
     bindModuleTabs();
+    bindRightbarTabs();
     bindBaudSelect();
     bindSerialBridge();
   }

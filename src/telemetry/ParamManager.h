@@ -12,8 +12,8 @@
 #include "../storage/ParamStorage.h"
 
 // Desteklenen parametreler
-#define PARAM_PERSISTED_COUNT 35
-#define PARAM_COUNT 36
+#define PARAM_PERSISTED_COUNT 50
+#define PARAM_COUNT 51
 
 enum ParamIndex : uint8_t {
     PARAM_IDX_ANGLE_P = 0,
@@ -51,6 +51,21 @@ enum ParamIndex : uint8_t {
     PARAM_IDX_BATT_C_RATE,
     PARAM_IDX_BATT_LOW_V,
     PARAM_IDX_BATT_BRN_V,
+    PARAM_IDX_PIN_AIL,
+    PARAM_IDX_PIN_ELE,
+    PARAM_IDX_PIN_RUD,
+    PARAM_IDX_PIN_THR,
+    PARAM_IDX_PIN_BATT_ADC,
+    PARAM_IDX_EN_BARO,
+    PARAM_IDX_EN_MAG,
+    PARAM_IDX_EN_GPS,
+    PARAM_IDX_EN_BATT,
+    PARAM_IDX_TYPE_IMU,
+    PARAM_IDX_TYPE_BARO,
+    PARAM_IDX_TYPE_MAG,
+    PARAM_IDX_TYPE_GPS,
+    PARAM_IDX_TYPE_RC,
+    PARAM_IDX_TYPE_BATT,
     PARAM_IDX_SAVE
 };
 
@@ -137,6 +152,21 @@ class ParamManager {
     float getBatteryLowVoltage() const { return _params[PARAM_IDX_BATT_LOW_V].value; }
     float getBatteryBrownoutVoltage() const { return _params[PARAM_IDX_BATT_BRN_V].value; }
     float getBatteryMaxVoltage() const { return getBatteryCellCount() * 4.27f; }
+    uint8_t getPinAileron() const { return (uint8_t)_params[PARAM_IDX_PIN_AIL].value; }
+    uint8_t getPinElevator() const { return (uint8_t)_params[PARAM_IDX_PIN_ELE].value; }
+    uint8_t getPinRudder() const { return (uint8_t)_params[PARAM_IDX_PIN_RUD].value; }
+    uint8_t getPinThrottle() const { return (uint8_t)_params[PARAM_IDX_PIN_THR].value; }
+    uint8_t getPinBatteryAdc() const { return (uint8_t)_params[PARAM_IDX_PIN_BATT_ADC].value; }
+    bool isBaroEnabled() const { return _params[PARAM_IDX_EN_BARO].value >= 0.5f; }
+    bool isMagEnabled() const { return _params[PARAM_IDX_EN_MAG].value >= 0.5f; }
+    bool isGpsEnabled() const { return _params[PARAM_IDX_EN_GPS].value >= 0.5f; }
+    bool isBatteryEnabled() const { return _params[PARAM_IDX_EN_BATT].value >= 0.5f; }
+    uint8_t getImuType() const { return (uint8_t)_params[PARAM_IDX_TYPE_IMU].value; }
+    uint8_t getBaroType() const { return (uint8_t)_params[PARAM_IDX_TYPE_BARO].value; }
+    uint8_t getMagType() const { return (uint8_t)_params[PARAM_IDX_TYPE_MAG].value; }
+    uint8_t getGpsType() const { return (uint8_t)_params[PARAM_IDX_TYPE_GPS].value; }
+    uint8_t getRcType() const { return (uint8_t)_params[PARAM_IDX_TYPE_RC].value; }
+    uint8_t getBatteryType() const { return (uint8_t)_params[PARAM_IDX_TYPE_BATT].value; }
 
   private:
     Param _params[PARAM_COUNT] = {
@@ -175,6 +205,21 @@ class ParamManager {
         {"BATT_C_RATE", BATTERY_C_RATING, 1.0f, 200.0f},
         {"BATT_LOW_V", BATTERY_MIN_VOLTAGE, 3.0f, 26.0f},
         {"BATT_BRN_V", BATTERY_BROWNOUT_VOLTAGE, 3.0f, 26.0f},
+        {"PIN_AIL", PIN_AILERON, 0.0f, 28.0f},
+        {"PIN_ELE", PIN_ELEVATOR, 0.0f, 28.0f},
+        {"PIN_RUD", PIN_RUDDER, 0.0f, 28.0f},
+        {"PIN_THR", PIN_THROTTLE, 0.0f, 28.0f},
+        {"PIN_BATT_ADC", PIN_BATTERY_ADC, 26.0f, 28.0f},
+        {"EN_BARO", 1.0f, 0.0f, 1.0f},
+        {"EN_MAG", 1.0f, 0.0f, 1.0f},
+        {"EN_GPS", GPS_MODULE_ENABLED ? 1.0f : 0.0f, 0.0f, 1.0f},
+        {"EN_BATT", 0.0f, 0.0f, 1.0f},
+        {"TYPE_IMU", 1.0f, 0.0f, 1.0f},
+        {"TYPE_BARO", 1.0f, 0.0f, 1.0f},
+        {"TYPE_MAG", 0.0f, 0.0f, 2.0f},
+        {"TYPE_GPS", 1.0f, 0.0f, 1.0f},
+        {"TYPE_RC", 1.0f, 0.0f, 1.0f},
+        {"TYPE_BATT", 0.0f, 0.0f, 1.0f},
         {"PARAM_SAVE", 0.0f, 0.0f, 1.0f},
     };
     PidGainsApplyHandler _pidGainsApplyHandler = nullptr;

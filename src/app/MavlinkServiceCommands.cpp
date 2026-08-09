@@ -115,9 +115,36 @@ uint8_t MavlinkServiceCommands::handle(uint16_t action,
             return MAV_RESULT_ACCEPTED;
         }
 
-        case AEROPICO_CMD_CAL_RC:
-            copyReason(reason, reasonLen, "RC calibration uses runtime RC mapping params");
-            return MAV_RESULT_UNSUPPORTED;
+        case AEROPICO_CMD_CAL_RC: {
+            if (!_context.receiver) {
+                copyReason(reason, reasonLen, "RC_MAP_FAIL receiver unavailable");
+                return MAV_RESULT_FAILED;
+            }
+            if (!_context.receiver->isValid() || _context.receiver->isFailsafe()) {
+                copyReason(reason, reasonLen, "RC_MAP_FAIL invalid or failsafe");
+                return MAV_RESULT_DENIED;
+            }
+
+            uint8_t roll = RC_ROLL_CHANNEL;
+            uint8_t pitch = RC_PITCH_CHANNEL;
+            uint8_t throttle = RC_THROTTLE_CHANNEL;
+            uint8_t yaw = RC_YAW_CHANNEL;
+            uint8_t mode = RC_MODE_CHANNEL;
+            if (_context.provideRcMapping) {
+                _context.provideRcMapping(roll, pitch, throttle, yaw, mode);
+            }
+
+            const uint16_t rollUs = _context.receiver->getChannel(roll);
+            const uint16_t pitchUs = _context.receiver->getChannel(pitch);
+            const uint16_t throttleUs = _context.receiver->getChannel(throttle);
+            const uint16_t yawUs = _context.receiver->getChannel(yaw);
+            const uint16_t modeUs = _context.receiver->getChannel(mode);
+            snprintf(reason,
+                     reasonLen,
+                     "RC_MAP_OK R=%u P=%u T=%u Y=%u M=%u",
+                     rollUs, pitchUs, throttleUs, yawUs, modeUs);
+            return MAV_RESULT_ACCEPTED;
+        }
 
         case AEROPICO_CMD_SERVO_TEST: {
             if (!safeForService()) {

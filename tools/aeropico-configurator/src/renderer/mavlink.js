@@ -223,6 +223,9 @@
       if (msgId === MSG.SYS_STATUS && payload.length >= 31) {
         this.onMessage({
           type: "sysStatus",
+          onboardControlSensorsPresent: view.getUint32(0, true),
+          onboardControlSensorsEnabled: view.getUint32(4, true),
+          onboardControlSensorsHealth: view.getUint32(8, true),
           voltageBatteryMv: view.getUint16(14, true),
           currentBatteryCa: view.getInt16(16, true),
           batteryRemaining: view.getInt8(30)

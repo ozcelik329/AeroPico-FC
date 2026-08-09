@@ -16,9 +16,17 @@ struct ServoOutputStatus {
 	uint32_t lastWriteUs;
 };
 
+struct ServoPinConfig {
+	uint8_t aileron;
+	uint8_t elevator;
+	uint8_t rudder;
+	uint8_t throttle;
+};
+
 class ServoOutput : public IServoOutput {
 	public:
 		void init() override;
+		void configurePins(const ServoPinConfig& pins);
 		void writeMotors(int throttle, int roll, int pitch, int yaw) override;
 		void setServoPulse(void* pio, unsigned sm, uint32_t pulse_us) override;
 		void serviceFrame();
@@ -33,6 +41,7 @@ extern ServoOutput servoOutput;
 
 // Backwards-compatible C functions
 void outputInit();
+void configureServoOutputPins(const ServoPinConfig& pins);
 void writeMotors(int throttle, int roll, int pitch, int yaw);
 void setServoPulse(PIO pio, uint sm, uint32_t pulse_us);
 ServoOutputStatus getServoOutputStatus();

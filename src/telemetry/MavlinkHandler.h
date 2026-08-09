@@ -25,6 +25,7 @@ class MavlinkHandler {
                                               char* reason, size_t reasonLen);
     using RCOverrideHandler = void (*)(uint16_t aileron, uint16_t elevator, uint16_t throttle, uint16_t rudder);
     using ClearRCOverrideHandler = void (*)();
+    using SensorCapabilityProvider = uint16_t (*)();
 
     void init(uint32_t baud = TELEMETRY_UART_BAUD);
     void update();
@@ -34,6 +35,7 @@ class MavlinkHandler {
     void setServiceCommandHandler(ServiceCommandHandler handler);
     void setRCOverrideHandler(RCOverrideHandler handler);
     void setClearRCOverrideHandler(ClearRCOverrideHandler handler);
+    void setSensorCapabilityProvider(SensorCapabilityProvider provider);
     void setRCOverrideEnabled(bool enabled);
     void setRCOverrideAllowedWhileArmed(bool allowed);
     void setStreamRates(uint8_t attitudeHz, uint8_t rcHz, uint8_t sysStatusHz);
@@ -78,6 +80,7 @@ class MavlinkHandler {
     ServiceCommandHandler _serviceCommandHandler = nullptr;
     RCOverrideHandler _rcOverrideHandler = nullptr;
     ClearRCOverrideHandler _clearRCOverrideHandler = nullptr;
+    SensorCapabilityProvider _sensorCapabilityProvider = nullptr;
     bool _rcOverrideEnabled = false;
     bool _rcOverrideAllowedWhileArmed = false;
 

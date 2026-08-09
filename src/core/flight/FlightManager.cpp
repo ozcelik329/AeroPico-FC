@@ -154,8 +154,13 @@ bool FlightManager::requestArmFromMavlink(bool arm, bool force, char* reason, si
     const bool faulted = _timingExceeded || _batteryCritical || _actuatorFault;
     const bool failsafe = _rcState.failsafe || faulted;
 
-    if (arm && force && _benchForceArmAllowed) {
-        accepted = _controlPipeline.forceArm(&localReason);
+    if (arm && force) {
+        if (_benchForceArmAllowed) {
+            accepted = _controlPipeline.forceArm(&localReason);
+        } else {
+            localReason = "bench force arm jumper missing";
+            accepted = false;
+        }
     } else if (arm && faulted) {
         localReason = _batteryCritical ? "battery critical" :
                       _actuatorFault ? "actuator fault" :

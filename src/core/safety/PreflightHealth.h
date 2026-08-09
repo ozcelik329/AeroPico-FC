@@ -7,6 +7,7 @@ enum class PreflightCheckId : uint8_t {
     Boot = 0,
     Sensor,
     RC,
+    ModuleSetup,
     GPS,
     Battery,
     Memory,

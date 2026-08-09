@@ -221,6 +221,7 @@
         <div class="terminal-header">
           <div class="terminal-tabs" role="tablist" aria-label="Terminal görünümü">
             <button id="terminalPreflightBtn" class="terminal-tab active" type="button">Preflight</button>
+            <button id="terminalMavlinkBtn" class="terminal-tab" type="button">MAVLink Parser</button>
             <button id="terminalLogBtn" class="terminal-tab" type="button">Olay Kaydı</button>
           </div>
           <button id="clearLogBtn" class="small">Temizle</button>
@@ -228,6 +229,11 @@
         <div class="terminal-body">
           <div id="preflightPane" class="terminal-pane active">
             <div id="preflightText" class="terminal-preflight">Cihazdan durum bekleniyor.</div>
+          </div>
+          <div id="terminalMavlinkPane" class="terminal-pane">
+            <div id="terminalMavlinkList" class="terminal-mavlink-list">
+              <p class="hint">Cihazdan MAVLink paketi bekleniyor.</p>
+            </div>
           </div>
           <div id="logPane" class="terminal-pane">
             <div id="log" class="log"></div>
@@ -237,121 +243,91 @@
     </main>
 
     <aside class="rightbar">
-      <section class="panel system-panel">
-        <div class="panel-title">
-          <span>Modüller</span>
-          <span id="moduleSummary" class="status-pill muted">Bekliyor</span>
+      <section class="panel rightbar-tabs-panel">
+        <div class="rightbar-tabs" role="tablist" aria-label="Sağ panel">
+          <button class="rightbar-tab active" data-rightbar-tab="modules" type="button">Modül</button>
+          <button class="rightbar-tab" data-rightbar-tab="tools" type="button">Araç</button>
+          <button class="rightbar-tab" data-rightbar-tab="status" type="button">Akış</button>
         </div>
-        <div class="module-tabs" role="tablist" aria-label="Modül paneli">
-          <button class="module-tab active" data-module-tab="status" type="button">Durum</button>
-          <button class="module-tab" data-module-tab="setup" type="button">Setup</button>
-        </div>
-        <div class="module-pane active" data-module-pane="status">
-          <div class="module-grid" id="moduleGrid"></div>
-        </div>
-        <div class="module-pane" data-module-pane="setup">
-          <div class="module-setup-grid" aria-label="Modül rol seçimi">
-            <label><span>IMU</span><select><option>Auto detect</option><option>MPU6050</option><option>MPU6500</option><option>ICM42688</option><option>Disabled</option></select></label>
-            <label><span>Baro</span><select><option>Auto detect</option><option>BMP180/BMP085</option><option>BMP280</option><option>BMP390</option><option>Disabled</option></select></label>
-            <label><span>Mag</span><select><option>Auto detect</option><option>HMC5883L</option><option>QMC5883L/P</option><option>Disabled</option></select></label>
-            <label><span>GPS</span><select><option>Auto detect</option><option>NMEA UART</option><option>UBlox UART</option><option>Disabled</option></select></label>
-            <label><span>RC</span><select><option>SBUS</option><option>CRSF/ELRS</option><option>IBUS</option><option>PPM</option><option>Disabled</option></select></label>
-            <label><span>Battery</span><select><option>ADC voltage</option><option>Power module</option><option>Disabled</option></select></label>
+
+        <div class="rightbar-pane active" data-rightbar-pane="modules">
+          <div class="panel-title">
+            <span>Modüller</span>
+            <span id="moduleSummary" class="status-pill muted">Bekliyor</span>
           </div>
-          <p class="hint">Bu alan rol/backend mimarisi icin hazirliktir; firmware destekleri arttikca aktif secimler parametreye baglanir.</p>
+          <div class="side-tool-tabs module-tabs" role="tablist" aria-label="Modül paneli">
+            <button class="side-tool-tab active" data-module-tab="status" type="button">Durum</button>
+            <button class="side-tool-tab" data-module-tab="setup" type="button">Setup</button>
+          </div>
+          <div class="module-pane active" data-module-pane="status">
+            <div class="module-grid" id="moduleGrid"></div>
+          </div>
+          <div class="module-pane" data-module-pane="setup">
+            <div id="moduleSetupGrid" class="module-setup-grid"></div>
+            <div class="module-setup-actions">
+              <button id="applyDefaultModuleSetupBtn" class="small" type="button">AeroPico Varsayılan</button>
+              <button id="openPinsFromModuleSetupBtn" class="small" type="button">Pin Mapper</button>
+            </div>
+            <p class="hint">Baro/Mag/GPS etkinse preflight arm kapısı bu modülleri arar; kapalıysa arm sebebi olmaktan çıkar. Pin değişiklikleri için Flash'a Kaydet ve reboot gerekir.</p>
+          </div>
         </div>
-      </section>
 
-      <section class="panel tools-panel">
-        <div class="panel-title">
-          <span>Araçlar</span>
+        <div class="rightbar-pane" data-rightbar-pane="tools">
+          <div class="panel-title">
+            <span>Araçlar</span>
+          </div>
+          <div class="side-tool-tabs" role="tablist" aria-label="Araç paneli">
+            <button class="side-tool-tab active" data-tool-tab="calibration" type="button">Kalibrasyon</button>
+            <button class="side-tool-tab" data-tool-tab="bench" type="button">Bench</button>
+            <button class="side-tool-tab" data-tool-tab="audit" type="button">Denetim</button>
+          </div>
+          <div class="side-tool-pane active" data-tool-pane="calibration">
+            <button data-command="CAL_IMU"><svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16"
+                  height="16" rx="2" /><line x1="12" y1="4" x2="12" y2="20" /><line x1="4" y1="12" x2="20"
+                  y2="12" /></svg>IMU Kalibrasyon</button>
+            <button data-command="CAL_MAG"><svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10" />
+                <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" /></svg>Mag Kalibrasyon</button>
+            <button data-command="CAL_RC"><svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20"
+                  height="14" rx="2" ry="2" /><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" /></svg>RC Mapping Kontrol</button>
+            <p class="hint">Komutlar MAVLink servis kapısından geçer; firmware güvenli değilse reddeder.</p>
+          </div>
+          <div class="side-tool-pane" data-tool-pane="bench">
+            <button data-command="SERVO_TEST"><svg class="btn-icon" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon
+                  points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" /></svg>Servo Yön Testi</button>
+            <button data-command="RC_MONITOR"><svg class="btn-icon" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline
+                  points="22 12 18 12 15 21 9 3 6 12 2 12" /></svg>RC Kanal Kontrol</button>
+            <button data-command="SENSOR_CHECK"><svg class="btn-icon" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path
+                  d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" /><path
+                  d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" /></svg>Sensor Kontrol</button>
+            <button data-command="PREFLIGHT_CHECK"><svg class="btn-icon" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path
+                  d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /><path d="M9 12l2 2 4-5" /></svg>Preflight Kontrol</button>
+            <p class="hint">Pervane mutlaka sökülü olmalıdır.</p>
+          </div>
+          <div class="side-tool-pane" data-tool-pane="audit">
+            <div id="configAudit" class="config-audit"></div>
+          </div>
         </div>
-        <div class="side-tool-tabs" role="tablist" aria-label="Araç paneli">
-          <button class="side-tool-tab active" data-tool-tab="calibration" type="button">Kalibrasyon</button>
-          <button class="side-tool-tab" data-tool-tab="bench" type="button">Bench</button>
-          <button class="side-tool-tab" data-tool-tab="audit" type="button">Denetim</button>
-        </div>
-        <div class="side-tool-pane active" data-tool-pane="calibration">
-          <button data-command="CAL_IMU">
-            <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-              stroke-linecap="round" stroke-linejoin="round">
-              <rect x="4" y="4" width="16" height="16" rx="2" />
-              <line x1="12" y1="4" x2="12" y2="20" />
-              <line x1="4" y1="12" x2="20" y2="12" />
-            </svg>
-            IMU Kalibrasyon
-          </button>
-          <button data-command="CAL_MAG">
-            <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-              stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="12" cy="12" r="10" />
-              <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" />
-            </svg>
-            Mag Kalibrasyon
-          </button>
-          <button data-command="CAL_RC">
-            <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-              stroke-linecap="round" stroke-linejoin="round">
-              <rect x="2" y="7" width="20" height="14" rx="2" ry="2" />
-              <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16" />
-            </svg>
-            RC Mapping Kontrol
-          </button>
-          <p class="hint">Komutlar MAVLink servis kapısından geçer; firmware güvenli değilse reddeder.</p>
-        </div>
-        <div class="side-tool-pane" data-tool-pane="bench">
-          <button data-command="SERVO_TEST">
-            <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-              stroke-linecap="round" stroke-linejoin="round">
-              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
-            </svg>
-            Servo Yön Testi
-          </button>
-          <button data-command="RC_MONITOR">
-            <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-              stroke-linecap="round" stroke-linejoin="round">
-              <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
-            </svg>
-            RC Kanal Kontrol
-          </button>
-          <button data-command="SENSOR_CHECK">
-            <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-              stroke-linecap="round" stroke-linejoin="round">
-              <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
-              <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
-            </svg>
-            Sensor Kontrol
-          </button>
-          <button data-command="PREFLIGHT_CHECK">
-            <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-              stroke-linecap="round" stroke-linejoin="round">
-              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-              <path d="M9 12l2 2 4-5" />
-            </svg>
-            Preflight Kontrol
-          </button>
-          <p class="hint">Pervane mutlaka sökülü olmalıdır.</p>
-        </div>
-        <div class="side-tool-pane" data-tool-pane="audit">
-          <div id="configAudit" class="config-audit"></div>
-        </div>
-      </section>
 
-      <section class="panel command-panel">
-        <div class="panel-title">
-          <span>Komut Durumu</span>
-          <span id="commandSummary" class="status-pill muted">Bekliyor</span>
-        </div>
-        <div id="commandStatusList" class="command-status-list"></div>
-      </section>
-
-      <section class="panel mavlink-inspector-panel">
-        <div class="panel-title">
-          <span>MAVLink Akışı</span>
-          <span id="mavlinkInspectorSummary" class="status-pill muted">Bekliyor</span>
-        </div>
-        <div id="mavlinkInspectorList" class="mavlink-inspector-list">
-          <p class="hint">Cihazdan MAVLink paketi bekleniyor.</p>
+        <div class="rightbar-pane" data-rightbar-pane="status">
+          <div class="panel-title">
+            <span>Komut Durumu</span>
+            <span id="commandSummary" class="status-pill muted">Bekliyor</span>
+          </div>
+          <div id="commandStatusList" class="command-status-list"></div>
+          <div class="panel-title compact-title">
+            <span>MAVLink Akışı</span>
+            <span id="mavlinkInspectorSummary" class="status-pill muted">Bekliyor</span>
+          </div>
+          <div id="mavlinkInspectorList" class="mavlink-inspector-list">
+            <p class="hint">Cihazdan MAVLink paketi bekleniyor.</p>
+          </div>
         </div>
       </section>
 
@@ -409,6 +385,7 @@
             <div id="pinAssignmentList" class="pin-assignment-list">
               <p class="hint">Henüz atama yok.</p>
             </div>
+            <p class="hint">Bu listede yalnızca firmware parametresi olan roller gösterilir. Servo 1-4 ve batarya ADC atamaları gerçek PARAM_SET gönderir; etkinleşmesi için Flash'a Kaydet ve cihazı yeniden başlat.</p>
           </div>
         </div>
       </div>

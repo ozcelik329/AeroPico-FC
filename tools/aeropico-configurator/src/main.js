@@ -1,14 +1,16 @@
-const { app, BrowserWindow, session, ipcMain } = require("electron");
+const { app, BrowserWindow, Menu, session, ipcMain } = require("electron");
 const path = require("path");
 
 function createWindow() {
   const win = new BrowserWindow({
     width: 1240,
     height: 820,
-    minWidth: 980,
-    minHeight: 680,
+    minWidth: 860,
+    minHeight: 600,
     title: "AeroPico Configurator",
+    autoHideMenuBar: true,
     backgroundColor: "#0d1620",
+    show: false,
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
@@ -19,7 +21,12 @@ function createWindow() {
     }
   });
 
+  win.setMenuBarVisibility(false);
+  win.setAutoHideMenuBar(true);
   win.maximize();
+  win.once("ready-to-show", () => {
+    win.show();
+  });
   win.loadFile(path.join(__dirname, "renderer", "index.html"));
   return win;
 }
@@ -36,6 +43,8 @@ function serializePort(port) {
 }
 
 app.whenReady().then(() => {
+  Menu.setApplicationMenu(null);
+
   // Holds the pending Chromium callback while the renderer shows a manual
   // port picker. Only one connect flow is expected at a time.
   let pendingPortCallback = null;

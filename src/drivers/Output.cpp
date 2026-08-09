@@ -19,6 +19,12 @@ static volatile uint32_t pendingPitchFrame = 0;
 static volatile uint32_t pendingYawFrame = 0;
 static volatile uint32_t pendingFrameUs = 0;
 static volatile bool pendingFrameDirty = false;
+static ServoPinConfig servoPins = {
+    PIN_AILERON,
+    PIN_ELEVATOR,
+    PIN_RUDDER,
+    PIN_THROTTLE
+};
 
 // ServoOutput implementation
 ServoOutput servoOutput;
@@ -32,6 +38,7 @@ static float getOneMicrosecondPioClockDivider();
 static void updateMaxLatency(uint32_t latencyUs);
 static bool servoFrameTimerCallback(repeating_timer* timer);
 static void updatePendingFrame(int throttle, int roll, int pitch, int yaw, uint32_t nowUs);
+static bool validServoPin(uint8_t pin);
 
 void ServoOutput::init() {
     _ready = false;
@@ -50,10 +57,10 @@ void ServoOutput::init() {
     }
 
     uint offset = pio_add_program(pio, &pwm_servo_program);
-    bool ok = initServoSM((uint)sm_aileron,  PIN_AILERON, offset);
-    ok = initServoSM((uint)sm_elevator, PIN_ELEVATOR, offset) && ok;
-    ok = initServoSM((uint)sm_rudder,   PIN_RUDDER, offset) && ok;
-    ok = initServoSM((uint)sm_throttle, PIN_THROTTLE, offset) && ok;
+    bool ok = initServoSM((uint)sm_aileron,  servoPins.aileron, offset);
+    ok = initServoSM((uint)sm_elevator, servoPins.elevator, offset) && ok;
+    ok = initServoSM((uint)sm_rudder,   servoPins.rudder, offset) && ok;
+    ok = initServoSM((uint)sm_throttle, servoPins.throttle, offset) && ok;
 
     if (!ok) {
         return;
@@ -75,6 +82,22 @@ void ServoOutput::init() {
             &servoFrameTimer
         );
     }
+}
+
+void ServoOutput::configurePins(const ServoPinConfig& pins) {
+    if (_ready) {
+        return;
+    }
+    if (!validServoPin(pins.aileron) || !validServoPin(pins.elevator) ||
+        !validServoPin(pins.rudder) || !validServoPin(pins.throttle)) {
+        return;
+    }
+    if (pins.aileron == pins.elevator || pins.aileron == pins.rudder || pins.aileron == pins.throttle ||
+        pins.elevator == pins.rudder || pins.elevator == pins.throttle ||
+        pins.rudder == pins.throttle) {
+        return;
+    }
+    servoPins = pins;
 }
 
 void ServoOutput::writeMotors(int throttle, int roll, int pitch, int yaw) {
@@ -140,6 +163,11 @@ static bool initServoSM(uint sm, uint pin, uint offset) {
     return true;
 }
 
+static bool validServoPin(uint8_t pin) {
+    return pin <= 28 && pin != PIN_SBUS_RX && pin != PIN_SDA && pin != PIN_SCL &&
+           pin != PIN_BENCH_ADMIN_GND && pin != PIN_BENCH_ADMIN_SENSE;
+}
+
 static float getOneMicrosecondPioClockDivider() {
     return (float)clock_get_hz(clk_sys) / 1000000.0f;
 }
@@ -196,6 +224,10 @@ static void updatePendingFrame(int throttle, int roll, int pitch, int yaw, uint3
 void outputInit() {
     // Backwards-compatible wrapper
     servoOutput.init();
+}
+
+void configureServoOutputPins(const ServoPinConfig& pins) {
+    servoOutput.configurePins(pins);
 }
 
 void writeMotors(int throttle, int roll, int pitch, int yaw) {
