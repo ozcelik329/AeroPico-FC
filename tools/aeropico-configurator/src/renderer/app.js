@@ -694,11 +694,12 @@
     els.moduleSetupGrid.querySelectorAll("[data-setup-enable]").forEach((input) => {
       input.addEventListener("change", () => {
         const next = input.checked ? 1 : 0;
-        if (!setParam(input.dataset.setupEnable, next)) {
+        if (!stageParam(input.dataset.setupEnable, next)) {
           input.checked = !input.checked;
           return;
         }
-        toast("Modül ayarı gönderildi. Kalıcı kayıt için Flash'a Kaydet.", "warn");
+        toast("Modül ayarı hazır. Göndermek için Değişenleri Uygula.", "info");
+        renderModules();
       });
     });
 
@@ -706,12 +707,13 @@
       select.addEventListener("change", () => {
         const paramName = select.dataset.setupPin;
         const value = Number(select.value);
-        if (!setParam(paramName, value)) {
+        if (!stageParam(paramName, value)) {
           const current = getParamValue(paramName, "");
           select.value = String(current);
           return;
         }
-        toast("Pin ayarı gönderildi. Etkinleşmesi için Flash'a Kaydet + reboot.", "warn");
+        toast("Pin ayarı hazır. Uygula + Flash'a Kaydet + reboot.", "warn");
+        renderModules();
       });
     });
 
@@ -719,22 +721,21 @@
       select.addEventListener("change", () => {
         const paramName = select.dataset.setupType;
         const value = Number(select.value);
-        if (!setParam(paramName, value)) {
+        if (!stageParam(paramName, value)) {
           select.value = String(getConfigValue(paramName, ""));
           return;
         }
-        toast("Modül tipi gönderildi. Arm akışı bu setup'a göre değerlendirilecek.", "warn");
-        renderModuleSetup();
+        toast("Modül tipi hazır. Arm akışı uygulamadan sonra firmware tarafında değişir.", "info");
+        renderModules();
       });
     });
   }
 
   function renderModuleEnableControl(paramName) {
     const enabled = getConfigValue(paramName, 1) >= 0.5;
-    const disabled = state.connected ? "" : "disabled";
     return `
       <label class="setup-switch" title="${paramName}">
-        <input type="checkbox" data-setup-enable="${paramName}" ${enabled ? "checked" : ""} ${disabled}>
+        <input type="checkbox" data-setup-enable="${paramName}" ${enabled ? "checked" : ""}>
         <span>${enabled ? "Etkin" : "Kapalı"}</span>
       </label>
     `;
@@ -746,7 +747,7 @@
     return `
       <label class="module-type-control">
         <span>Tip</span>
-        <select data-setup-type="${paramName}" ${state.connected ? "" : "disabled"}>
+        <select data-setup-type="${paramName}">
           ${options.map(([value, label]) => `
             <option value="${value}" ${Number(current) === value ? "selected" : ""}>${label}</option>
           `).join("")}
@@ -761,7 +762,7 @@
         ${pinParams.map(([paramName, label]) => `
           <label>
             <span>${label}</span>
-            <select data-setup-pin="${paramName}" ${state.connected ? "" : "disabled"}>
+            <select data-setup-pin="${paramName}">
               ${pinOptionsForParam(paramName)}
             </select>
           </label>
@@ -807,6 +808,24 @@
   function getConfigValue(name, fallback = null) {
     if (state.dirtyParams.has(name)) return state.dirtyParams.get(name);
     return getParamValue(name, fallback);
+  }
+
+  function stageParam(name, value) {
+    const validation = validateParam(name, value);
+    if (!validation.ok) {
+      log(`${name}: ${validation.reason}`);
+      return false;
+    }
+    const param = state.params.get(name);
+    const unchanged = param && Math.abs(validation.value - param.value) < 1e-6;
+    if (unchanged) {
+      state.dirtyParams.delete(name);
+    } else {
+      state.dirtyParams.set(name, validation.value);
+    }
+    updateDirtyButton();
+    renderSummary();
+    return true;
   }
 
   function moduleText(value) {
@@ -2349,13 +2368,13 @@
       ["TYPE_RC", 1],
       ["TYPE_BATT", 0]
     ];
-    let sent = 0;
+    let staged = 0;
     for (const [name, value] of moduleDefaults) {
-      if (setParam(name, value, false)) sent++;
+      if (stageParam(name, value)) staged++;
     }
-    renderModuleSetup();
-    log(`Modul setup varsayilanlari gonderildi (${sent}/${moduleDefaults.length}).`);
-    toast("Modül setup varsayılanları gönderildi. Flash'a Kaydet önerilir.", "warn");
+    renderModules();
+    log(`Modul setup varsayilanlari hazirlandi (${staged}/${moduleDefaults.length}).`);
+    toast("Modül setup varsayılanları hazır. Değişenleri Uygula + Flash'a Kaydet.", "warn");
   }
 
   /* ── Bindings ──────────────────────────────── */
