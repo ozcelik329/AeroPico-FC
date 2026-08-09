@@ -177,6 +177,13 @@
       note: "Şu an gerçek protokol SBUS'tur; Auto da firmware tarafında SBUS backend'e çözülür."
     },
     {
+      id: "servo",
+      title: "Servo / ESC",
+      role: "Actuator output",
+      pins: "Pin Mapper",
+      note: "Servo ve throttle pinleri burada degil, Pin Mapper uzerinden atanir. Setup bu rolu sadece actuator health olarak izler."
+    },
+    {
       id: "battery",
       title: "Batarya",
       enableParam: "EN_BATT",
@@ -657,6 +664,9 @@
       const enableControl = item.enableParam ? renderModuleEnableControl(item.enableParam) : "";
       const typeControl = item.typeParam ? renderModuleTypeControl(item.typeParam) : "";
       const pinControls = item.pinParams ? renderModulePinControls(item.pinParams) : "";
+      const pinMapperAction = item.id === "servo"
+        ? '<button class="small module-pinmapper-action" data-open-pinmapper-from-setup type="button">Pin Mapper ile Ayarla</button>'
+        : "";
       card.innerHTML = `
         <div class="module-setup-head">
           <div>
@@ -671,9 +681,14 @@
         </div>
         ${typeControl}
         ${pinControls}
+        ${pinMapperAction}
         <p>${item.note}</p>
       `;
       els.moduleSetupGrid.appendChild(card);
+    });
+
+    els.moduleSetupGrid.querySelectorAll("[data-open-pinmapper-from-setup]").forEach((button) => {
+      button.addEventListener("click", () => openModal(els.pinMapperModal));
     });
 
     els.moduleSetupGrid.querySelectorAll("[data-setup-enable]").forEach((input) => {
