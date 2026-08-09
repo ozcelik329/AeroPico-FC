@@ -280,6 +280,23 @@ void test_param_manager_clamps_battery_profile() {
     TEST_ASSERT_FLOAT_WITHIN(0.001f, 3.0f, paramManager.getBatteryBrownoutVoltage());
 }
 
+void test_param_manager_persists_pin_mapper_expansion() {
+    MemoryParamStorage storage;
+    paramManager.setStorage(&storage);
+
+    TEST_ASSERT_TRUE(paramManager.setParamByName("PIN_I2C_SDA", 8.0f));
+    TEST_ASSERT_TRUE(paramManager.setParamByName("PIN_I2C_SCL", 9.0f));
+    TEST_ASSERT_TRUE(paramManager.setParamByName("PIN_BUZZER", 22.0f));
+    TEST_ASSERT_TRUE(paramManager.setParamByName("PARAM_SAVE", 1.0f));
+
+    ParamManager loaded;
+    loaded.setStorage(&storage);
+    TEST_ASSERT_TRUE(loaded.loadPersistent());
+    TEST_ASSERT_EQUAL_UINT8(8, loaded.getPinI2cSda());
+    TEST_ASSERT_EQUAL_UINT8(9, loaded.getPinI2cScl());
+    TEST_ASSERT_EQUAL_UINT8(22, loaded.getPinBuzzer());
+}
+
 void test_param_manager_schedules_non_blocking_parameter_stream() {
     paramManager.sendAll();
     TEST_ASSERT_TRUE(paramManager.isSendActive());
@@ -322,6 +339,7 @@ int main() {
     RUN_TEST(test_param_manager_applies_preflight_quality_callback);
     RUN_TEST(test_param_manager_applies_battery_profile_callback);
     RUN_TEST(test_param_manager_clamps_battery_profile);
+    RUN_TEST(test_param_manager_persists_pin_mapper_expansion);
     RUN_TEST(test_param_manager_schedules_non_blocking_parameter_stream);
     RUN_TEST(test_param_manager_rejects_message_for_other_system);
     return UNITY_END();

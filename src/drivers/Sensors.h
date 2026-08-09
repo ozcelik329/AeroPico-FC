@@ -33,6 +33,7 @@ class SensorManager : public IImuDriver, public IMagDriver, public IBaroDriver, 
     void init();
     void setI2CBus(IHALI2C* bus);
     void setI2CBus(RP2350I2C* bus);
+    void configureI2CPins(uint8_t sdaPin, uint8_t sclPin);
     void update();
     SensorBuffer getLatest();
 
@@ -91,6 +92,8 @@ class SensorManager : public IImuDriver, public IMagDriver, public IBaroDriver, 
     ImuCalibration _lastAsyncImuCalibration = {};
     IHALI2C* _i2cBus = nullptr;
     RP2350I2C* _rp2350Bus = nullptr;
+    uint8_t _sdaPin = PIN_SDA;
+    uint8_t _sclPin = PIN_SCL;
     bool _dmaFastPath = false;
 
     // Boot kalibrasyon ofsetleri

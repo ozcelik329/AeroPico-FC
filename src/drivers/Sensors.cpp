@@ -27,6 +27,11 @@ void SensorManager::setI2CBus(RP2350I2C* bus) {
     _dmaFastPath = false;
 }
 
+void SensorManager::configureI2CPins(uint8_t sdaPin, uint8_t sclPin) {
+    _sdaPin = sdaPin;
+    _sclPin = sclPin;
+}
+
 void SensorManager::_setFault(SensorFaultCode code) {
     if (code != SensorFaultCode::None) {
         _faultCode = code;
@@ -244,7 +249,7 @@ void SensorManager::init() {
     _buf[1].health = SensorHealth::WarmingUp;
     _gyroAccelDriver.resetFilters();
 
-    _bus().init(PIN_SDA, PIN_SCL, 400000);
+    _bus().init(_sdaPin, _sclPin, 400000);
 
     uint8_t whoami = 0;
     const ImuDeviceProfile& imu = *_imuProfile;

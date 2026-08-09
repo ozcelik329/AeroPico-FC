@@ -25,7 +25,20 @@ ModuleSetupEvaluation ModuleSetupRuntime::evaluate(uint16_t detectedMask) const 
     ModuleSetupEvaluation result = {};
     result.enabledCapabilityMask = enabledSensorMask(detectedMask);
 
-    if (!_snapshot.bootServoPinConfigValid || !validateServoPinSetup(_snapshot.servoPins)) {
+    if (!validateI2cPinSetup(_snapshot.i2cSda, _snapshot.i2cScl)) {
+        strncpy(result.reason, "Setup I2C pin map invalid", sizeof(result.reason) - 1);
+        return result;
+    }
+
+    if (!validateBuzzerPinSetup(_snapshot.buzzerPin) ||
+        _snapshot.buzzerPin == _snapshot.i2cSda ||
+        _snapshot.buzzerPin == _snapshot.i2cScl) {
+        strncpy(result.reason, "Setup buzzer pin invalid", sizeof(result.reason) - 1);
+        return result;
+    }
+
+    if (!_snapshot.bootServoPinConfigValid ||
+        !validateServoPinSetup(_snapshot.servoPins, _snapshot.i2cSda, _snapshot.i2cScl, _snapshot.buzzerPin)) {
         strncpy(result.reason, "Setup servo pin map invalid", sizeof(result.reason) - 1);
         return result;
     }
@@ -75,10 +88,17 @@ ModuleSetupEvaluation ModuleSetupRuntime::evaluate(uint16_t detectedMask) const 
 }
 
 bool ModuleSetupRuntime::validateServoPinSetup(const ModuleServoPinConfig& pins) {
-    if (!isValidServoSetupPin(pins.aileron) ||
-        !isValidServoSetupPin(pins.elevator) ||
-        !isValidServoSetupPin(pins.rudder) ||
-        !isValidServoSetupPin(pins.throttle)) {
+    return validateServoPinSetup(pins, PIN_SDA, PIN_SCL, PIN_BUZZER);
+}
+
+bool ModuleSetupRuntime::validateServoPinSetup(const ModuleServoPinConfig& pins,
+                                               uint8_t i2cSda,
+                                               uint8_t i2cScl,
+                                               uint8_t buzzerPin) {
+    if (!isValidServoSetupPin(pins.aileron, i2cSda, i2cScl, buzzerPin) ||
+        !isValidServoSetupPin(pins.elevator, i2cSda, i2cScl, buzzerPin) ||
+        !isValidServoSetupPin(pins.rudder, i2cSda, i2cScl, buzzerPin) ||
+        !isValidServoSetupPin(pins.throttle, i2cSda, i2cScl, buzzerPin)) {
         return false;
     }
 
@@ -90,16 +110,39 @@ bool ModuleSetupRuntime::validateServoPinSetup(const ModuleServoPinConfig& pins)
            pins.rudder != pins.throttle;
 }
 
-bool ModuleSetupRuntime::isReservedServoSetupPin(uint8_t pin) {
+bool ModuleSetupRuntime::validateI2cPinSetup(uint8_t sdaPin, uint8_t sclPin) {
+    const bool sdaOk = sdaPin == 0 || sdaPin == 4 || sdaPin == 8 ||
+                       sdaPin == 12 || sdaPin == 16 || sdaPin == 20;
+    const bool sclOk = sclPin == 1 || sclPin == 5 || sclPin == 9 ||
+                       sclPin == 13 || sclPin == 17 || sclPin == 21;
+    return sdaOk && sclOk && sclPin == sdaPin + 1 && sdaPin != PIN_BENCH_ADMIN_GND;
+}
+
+bool ModuleSetupRuntime::validateBuzzerPinSetup(uint8_t pin) {
+    return pin <= 28 &&
+           pin != PIN_SBUS_RX &&
+           pin != PIN_SDA &&
+           pin != PIN_SCL &&
+           pin != PIN_BENCH_ADMIN_GND &&
+           pin != PIN_BENCH_ADMIN_SENSE &&
+           pin != PIN_BATTERY_ADC;
+}
+
+bool ModuleSetupRuntime::isReservedServoSetupPin(uint8_t pin, uint8_t i2cSda, uint8_t i2cScl, uint8_t buzzerPin) {
     return pin == PIN_SBUS_RX ||
-           pin == PIN_SDA ||
-           pin == PIN_SCL ||
+           pin == i2cSda ||
+           pin == i2cScl ||
+           pin == buzzerPin ||
            pin == PIN_BENCH_ADMIN_GND ||
            pin == PIN_BENCH_ADMIN_SENSE;
 }
 
 bool ModuleSetupRuntime::isValidServoSetupPin(uint8_t pin) {
-    return pin <= 28 && !isReservedServoSetupPin(pin);
+    return isValidServoSetupPin(pin, PIN_SDA, PIN_SCL, PIN_BUZZER);
+}
+
+bool ModuleSetupRuntime::isValidServoSetupPin(uint8_t pin, uint8_t i2cSda, uint8_t i2cScl, uint8_t buzzerPin) {
+    return pin <= 28 && !isReservedServoSetupPin(pin, i2cSda, i2cScl, buzzerPin);
 }
 
 bool ModuleSetupRuntime::isSupportedImuType(uint8_t type) { return type <= 1; }

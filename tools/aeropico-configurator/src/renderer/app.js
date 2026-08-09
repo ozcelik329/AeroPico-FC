@@ -121,9 +121,15 @@
     "Servo 2": "PIN_ELE",
     "Servo 3": "PIN_RUD",
     "ESC": "PIN_THR",
-    "ADC Batarya Voltaj": "PIN_BATT_ADC"
+    "ADC Batarya Voltaj": "PIN_BATT_ADC",
+    "I2C SDA": "PIN_I2C_SDA",
+    "I2C SCL": "PIN_I2C_SCL",
+    "Buzzer": "PIN_BUZZER"
   });
-  const SERVO_RESERVED_GPIOS = new Set([1, 4, 5, 20, 21]);
+  const SERVO_RESERVED_GPIOS = new Set([1, 4, 5, 20, 21, 22]);
+  const I2C0_SDA_GPIOS = new Set([4, 8, 16]);
+  const I2C0_SCL_GPIOS = new Set([5, 9, 17]);
+  const BUZZER_RESERVED_GPIOS = new Set([1, 4, 5, 20, 21, 26]);
   const MODULE_TYPE_OPTIONS = Object.freeze({
     TYPE_IMU: [[0, "Auto"], [1, "MPU6050"]],
     TYPE_BARO: [[0, "Auto"], [1, "BMP180/BMP085"]],
@@ -198,6 +204,9 @@
   const PROFILE_STORAGE_KEY = "aeropico-param-profiles-v1";
 
   const DEFAULT_WIRING = Object.freeze([
+    [6, "I2C SDA"],
+    [7, "I2C SCL"],
+    [32, "Buzzer"],
     [30, "ADC Batarya Voltaj"],
     [40, "Servo 1"],
     [39, "Servo 2"],
@@ -242,6 +251,9 @@
     PIN_RUD: { min: 0, max: 28, step: 1, integer: true },
     PIN_THR: { min: 0, max: 28, step: 1, integer: true },
     PIN_BATT_ADC: { min: 26, max: 28, step: 1, integer: true },
+    PIN_I2C_SDA: { min: 0, max: 28, step: 1, integer: true },
+    PIN_I2C_SCL: { min: 0, max: 28, step: 1, integer: true },
+    PIN_BUZZER: { min: 0, max: 28, step: 1, integer: true },
     EN_BARO: { min: 0, max: 1, step: 1, integer: true },
     EN_MAG: { min: 0, max: 1, step: 1, integer: true },
     EN_GPS: { min: 0, max: 1, step: 1, integer: true },
@@ -267,7 +279,9 @@
   const PIN_ROLES = [
     "Kullanılmıyor",
     "Servo 1", "Servo 2", "Servo 3", "ESC",
-    "ADC Batarya Voltaj"
+    "ADC Batarya Voltaj",
+    "I2C SDA", "I2C SCL",
+    "Buzzer"
   ];
 
   const PIN_DEFS = [
@@ -713,6 +727,11 @@
       select.addEventListener("change", () => {
         const paramName = select.dataset.setupPin;
         const value = Number(select.value);
+        if (!validatePinRoleGpio(paramName, value)) {
+          const current = getParamValue(paramName, "");
+          select.value = String(current);
+          return;
+        }
         if (!stageParam(paramName, value)) {
           const current = getParamValue(paramName, "");
           select.value = String(current);
@@ -779,16 +798,68 @@
 
   function pinOptionsForParam(paramName) {
     const current = getConfigValue(paramName, "");
-    const min = paramName === "PIN_BATT_ADC" ? 26 : 0;
-    const max = 28;
-    const options = [];
-    for (let gpio = min; gpio <= max; gpio++) {
-      if (paramName !== "PIN_BATT_ADC" && SERVO_RESERVED_GPIOS.has(gpio)) continue;
+    const options = validGpiosForPinParam(paramName).map((gpio) => {
       const label = paramName === "PIN_BATT_ADC" ? `GP${gpio} / ADC${gpio - 26}` : `GP${gpio}`;
-      options.push(`<option value="${gpio}" ${Number(current) === gpio ? "selected" : ""}>${label}</option>`);
-    }
+      return `<option value="${gpio}" ${Number(current) === gpio ? "selected" : ""}>${label}</option>`;
+    });
     if (current === "") options.unshift('<option value="" selected disabled>Parametre bekleniyor</option>');
     return options.join("");
+  }
+
+  function validGpiosForPinParam(paramName) {
+    if (paramName === "PIN_BATT_ADC") return [26, 27, 28];
+    if (paramName === "PIN_I2C_SDA") return [...I2C0_SDA_GPIOS];
+    if (paramName === "PIN_I2C_SCL") return [...I2C0_SCL_GPIOS];
+    if (paramName === "PIN_BUZZER") {
+      const pins = [];
+      for (let gpio = 0; gpio <= 28; gpio++) {
+        if (!BUZZER_RESERVED_GPIOS.has(gpio)) pins.push(gpio);
+      }
+      return pins;
+    }
+
+    const i2cSda = Number(getConfigValue("PIN_I2C_SDA", 4));
+    const i2cScl = Number(getConfigValue("PIN_I2C_SCL", 5));
+    const buzzer = Number(getConfigValue("PIN_BUZZER", 22));
+    const pins = [];
+    for (let gpio = 0; gpio <= 28; gpio++) {
+      if (SERVO_RESERVED_GPIOS.has(gpio)) continue;
+      if (gpio === i2cSda || gpio === i2cScl || gpio === buzzer) continue;
+      pins.push(gpio);
+    }
+    return pins;
+  }
+
+  function validatePinRoleGpio(paramName, gpio) {
+    if (!validGpiosForPinParam(paramName).includes(gpio)) {
+      const details = {
+        PIN_BATT_ADC: "Batarya ADC icin GP26-GP28 secilmeli.",
+        PIN_I2C_SDA: "I2C SDA icin desteklenen i2c0 SDA pinleri: GP4, GP8, GP16.",
+        PIN_I2C_SCL: "I2C SCL icin desteklenen i2c0 SCL pinleri: GP5, GP9, GP17.",
+        PIN_BUZZER: "Buzzer SBUS/I2C/admin/batarya ADC hatlariyla cakismamali."
+      };
+      toast(details[paramName] || "Bu GPIO bu rol icin uygun degil.", "warn");
+      log(`${paramName} reddedildi: GP${gpio} bu rol icin desteklenmiyor.`);
+      return false;
+    }
+
+    if (paramName === "PIN_I2C_SDA") {
+      const scl = Number(getConfigValue("PIN_I2C_SCL", 5));
+      if (Number.isFinite(scl) && scl !== gpio + 1) {
+        toast("I2C SDA/SCL ayni i2c0 ciftinden olmali.", "warn");
+        log(`PIN_I2C_SDA reddedildi: GP${gpio} mevcut SCL GP${scl} ile cift degil.`);
+        return false;
+      }
+    }
+    if (paramName === "PIN_I2C_SCL") {
+      const sda = Number(getConfigValue("PIN_I2C_SDA", 4));
+      if (Number.isFinite(sda) && gpio !== sda + 1) {
+        toast("I2C SDA/SCL ayni i2c0 ciftinden olmali.", "warn");
+        log(`PIN_I2C_SCL reddedildi: GP${gpio} mevcut SDA GP${sda} ile cift degil.`);
+        return false;
+      }
+    }
+    return true;
   }
 
   function actuatorSetupHealth() {
@@ -2290,14 +2361,7 @@
       toast("Bu pin GPIO değil.", "warn");
       return false;
     }
-    if (paramName === "PIN_BATT_ADC" && (gpio < 26 || gpio > 28)) {
-      toast("Batarya ADC icin GP26-GP28 secilmeli.", "warn");
-      log("PIN_BATT_ADC reddedildi: RP2350 ADC pinleri GP26, GP27, GP28.");
-      return false;
-    }
-    if (paramName !== "PIN_BATT_ADC" && SERVO_RESERVED_GPIOS.has(gpio)) {
-      toast("Bu GPIO servo cikisi icin ayrilmis/uygunsuz.", "warn");
-      log(`Servo pin reddedildi: GP${gpio} SBUS/I2C/admin hattiyla cakisiyor.`);
+    if (!validatePinRoleGpio(paramName, gpio)) {
       return false;
     }
     const ok = setParam(paramName, gpio);

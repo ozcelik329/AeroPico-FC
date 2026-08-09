@@ -2,6 +2,7 @@
 #define MODULE_SETUP_RUNTIME_H
 
 #include <Arduino.h>
+#include "board/Config.h"
 #include "../../types.h"
 
 struct ModuleServoPinConfig {
@@ -23,6 +24,9 @@ struct ModuleSetupSnapshot {
     uint8_t gpsType = 1;
     uint8_t rcType = 1;
     uint8_t batteryType = 0;
+    uint8_t i2cSda = PIN_SDA;
+    uint8_t i2cScl = PIN_SCL;
+    uint8_t buzzerPin = PIN_BUZZER;
     ModuleServoPinConfig servoPins = {};
     bool bootServoPinConfigValid = true;
 };
@@ -46,10 +50,17 @@ class ModuleSetupRuntime {
     ModuleSetupEvaluation evaluate(uint16_t detectedMask) const;
 
     static bool validateServoPinSetup(const ModuleServoPinConfig& pins);
+    static bool validateServoPinSetup(const ModuleServoPinConfig& pins,
+                                      uint8_t i2cSda,
+                                      uint8_t i2cScl,
+                                      uint8_t buzzerPin);
+    static bool validateI2cPinSetup(uint8_t sdaPin, uint8_t sclPin);
+    static bool validateBuzzerPinSetup(uint8_t pin);
 
   private:
-    static bool isReservedServoSetupPin(uint8_t pin);
+    static bool isReservedServoSetupPin(uint8_t pin, uint8_t i2cSda, uint8_t i2cScl, uint8_t buzzerPin);
     static bool isValidServoSetupPin(uint8_t pin);
+    static bool isValidServoSetupPin(uint8_t pin, uint8_t i2cSda, uint8_t i2cScl, uint8_t buzzerPin);
     static bool isSupportedImuType(uint8_t type);
     static bool isSupportedBaroType(uint8_t type);
     static bool isSupportedMagType(uint8_t type);

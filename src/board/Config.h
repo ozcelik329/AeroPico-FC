@@ -20,6 +20,9 @@
 #define PIN_SDA         4
 #define PIN_SCL         5
 
+// --- User feedback GPIO ---
+#define PIN_BUZZER      22
+
 // --- Debug Timing GPIO Pinleri ---
 #define PIN_DEBUG_CONSUME 2
 #define PIN_DEBUG_PID     3

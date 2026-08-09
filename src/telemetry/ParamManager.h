@@ -12,8 +12,8 @@
 #include "../storage/ParamStorage.h"
 
 // Desteklenen parametreler
-#define PARAM_PERSISTED_COUNT 51
-#define PARAM_COUNT 52
+#define PARAM_PERSISTED_COUNT 54
+#define PARAM_COUNT 55
 
 enum ParamIndex : uint8_t {
     PARAM_IDX_ANGLE_P = 0,
@@ -56,6 +56,9 @@ enum ParamIndex : uint8_t {
     PARAM_IDX_PIN_RUD,
     PARAM_IDX_PIN_THR,
     PARAM_IDX_PIN_BATT_ADC,
+    PARAM_IDX_PIN_I2C_SDA,
+    PARAM_IDX_PIN_I2C_SCL,
+    PARAM_IDX_PIN_BUZZER,
     PARAM_IDX_EN_BARO,
     PARAM_IDX_EN_MAG,
     PARAM_IDX_EN_GPS,
@@ -158,6 +161,9 @@ class ParamManager {
     uint8_t getPinRudder() const { return (uint8_t)_params[PARAM_IDX_PIN_RUD].value; }
     uint8_t getPinThrottle() const { return (uint8_t)_params[PARAM_IDX_PIN_THR].value; }
     uint8_t getPinBatteryAdc() const { return (uint8_t)_params[PARAM_IDX_PIN_BATT_ADC].value; }
+    uint8_t getPinI2cSda() const { return (uint8_t)_params[PARAM_IDX_PIN_I2C_SDA].value; }
+    uint8_t getPinI2cScl() const { return (uint8_t)_params[PARAM_IDX_PIN_I2C_SCL].value; }
+    uint8_t getPinBuzzer() const { return (uint8_t)_params[PARAM_IDX_PIN_BUZZER].value; }
     bool isBaroEnabled() const { return _params[PARAM_IDX_EN_BARO].value >= 0.5f; }
     bool isMagEnabled() const { return _params[PARAM_IDX_EN_MAG].value >= 0.5f; }
     bool isGpsEnabled() const { return _params[PARAM_IDX_EN_GPS].value >= 0.5f; }
@@ -212,6 +218,9 @@ class ParamManager {
         {"PIN_RUD", PIN_RUDDER, 0.0f, 28.0f},
         {"PIN_THR", PIN_THROTTLE, 0.0f, 28.0f},
         {"PIN_BATT_ADC", PIN_BATTERY_ADC, 26.0f, 28.0f},
+        {"PIN_I2C_SDA", PIN_SDA, 0.0f, 28.0f},
+        {"PIN_I2C_SCL", PIN_SCL, 0.0f, 28.0f},
+        {"PIN_BUZZER", PIN_BUZZER, 0.0f, 28.0f},
         {"EN_BARO", 1.0f, 0.0f, 1.0f},
         {"EN_MAG", 1.0f, 0.0f, 1.0f},
         {"EN_GPS", GPS_MODULE_ENABLED ? 1.0f : 0.0f, 0.0f, 1.0f},

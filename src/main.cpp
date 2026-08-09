@@ -32,6 +32,7 @@
 #include "telemetry/BlackboxSdSink.h"
 #endif
 #include "app/AppTasks.h"
+#include "drivers/BuzzerFeedback.h"
 #if BATTERY_ADC_ENABLED
 #include "hal/rp2350/RP2350_ADC.h"
 #endif
@@ -74,6 +75,7 @@ static bool latestBatteryCritical = false;
 static bool magCalibrationActive = false;
 static uint8_t batteryAdcChannel = BATTERY_ADC_CHANNEL;
 static bool bootServoPinConfigValid = true;
+static BuzzerFeedback buzzerFeedback;
 static MavlinkServiceCommands mavlinkServiceCommands;
 static ServiceCommandMailbox serviceCommandMailbox;
 static ServiceCommandProcessor serviceCommandProcessor;
@@ -153,6 +155,9 @@ static void refreshModuleSetupFromParams() {
     snapshot.batteryType = 0;
     snapshot.bootServoPinConfigValid = bootServoPinConfigValid;
     snapshot.servoPins = moduleServoPinsFromParams();
+    snapshot.i2cSda = PIN_SDA;
+    snapshot.i2cScl = PIN_SCL;
+    snapshot.buzzerPin = PIN_BUZZER;
 #ifdef MAVLINK_PARAMS_ENABLED
     snapshot.baroEnabled = paramManager.isBaroEnabled();
     snapshot.magEnabled = paramManager.isMagEnabled();
@@ -165,6 +170,9 @@ static void refreshModuleSetupFromParams() {
     snapshot.gpsType = paramManager.getGpsType();
     snapshot.rcType = paramManager.getRcType();
     snapshot.batteryType = paramManager.getBatteryType();
+    snapshot.i2cSda = paramManager.getPinI2cSda();
+    snapshot.i2cScl = paramManager.getPinI2cScl();
+    snapshot.buzzerPin = paramManager.getPinBuzzer();
 #endif
     moduleSetupRuntime.update(snapshot);
     flightManager.setRcRequired(moduleSetupRuntime.rcRequired());
@@ -371,14 +379,25 @@ void setup() {
     refreshModuleSetupFromParams();
     const ModuleServoPinConfig moduleServoPins = moduleSetupRuntime.snapshot().servoPins;
     const ServoPinConfig servoPins = outputServoPinsFromModulePins(moduleServoPins);
-    bootServoPinConfigValid = ModuleSetupRuntime::validateServoPinSetup(moduleServoPins);
+    bootServoPinConfigValid = ModuleSetupRuntime::validateServoPinSetup(
+        moduleServoPins,
+        moduleSetupRuntime.snapshot().i2cSda,
+        moduleSetupRuntime.snapshot().i2cScl,
+        moduleSetupRuntime.snapshot().buzzerPin
+    );
     if (bootServoPinConfigValid) {
         configureServoOutputPins(servoPins);
     } else {
         BootLogger::warn("Servo Pins", "Gecersiz pin haritasi, varsayilan cikislar korunuyor");
     }
     batteryAdcChannel = adcChannelForPin(paramManager.getPinBatteryAdc());
+    sensorManager.configureI2CPins(paramManager.getPinI2cSda(), paramManager.getPinI2cScl());
+    buzzerFeedback.init(paramManager.getPinBuzzer());
+#else
+    sensorManager.configureI2CPins(PIN_SDA, PIN_SCL);
+    buzzerFeedback.init(PIN_BUZZER);
 #endif
+    buzzerFeedback.bootChirp();
 #if BATTERY_ADC_ENABLED
     batteryAdc.init(
 #ifdef MAVLINK_PARAMS_ENABLED
