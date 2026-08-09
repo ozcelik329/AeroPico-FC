@@ -148,11 +148,15 @@ void FlightManager::setBenchForceArmAllowed(bool allowed) {
     _benchForceArmAllowed = allowed;
 }
 
+void FlightManager::setRcRequired(bool required) {
+    _rcRequired = required;
+}
+
 bool FlightManager::requestArmFromMavlink(bool arm, bool force, char* reason, size_t reasonLen) {
     const char* localReason = "";
     bool accepted = false;
     const bool faulted = _timingExceeded || _batteryCritical || _actuatorFault;
-    const bool failsafe = _rcState.failsafe || faulted;
+    const bool failsafe = (_rcRequired && _rcState.failsafe) || faulted;
 
     if (arm && force) {
         if (_benchForceArmAllowed) {

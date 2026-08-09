@@ -12,8 +12,8 @@
 #include "../storage/ParamStorage.h"
 
 // Desteklenen parametreler
-#define PARAM_PERSISTED_COUNT 50
-#define PARAM_COUNT 51
+#define PARAM_PERSISTED_COUNT 51
+#define PARAM_COUNT 52
 
 enum ParamIndex : uint8_t {
     PARAM_IDX_ANGLE_P = 0,
@@ -60,6 +60,7 @@ enum ParamIndex : uint8_t {
     PARAM_IDX_EN_MAG,
     PARAM_IDX_EN_GPS,
     PARAM_IDX_EN_BATT,
+    PARAM_IDX_EN_RC,
     PARAM_IDX_TYPE_IMU,
     PARAM_IDX_TYPE_BARO,
     PARAM_IDX_TYPE_MAG,
@@ -161,6 +162,7 @@ class ParamManager {
     bool isMagEnabled() const { return _params[PARAM_IDX_EN_MAG].value >= 0.5f; }
     bool isGpsEnabled() const { return _params[PARAM_IDX_EN_GPS].value >= 0.5f; }
     bool isBatteryEnabled() const { return _params[PARAM_IDX_EN_BATT].value >= 0.5f; }
+    bool isRcEnabled() const { return _params[PARAM_IDX_EN_RC].value >= 0.5f; }
     uint8_t getImuType() const { return (uint8_t)_params[PARAM_IDX_TYPE_IMU].value; }
     uint8_t getBaroType() const { return (uint8_t)_params[PARAM_IDX_TYPE_BARO].value; }
     uint8_t getMagType() const { return (uint8_t)_params[PARAM_IDX_TYPE_MAG].value; }
@@ -214,6 +216,7 @@ class ParamManager {
         {"EN_MAG", 1.0f, 0.0f, 1.0f},
         {"EN_GPS", GPS_MODULE_ENABLED ? 1.0f : 0.0f, 0.0f, 1.0f},
         {"EN_BATT", 0.0f, 0.0f, 1.0f},
+        {"EN_RC", 1.0f, 0.0f, 1.0f},
         {"TYPE_IMU", 1.0f, 0.0f, 1.0f},
         {"TYPE_BARO", 1.0f, 0.0f, 1.0f},
         {"TYPE_MAG", 0.0f, 0.0f, 2.0f},

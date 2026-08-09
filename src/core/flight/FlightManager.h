@@ -37,6 +37,7 @@ class FlightManager {
     bool requestArmFromMavlink(bool arm, bool force, char* reason, size_t reasonLen);
     void setPreflightArmAllowed(bool allowed);
     void setBenchForceArmAllowed(bool allowed);
+    void setRcRequired(bool required);
     void setSystemFaults(bool timingExceeded, bool batteryCritical, bool actuatorFault);
 
     void setRCOverride(uint16_t aileron, uint16_t elevator, uint16_t throttle, uint16_t rudder);
@@ -64,6 +65,7 @@ class FlightManager {
     FailsafeManager _failsafeManager;
     bool _preflightArmAllowed = false;
     bool _benchForceArmAllowed = false;
+    bool _rcRequired = true;
     bool _timingExceeded = false;
     bool _batteryCritical = false;
     bool _actuatorFault = false;

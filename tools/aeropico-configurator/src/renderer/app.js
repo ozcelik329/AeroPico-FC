@@ -171,10 +171,11 @@
     {
       id: "rc",
       title: "RC Alıcı",
+      enableParam: "EN_RC",
       role: "Pilot komutu",
       pins: "SBUS RX",
       typeParam: "TYPE_RC",
-      note: "Şu an gerçek protokol SBUS'tur; Auto da firmware tarafında SBUS backend'e çözülür."
+      note: "Kapalı seçilirse RC ve RC failsafe arm checklistinden çıkarılır. Etkinse gerçek protokol SBUS'tur."
     },
     {
       id: "servo",
@@ -245,6 +246,7 @@
     EN_MAG: { min: 0, max: 1, step: 1, integer: true },
     EN_GPS: { min: 0, max: 1, step: 1, integer: true },
     EN_BATT: { min: 0, max: 1, step: 1, integer: true },
+    EN_RC: { min: 0, max: 1, step: 1, integer: true },
     TYPE_IMU: { min: 0, max: 1, step: 1, integer: true },
     TYPE_BARO: { min: 0, max: 1, step: 1, integer: true },
     TYPE_MAG: { min: 0, max: 2, step: 1, integer: true },
@@ -800,6 +802,7 @@
     if (id === "baro") return "EN_BARO";
     if (id === "mag") return "EN_MAG";
     if (id === "gps") return "EN_GPS";
+    if (id === "rc") return "EN_RC";
     if (id === "battery") return "EN_BATT";
     return null;
   }

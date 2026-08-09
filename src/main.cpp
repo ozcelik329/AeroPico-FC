@@ -76,6 +76,7 @@ static bool baroModuleEnabled = true;
 static bool magModuleEnabled = true;
 static bool gpsModuleEnabled = GPS_MODULE_ENABLED != 0;
 static bool batteryModuleEnabled = false;
+static bool rcModuleEnabled = true;
 static uint8_t imuModuleType = 1;
 static uint8_t baroModuleType = 1;
 static uint8_t magModuleType = 0;
@@ -138,12 +139,14 @@ static void refreshModuleSetupFromParams() {
     magModuleEnabled = paramManager.isMagEnabled();
     gpsModuleEnabled = paramManager.isGpsEnabled();
     batteryModuleEnabled = paramManager.isBatteryEnabled();
+    rcModuleEnabled = paramManager.isRcEnabled();
     imuModuleType = paramManager.getImuType();
     baroModuleType = paramManager.getBaroType();
     magModuleType = paramManager.getMagType();
     gpsModuleType = paramManager.getGpsType();
     rcModuleType = paramManager.getRcType();
     batteryModuleType = paramManager.getBatteryType();
+    flightManager.setRcRequired(rcModuleEnabled && rcModuleType != 0);
 #endif
 }
 
@@ -321,13 +324,18 @@ static PreflightResult evaluatePreflight() {
     bool sensorOk = evaluateSensorPreflight();
     bool moduleSetupOk = evaluateModuleSetupPreflight();
     const bool batteryRequired = batteryModuleEnabled;
+    const bool rcRequired = rcModuleEnabled && rcModuleType != 0;
     const bool batteryOk = !batteryRequired || (battery.configured && battery.healthy);
+    const bool rcOk = rxManager.isValid() && !rxManager.isFailsafe();
     latestBatteryCritical = batteryRequired && battery.configured && battery.brownout;
 
     preflightHealth.reset();
     preflightHealth.setCheck(PreflightCheckId::Boot, true, true, "");
     preflightHealth.setCheck(PreflightCheckId::Sensor, true, sensorOk, sensorPreflightReason);
-    preflightHealth.setCheck(PreflightCheckId::RC, true, rxManager.isValid() && !rxManager.isFailsafe(), "RC signal invalid");
+    preflightHealth.setCheck(PreflightCheckId::RC,
+                             rcRequired,
+                             rcOk,
+                             rcRequired ? "RC signal invalid" : "RC disabled in setup");
     preflightHealth.setCheck(PreflightCheckId::ModuleSetup, true, moduleSetupOk, moduleSetupPreflightReason);
     preflightHealth.setCheck(PreflightCheckId::Battery,
                              batteryRequired,
@@ -335,7 +343,10 @@ static PreflightResult evaluatePreflight() {
                              batteryRequired ? battery.reason : "Battery disabled in setup");
     preflightHealth.setCheck(PreflightCheckId::Memory, true, freeHeap >= PREFLIGHT_MIN_FREE_HEAP_BYTES, "Free heap too low");
     preflightHealth.setCheck(PreflightCheckId::Actuator, true, SystemTimer::outputsReady(), "Actuator output not ready");
-    preflightHealth.setCheck(PreflightCheckId::Failsafe, true, !rxManager.isFailsafe(), "RC failsafe active");
+    preflightHealth.setCheck(PreflightCheckId::Failsafe,
+                             rcRequired,
+                             !rxManager.isFailsafe(),
+                             rcRequired ? "RC failsafe active" : "RC disabled in setup");
     preflightHealth.setCheck(PreflightCheckId::Scheduler, true, SystemTimer::checkTimingBudgets(), "Timing budget exceeded");
     preflightHealth.setCheck(PreflightCheckId::GPS, false, false, "GPS not configured");
     return preflightHealth.evaluate();
@@ -671,6 +682,9 @@ void setup() {
     baroModuleEnabled = paramManager.isBaroEnabled();
     magModuleEnabled = paramManager.isMagEnabled();
     gpsModuleEnabled = paramManager.isGpsEnabled();
+    batteryModuleEnabled = paramManager.isBatteryEnabled();
+    rcModuleEnabled = paramManager.isRcEnabled();
+    flightManager.setRcRequired(rcModuleEnabled && paramManager.getRcType() != 0);
 #endif
 
     sensorCapabilities = sensorManager.capabilities();
