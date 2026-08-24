@@ -175,14 +175,23 @@ uint8_t MavlinkServiceCommands::handle(uint16_t action,
         case AEROPICO_CMD_SENSOR_CHECK: {
             SensorCapabilityStatus caps = _context.sensors->capabilities();
             if (!caps.imuAvailable) {
-                copyReason(reason, reasonLen, _context.sensors->getFaultText());
+                char detail[50] = {};
+                snprintf(detail, sizeof(detail), "SENSOR_CHECK_FAIL IMU %s", _context.sensors->getFaultText());
+                copyReason(reason, reasonLen, detail);
                 return MAV_RESULT_DENIED;
             }
+
+            char detail[50] = {};
+            snprintf(detail,
+                     sizeof(detail),
+                     "SENSOR_CHECK IMU_OK BARO_%s MAG_%s",
+                     caps.baroAvailable ? "OK" : "MISS",
+                     caps.magAvailable ? "OK" : "MISS");
+            copyReason(reason, reasonLen, detail);
+
             if (!caps.magAvailable || !caps.baroAvailable) {
-                copyReason(reason, reasonLen, "SENSOR_CHECK_PARTIAL optional sensor missing");
                 return MAV_RESULT_ACCEPTED;
             }
-            copyReason(reason, reasonLen, "SENSOR_CHECK_OK");
             return MAV_RESULT_ACCEPTED;
         }
 
