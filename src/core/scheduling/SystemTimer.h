@@ -39,9 +39,9 @@ public:
 
     static volatile bool is_running;
 
-    // Core 1 her dongu turunda bu degeri gunceller. Watchdog beslemesi
-    // yalnizca WatchdogGate ucus dongusunu running + fresh heartbeat +
-    // timing-budget-ok olarak degerlendirirse yapilir.
+    // Core 1 her dongu turunda bu degeri gunceller. Hardware watchdog
+    // yalnizca ucus dongusu durursa veya heartbeat stale olursa beslenmez;
+    // timing budget ihlalleri health/preflight tarafinda raporlanir.
     static volatile uint32_t core1HeartbeatUs;
     static uint32_t getCore1HeartbeatUs();
 };

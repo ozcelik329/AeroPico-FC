@@ -20,12 +20,7 @@ WatchdogDecision WatchdogGate::evaluate(uint32_t nowUs,
         return decision;
     }
 
-    if (!timingBudgetsOk) {
-        decision.reason = "flight loop timing budget exceeded";
-        return decision;
-    }
-
     decision.shouldFeed = true;
-    decision.reason = "flight loop healthy";
+    decision.reason = timingBudgetsOk ? "flight loop healthy" : "flight loop timing warning";
     return decision;
 }
