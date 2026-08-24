@@ -254,6 +254,7 @@ static void runStatePublish() {
     flightManager.publishState();
 }
 static void runWatchdogGate() {
+#if WATCHDOG_HARDWARE_ENABLED
     WatchdogDecision watchdogDecision = evaluateWatchdogGate();
     if (watchdogDecision.shouldFeed) {
         watchdog_update();
@@ -267,6 +268,7 @@ static void runWatchdogGate() {
                       watchdogDecision.reason,
                       watchdogDecision.heartbeatAgeUs);
     }
+#endif
 }
 static void runMavlinkTelemetry() {
     mavlink.update();
@@ -510,10 +512,11 @@ void setup() {
     const AppTaskHandles taskHandles = AppTasks::create(taskSensor, taskFlight, taskTelemetry);
     sensorTaskHandle = taskHandles.sensor; flightTaskHandle = taskHandles.flight; telemetryTaskHandle = taskHandles.telemetry;
 
-    // Watchdog'u boot/sensor init sirasinda degil, scheduler task'lari
-    // yaratildiktan sonra ac. Aksi halde uzun boot veya USB enumere gecikmesi
-    // Windows'ta surekli baglan-kop reset dongusu yaratabilir.
+#if WATCHDOG_HARDWARE_ENABLED
     watchdog_enable(WATCHDOG_TIMEOUT_MS, true);
+#else
+    BootLogger::warn("Watchdog", "Hardware watchdog kapali; bench/diagnostic build");
+#endif
 
     vTaskStartScheduler();
 }
