@@ -42,6 +42,10 @@ class SensorManager : public IImuDriver, public IMagDriver, public IBaroDriver, 
     SensorCapabilityStatus capabilities() const;
     SensorFaultCode getFaultCode() const;
     const char* getFaultText() const;
+    uint8_t getI2cScanCount() const { return _i2cScanCount; }
+    uint8_t getI2cScanAddress(uint8_t index) const {
+        return index < _i2cScanCount ? _i2cScanAddresses[index] : 0;
+    }
     uint8_t getLastWhoAmI() const { return _lastWhoAmI; }
     bool runBootCalibration() override;
     bool beginImuCalibration();
@@ -95,6 +99,8 @@ class SensorManager : public IImuDriver, public IMagDriver, public IBaroDriver, 
     uint8_t _sdaPin = PIN_SDA;
     uint8_t _sclPin = PIN_SCL;
     bool _dmaFastPath = false;
+    uint8_t _i2cScanCount = 0;
+    uint8_t _i2cScanAddresses[16] = {};
 
     // Boot kalibrasyon ofsetleri
     float _gyroBiasX = 0.0f, _gyroBiasY = 0.0f, _gyroBiasZ = 0.0f;
@@ -113,6 +119,7 @@ class SensorManager : public IImuDriver, public IMagDriver, public IBaroDriver, 
     void _observeCalibrationRawFrame(const uint8_t raw[GyroAccelDriver::RAW_LEN]);
     void _finishAsyncImuCalibration();
     void _setFault(SensorFaultCode code);
+    void _scanI2cBus();
     IHALI2C& _bus();
     RP2350I2C* _rpBus();
 

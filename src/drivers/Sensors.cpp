@@ -250,6 +250,7 @@ void SensorManager::init() {
     _gyroAccelDriver.resetFilters();
 
     _bus().init(_sdaPin, _sclPin, 400000);
+    _scanI2cBus();
 
     uint8_t whoami = 0;
     const ImuDeviceProfile& imu = *_imuProfile;
@@ -314,6 +315,29 @@ void SensorManager::init() {
     // İlk DMA okumayı başlat
     if (_dmaFastPath) {
         _mpu_start_dma_read();
+    }
+}
+
+void SensorManager::_scanI2cBus() {
+    struct Probe {
+        uint8_t address;
+        uint8_t reg;
+    };
+    static constexpr Probe probes[] = {
+        {0x68, 0x75}, // MPU6050 WHOAMI
+        {0x77, 0xD0}, // BMP085/BMP180 chip ID
+        {0x1E, 0x0A}, // HMC5883L ID A
+        {0x0D, 0x00}, // QMC5883 family data/status area
+        {0x2C, 0x00}  // GY-87 clone/QMC variant seen on bench
+    };
+
+    _i2cScanCount = 0;
+    for (const Probe& probe : probes) {
+        uint8_t value = 0;
+        if (_bus().readRegisters(probe.address, probe.reg, &value, 1) &&
+            _i2cScanCount < sizeof(_i2cScanAddresses)) {
+            _i2cScanAddresses[_i2cScanCount++] = probe.address;
+        }
     }
 }
 

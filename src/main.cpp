@@ -84,6 +84,21 @@ static TaskHandle_t flightTaskHandle = nullptr;
 static TaskHandle_t telemetryTaskHandle = nullptr;
 static PreflightResult evaluatePreflight();
 
+static void sendI2cScanStatusText() {
+    char line[50] = {};
+    size_t used = snprintf(line, sizeof(line), "I2C_SCAN");
+    const uint8_t count = sensorManager.getI2cScanCount();
+    if (count == 0) {
+        snprintf(line, sizeof(line), "I2C_SCAN none");
+        mavlink.sendStatusText(line, MAV_SEVERITY_WARNING);
+        return;
+    }
+    for (uint8_t i = 0; i < count && used < sizeof(line); ++i) {
+        used += snprintf(line + used, sizeof(line) - used, " 0x%02X", sensorManager.getI2cScanAddress(i));
+    }
+    mavlink.sendStatusText(line, MAV_SEVERITY_INFO);
+}
+
 static WatchdogDecision evaluateWatchdogGate() {
     return WatchdogGate::evaluate(
         micros(),
@@ -470,6 +485,7 @@ void setup() {
     mavlink.init();
     mavlink.sendHeartbeat();
     mavlink.sendStatusText("Boot complete; scheduler starting", MAV_SEVERITY_INFO);
+    sendI2cScanStatusText();
 #if BLACKBOX_SD_ENABLED
     blackboxSpi.begin(PIN_BLACKBOX_SPI_SCK, PIN_BLACKBOX_SPI_MISO, PIN_BLACKBOX_SPI_MOSI);
     blackbox.setSink(&blackboxSdSink);
