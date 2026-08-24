@@ -1458,7 +1458,7 @@
       log(`USB serial baglandi @ ${baudRate.toLocaleString("tr-TR")} bps.`);
       toast("USB bağlantısı kuruldu.", "ok");
       readLoop();
-      requestParams();
+      log("Cihaz dinleniyor. Parametre okumak icin 'Parametreleri Oku'ya bas.");
     } catch (error) {
       log(`Baglanti hatasi: ${error.message}`);
       toast("Bağlantı kurulamadı.", "bad");
