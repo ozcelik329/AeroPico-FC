@@ -76,8 +76,6 @@ static bool magCalibrationActive = false;
 static uint8_t batteryAdcChannel = BATTERY_ADC_CHANNEL;
 static bool bootServoPinConfigValid = true;
 static BuzzerFeedback buzzerFeedback;
-static bool lastFeedbackArmState = false;
-static bool feedbackArmStateInitialized = false;
 static MavlinkServiceCommands mavlinkServiceCommands;
 static ServiceCommandMailbox serviceCommandMailbox;
 static ServiceCommandProcessor serviceCommandProcessor;
@@ -244,36 +242,6 @@ static void updatePreflightArmGate() {
     flightManager.setBenchForceArmAllowed(benchAdminGate.forceArmActive());
     flightManager.setPreflightArmAllowed(lastPreflightResult.canArm);
 }
-
-static void initArmStatusIndicators() {
-    pinMode(PIN_ARM_LED_RED, OUTPUT);
-    pinMode(PIN_ARM_LED_GREEN, OUTPUT);
-    digitalWrite(PIN_ARM_LED_RED, HIGH);
-    digitalWrite(PIN_ARM_LED_GREEN, LOW);
-    lastFeedbackArmState = false;
-    feedbackArmStateInitialized = true;
-}
-
-static void runArmStatusFeedback() {
-    const bool armed = flightManager.isArmed();
-    digitalWrite(PIN_ARM_LED_RED, armed ? LOW : HIGH);
-    digitalWrite(PIN_ARM_LED_GREEN, armed ? HIGH : LOW);
-
-    if (!feedbackArmStateInitialized) {
-        lastFeedbackArmState = armed;
-        feedbackArmStateInitialized = true;
-    } else if (armed != lastFeedbackArmState) {
-        if (armed) {
-            buzzerFeedback.playArmMelody();
-        } else {
-            buzzerFeedback.playDisarmMelody();
-        }
-        lastFeedbackArmState = armed;
-    }
-
-    buzzerFeedback.update(millis());
-}
-
 static void runSensorUpdate() { flightManager.updateSensors(); }
 static void runServiceCommandMailbox() { serviceCommandProcessor.process(); }
 static void runRcUpdate() { flightManager.updateRc(); }
@@ -367,7 +335,6 @@ void taskSensor(void* pvParameters) {
     core0Scheduler.addTask("rc", 150, runRcUpdate);
     core0Scheduler.addTask("state", 200, runStatePublish);
     core0Scheduler.addTask("preflight", 20, updatePreflightArmGate);
-    core0Scheduler.addTask("arm-feedback", 20000, runArmStatusFeedback);
     core0Scheduler.addTask("watchdog", 100, runWatchdogGate);
 
     for (;;) {
@@ -405,7 +372,6 @@ void setup() {
 
     Logger::init();
     benchAdminGate.init();
-    initArmStatusIndicators();
 #ifdef MAVLINK_PARAMS_ENABLED
     paramManager.setArmStateProvider(provideArmState);
     paramManager.setStorage(&paramStorage);
