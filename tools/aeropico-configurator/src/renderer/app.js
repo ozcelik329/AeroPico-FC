@@ -1425,10 +1425,16 @@
       return;
     }
 
-    const baudRate = currentBaudRate();
+    let baudRate = currentBaudRate();
     if (!baudRate) {
       log("Gecerli bir baud rate girin.");
       return;
+    }
+    if (baudRate === 1200) {
+      baudRate = 115200;
+      els.baudSelect.value = "115200";
+      els.customBaudField.classList.add("hidden");
+      log("1200 bps RP2350 bootloader reset tetikler; baglanti 115200 bps ile aciliyor.");
     }
 
     try {
@@ -1436,6 +1442,9 @@
       els.connectBtn.disabled = true;
       state.port = await navigator.serial.requestPort();
       await state.port.open({ baudRate });
+      if (typeof state.port.setSignals === "function") {
+        await state.port.setSignals({ dataTerminalReady: false, requestToSend: false }).catch(() => {});
+      }
       state.writer = state.port.writable.getWriter();
       state.reader = state.port.readable.getReader();
       state.connected = true;

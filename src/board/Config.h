@@ -23,7 +23,7 @@
 // --- User feedback GPIO ---
 #define PIN_BUZZER      22
 #define PIN_ARM_LED_RED   7
-#define PIN_ARM_LED_GREEN 0
+#define PIN_ARM_LED_GREEN 14
 
 // --- Debug Timing GPIO Pinleri ---
 #define PIN_DEBUG_CONSUME 2
