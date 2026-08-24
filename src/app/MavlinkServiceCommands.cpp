@@ -23,6 +23,25 @@ void MavlinkServiceCommands::copyReason(char* reason, size_t reasonLen, const ch
     }
 }
 
+void MavlinkServiceCommands::appendI2cScan(char* reason, size_t reasonLen) const {
+    if (!reason || reasonLen == 0 || !_context.sensors) {
+        return;
+    }
+    size_t used = strnlen(reason, reasonLen);
+    if (used >= reasonLen - 1) {
+        return;
+    }
+    const uint8_t count = _context.sensors->getI2cScanCount();
+    if (count == 0) {
+        snprintf(reason + used, reasonLen - used, " SCAN_NONE");
+        return;
+    }
+    used += snprintf(reason + used, reasonLen - used, " SCAN");
+    for (uint8_t i = 0; i < count && used < reasonLen - 1; ++i) {
+        used += snprintf(reason + used, reasonLen - used, "_%02X", _context.sensors->getI2cScanAddress(i));
+    }
+}
+
 uint8_t MavlinkServiceCommands::enqueue(uint16_t action,
                                         float p2,
                                         float p3,
@@ -176,7 +195,8 @@ uint8_t MavlinkServiceCommands::handle(uint16_t action,
             SensorCapabilityStatus caps = _context.sensors->capabilities();
             if (!caps.imuAvailable) {
                 char detail[50] = {};
-                snprintf(detail, sizeof(detail), "SENSOR_CHECK_FAIL IMU %s", _context.sensors->getFaultText());
+                snprintf(detail, sizeof(detail), "SENSOR_FAIL IMU");
+                appendI2cScan(detail, sizeof(detail));
                 copyReason(reason, reasonLen, detail);
                 return MAV_RESULT_DENIED;
             }
@@ -187,6 +207,7 @@ uint8_t MavlinkServiceCommands::handle(uint16_t action,
                      "SENSOR_CHECK IMU_OK BARO_%s MAG_%s",
                      caps.baroAvailable ? "OK" : "MISS",
                      caps.magAvailable ? "OK" : "MISS");
+            appendI2cScan(detail, sizeof(detail));
             copyReason(reason, reasonLen, detail);
 
             if (!caps.magAvailable || !caps.baroAvailable) {

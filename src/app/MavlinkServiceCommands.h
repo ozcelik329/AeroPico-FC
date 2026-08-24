@@ -31,6 +31,7 @@ class MavlinkServiceCommands {
 
     bool safeForService() const;
     void copyReason(char* reason, size_t reasonLen, const char* text) const;
+    void appendI2cScan(char* reason, size_t reasonLen) const;
     uint8_t enqueue(uint16_t action, float p2, float p3, float p4, char* reason, size_t reasonLen);
 };
 
