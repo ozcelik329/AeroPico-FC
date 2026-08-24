@@ -362,8 +362,6 @@ void setup() {
     Serial.begin(115200);
     delay(100);
 
-    watchdog_enable(WATCHDOG_TIMEOUT_MS, true);
-
     BootLogger::printBanner();
 
     if (watchdog_caused_reboot()) {
@@ -511,6 +509,11 @@ void setup() {
 
     const AppTaskHandles taskHandles = AppTasks::create(taskSensor, taskFlight, taskTelemetry);
     sensorTaskHandle = taskHandles.sensor; flightTaskHandle = taskHandles.flight; telemetryTaskHandle = taskHandles.telemetry;
+
+    // Watchdog'u boot/sensor init sirasinda degil, scheduler task'lari
+    // yaratildiktan sonra ac. Aksi halde uzun boot veya USB enumere gecikmesi
+    // Windows'ta surekli baglan-kop reset dongusu yaratabilir.
+    watchdog_enable(WATCHDOG_TIMEOUT_MS, true);
 
     vTaskStartScheduler();
 }
