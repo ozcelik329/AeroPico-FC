@@ -273,7 +273,6 @@ void ParamManager::_handleParamRequestList(const mavlink_message_t& msg) {
     mavlink_param_request_list_t request;
     mavlink_msg_param_request_list_decode(&msg, &request);
     if (request.target_system != 0 && request.target_system != MAV_SYSTEM_ID) return;
-    if (request.target_component != 0 && request.target_component != MAV_COMPONENT_ID) return;
     Serial.println("[PARAMS] GCS parametre listesi istedi.");
     sendAll();
 }
