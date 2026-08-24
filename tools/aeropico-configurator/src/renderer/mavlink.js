@@ -254,11 +254,11 @@
         return;
       }
 
-      if (msgId === MSG.STATUSTEXT && payload.length >= 51) {
+      if (msgId === MSG.STATUSTEXT && payload.length >= 2) {
         this.onMessage({
           type: "statusText",
           severity: view.getUint8(0),
-          text: readString(view, 1, 50)
+          text: readString(view, 1, Math.min(50, payload.length - 1))
         });
       }
     }
