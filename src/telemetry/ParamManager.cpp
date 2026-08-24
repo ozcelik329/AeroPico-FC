@@ -7,7 +7,11 @@
 ParamManager paramManager;
 
 void ParamManager::init() {
+#ifdef AEROPICO_FORCE_PROFILE_DEFAULTS
+    Serial.println("[PARAMS] Profil varsayilanlari zorlandi; kalici parametreler atlandi.");
+#else
     loadPersistent();
+#endif
     Serial.println("[PARAMS] Parametre yoneticisi baslatildi.");
     Serial.printf("[PARAMS] %d parametre yuklu.\n", PARAM_COUNT);
 }

@@ -22,6 +22,8 @@
 
 // --- User feedback GPIO ---
 #define PIN_BUZZER      22
+#define PIN_ARM_LED_RED   7
+#define PIN_ARM_LED_GREEN 0
 
 // --- Debug Timing GPIO Pinleri ---
 #define PIN_DEBUG_CONSUME 2
@@ -38,8 +40,12 @@
 // --- PIO UART MAVLink telemetry radio ---
 #define PIN_TELEM_TX      12
 #define PIN_TELEM_RX      13
+#ifndef TELEMETRY_UART_ENABLED
 #define TELEMETRY_UART_ENABLED 1
+#endif
+#ifndef TELEMETRY_UART_BAUD
 #define TELEMETRY_UART_BAUD 57600
+#endif
 
 // --- MAVLink bench / GCS transport ---
 #define MAVLINK_USB_ENABLED 1
@@ -51,12 +57,16 @@
 #define BLACKBOX_OUTPUT_TELEMETRY 1
 #define BLACKBOX_OUTPUT_SD        2
 #define BLACKBOX_OUTPUT_BOTH      3
+#ifndef BLACKBOX_OUTPUT_MODE
 #define BLACKBOX_OUTPUT_MODE BLACKBOX_OUTPUT_TELEMETRY
+#endif
 
 // --- Blackbox SD card over SPI ---
 // BLACKBOX_OUTPUT_SD veya BOTH secilecekse harici SD kart modulu takilmali.
 // Binary blackbox kayitlari /AEROPICO.BBX dosyasina eklenir.
+#ifndef BLACKBOX_SD_ENABLED
 #define BLACKBOX_SD_ENABLED 0
+#endif
 #define PIN_BLACKBOX_SPI_SCK  10
 #define PIN_BLACKBOX_SPI_MOSI 11
 #define PIN_BLACKBOX_SPI_MISO 14
@@ -72,7 +82,9 @@
 
 // --- Battery / Brownout ADC ---
 // Varsayilan acik: divider/pin hatasi preflight ve health tarafinda gorunur olmalidir.
+#ifndef BATTERY_ADC_ENABLED
 #define BATTERY_ADC_ENABLED 1
+#endif
 #define PIN_BATTERY_ADC 26
 #define BATTERY_ADC_CHANNEL 0
 #define BATTERY_VOLTAGE_DIVIDER_RATIO 11.0f
@@ -83,6 +95,25 @@
 #define BATTERY_MIN_VOLTAGE 10.5f
 #define BATTERY_MAX_VOLTAGE 12.8f
 #define BATTERY_BROWNOUT_VOLTAGE 9.6f
+
+// --- Default module setup profile ---
+// Runtime parametreler flash'a kaydedilebilir; bu varsayilanlar sadece temiz/force profile
+// acilisinda ilk setup snapshot'ini belirler.
+#ifndef AEROPICO_DEFAULT_EN_BARO
+#define AEROPICO_DEFAULT_EN_BARO 1
+#endif
+#ifndef AEROPICO_DEFAULT_EN_MAG
+#define AEROPICO_DEFAULT_EN_MAG 1
+#endif
+#ifndef AEROPICO_DEFAULT_EN_GPS
+#define AEROPICO_DEFAULT_EN_GPS GPS_MODULE_ENABLED
+#endif
+#ifndef AEROPICO_DEFAULT_EN_BATT
+#define AEROPICO_DEFAULT_EN_BATT 0
+#endif
+#ifndef AEROPICO_DEFAULT_EN_RC
+#define AEROPICO_DEFAULT_EN_RC 1
+#endif
 
 // Sensör filtreleme
 #define SENSOR_MEDIAN_WINDOW 3
