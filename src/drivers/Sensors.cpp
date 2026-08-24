@@ -249,7 +249,7 @@ void SensorManager::init() {
     _buf[1].health = SensorHealth::WarmingUp;
     _gyroAccelDriver.resetFilters();
 
-    _bus().init(_sdaPin, _sclPin, 400000);
+    _bus().init(_sdaPin, _sclPin, I2C_SENSOR_BAUD_HZ);
     _scanI2cBus();
 
     uint8_t whoami = 0;

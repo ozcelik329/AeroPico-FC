@@ -19,6 +19,7 @@
 // --- I2C Pin Atamaları ---
 #define PIN_SDA         4
 #define PIN_SCL         5
+#define I2C_SENSOR_BAUD_HZ 100000
 
 // --- User feedback GPIO ---
 #define PIN_BUZZER      22
