@@ -1443,7 +1443,7 @@
       state.port = await navigator.serial.requestPort();
       await state.port.open({ baudRate });
       if (typeof state.port.setSignals === "function") {
-        await state.port.setSignals({ dataTerminalReady: false, requestToSend: false }).catch(() => {});
+        await state.port.setSignals({ dataTerminalReady: true, requestToSend: false }).catch(() => {});
       }
       state.writer = state.port.writable.getWriter();
       state.reader = state.port.readable.getReader();
