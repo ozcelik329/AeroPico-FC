@@ -271,6 +271,11 @@ static void runWatchdogGate() {
 #endif
 }
 static void runMavlinkTelemetry() {
+    static bool announcedTelemetryTask = false;
+    if (!announcedTelemetryTask) {
+        announcedTelemetryTask = true;
+        mavlink.sendStatusText("Telemetry task alive", MAV_SEVERITY_INFO);
+    }
     mavlink.update();
     ServiceCommandCompletion completion = {};
     while (serviceCommandMailbox.takeCompletion(completion)) {
@@ -463,6 +468,8 @@ void setup() {
     mavlink.setRCOverrideEnabled(true);
     mavlink.setRCOverrideAllowedWhileArmed(false);
     mavlink.init();
+    mavlink.sendHeartbeat();
+    mavlink.sendStatusText("Boot complete; scheduler starting", MAV_SEVERITY_INFO);
 #if BLACKBOX_SD_ENABLED
     blackboxSpi.begin(PIN_BLACKBOX_SPI_SCK, PIN_BLACKBOX_SPI_MISO, PIN_BLACKBOX_SPI_MOSI);
     blackbox.setSink(&blackboxSdSink);
