@@ -43,6 +43,7 @@
 
 // --- MAVLink bench / GCS transport ---
 #define MAVLINK_USB_ENABLED 1
+#define MAVLINK_TELEMETRY_RX_ENABLED 0
 
 // --- Blackbox output routing ---
 // TELEMETRY: binary blackbox kayitlari MAVLink telemetri UART hattina akar.

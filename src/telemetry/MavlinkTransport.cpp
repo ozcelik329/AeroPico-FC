@@ -32,7 +32,11 @@ size_t MavlinkTransport::writePacket(const uint8_t* bytes, size_t len) {
 
 int MavlinkTransport::available() {
 #if MAVLINK_USB_ENABLED && TELEMETRY_UART_ENABLED
+#if MAVLINK_TELEMETRY_RX_ENABLED
     return telemetryUart.available() || Serial.available();
+#else
+    return Serial.available();
+#endif
 #elif MAVLINK_USB_ENABLED
     return Serial.available();
 #elif TELEMETRY_UART_ENABLED
@@ -44,6 +48,7 @@ int MavlinkTransport::available() {
 
 int MavlinkTransport::read() {
 #if MAVLINK_USB_ENABLED && TELEMETRY_UART_ENABLED
+#if MAVLINK_TELEMETRY_RX_ENABLED
     if (_readUsbNext && Serial.available()) {
         _readUsbNext = false;
         return Serial.read();
@@ -56,6 +61,9 @@ int MavlinkTransport::read() {
         return Serial.read();
     }
     return -1;
+#else
+    return Serial.available() ? Serial.read() : -1;
+#endif
 #elif MAVLINK_USB_ENABLED
     return Serial.available() ? Serial.read() : -1;
 #elif TELEMETRY_UART_ENABLED
