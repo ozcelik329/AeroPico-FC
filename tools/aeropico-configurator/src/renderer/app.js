@@ -1544,7 +1544,10 @@
   }
 
   function requestParams() {
+    writeFrame(encoder.heartbeat(), "GCS_HEARTBEAT");
     if (!writeFrame(encoder.paramRequestList(), "PARAM_REQUEST_LIST")) return;
+    window.setTimeout(() => writeFrame(encoder.paramRequestList(), "PARAM_REQUEST_LIST retry 1"), 250);
+    window.setTimeout(() => writeFrame(encoder.paramRequestList(), "PARAM_REQUEST_LIST retry 2"), 750);
     log("PARAM_REQUEST_LIST gonderildi.");
     toast("Parametre okuma isteği gönderildi.", "info");
   }

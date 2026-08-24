@@ -94,6 +94,18 @@
       return this.frame(MSG.PARAM_REQUEST_LIST, payload);
     }
 
+    heartbeat() {
+      const payload = new Uint8Array(9);
+      const view = new DataView(payload.buffer);
+      view.setUint32(0, 0, true);
+      view.setUint8(4, 6); // MAV_TYPE_GCS
+      view.setUint8(5, 8); // MAV_AUTOPILOT_INVALID
+      view.setUint8(6, 0);
+      view.setUint8(7, 4); // MAV_STATE_ACTIVE
+      view.setUint8(8, 3); // MAVLink version marker
+      return this.frame(MSG.HEARTBEAT, payload);
+    }
+
     paramSet(name, value, targetSystem = 1, targetComponent = 1) {
       const payload = new Uint8Array(23);
       const view = new DataView(payload.buffer);
