@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="146" height="24" viewBox="0 0 146 24" role="img" aria-label="TR: AeroPico FC">
+  <title>TR: AeroPico FC</title>
+  <linearGradient id="s" x2="0" y2="100%">
+    <stop offset="0" stop-color="#fff" stop-opacity=".08"/>
+    <stop offset="1" stop-color="#000" stop-opacity=".12"/>
+  </linearGradient>
+  <clipPath id="r">
+    <rect width="146" height="24" rx="4" fill="#fff"/>
+  </clipPath>
+  <g clip-path="url(#r)">
+    <rect width="42" height="24" fill="#e30a17"/>
+    <rect x="42" width="104" height="24" fill="#1f2937"/>
+    <rect width="146" height="24" fill="url(#s)"/>
+  </g>
+  <g fill="#fff">
+    <circle cx="13.2" cy="12" r="6.2"/>
+    <circle cx="15.2" cy="12" r="5.0" fill="#e30a17"/>
+    <polygon points="23.8,12 29.1,10.3 25.8,14.8 25.8,9.2 29.1,13.7"/>
+  </g>
+  <g fill="#fff" text-anchor="middle" font-family="Verdana,Geneva,DejaVu Sans,sans-serif" font-size="11" font-weight="700">
+    <text x="34" y="16" fill="#010101" fill-opacity=".25">TR</text>
+    <text x="34" y="15">TR</text>
+  </g>
+  <g fill="#fff" font-family="Verdana,Geneva,DejaVu Sans,sans-serif" font-size="11" font-weight="700">
+    <text x="51" y="16" fill="#010101" fill-opacity=".25">AeroPico FC</text>
+    <text x="51" y="15">AeroPico FC</text>
+  </g>
+</svg>
