@@ -1,13 +1,4 @@
-<details>
-<summary><b>Proje Rozetleri ve Durumu</b> (Görmek için tıklayın)</summary>
-
-[![TR](docs/assets/badges/aeropico-tr.svg)](https://aeropico-fc.vercel.app)  
-![PlatformIO](https://img.shields.io/badge/PlatformIO-orange)  
-![RP2350](https://img.shields.io/badge/Platform-RP2350%20%2F%20Pico%202-7546C6)  
-![C++](https://img.shields.io/badge/Language-C%2B%2B-00599C)  
-![MAVLink](https://img.shields.io/badge/Protocol-MAVLink-red)  
-![License](https://img.shields.io/badge/License-PolyForm%20Noncommercial%201.0.0-darkblue)  
-![Release](https://img.shields.io/badge/Release-v1.0.0--rc1-blue)
+[![TR](docs/assets/badges/aeropico-tr.svg)](https://aeropico-fc.vercel.app) ![RP2350](https://img.shields.io/badge/Platform-RP2350%20%2F%20Pico%202-7546C6) ![C++](https://img.shields.io/badge/Language-C%2B%2B-00599C) ![Release](https://img.shields.io/badge/Release-v1.0.0--rc1-blue)
 
 </details>
 <div align="center">
