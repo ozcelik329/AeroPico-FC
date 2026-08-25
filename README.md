@@ -1,7 +1,6 @@
 <p align="center">
   <a href="https://aeropico-fc.vercel.app"><img src="docs/assets/badges/aeropico-tr.svg" alt="TR"></a>
   <img src="https://img.shields.io/badge/Platform-RP2350%20%2F%20Pico%202-7546C6" alt="RP2350">
-  [![T3 Foundation](https://img.shields.io/badge/T3%20Foundation-black?style=flat&logo=t3dotgg&logoColor=white)](https://www.t3vakfi.org/en) 
   <img src="https://img.shields.io/badge/Language-C%2B%2B-00599C" alt="C++">
   <img src="https://img.shields.io/badge/Release-v1.0.0--rc1-blue" alt="Release">
 </p>
