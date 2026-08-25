@@ -75,6 +75,7 @@ static bool latestBatteryCritical = false;
 static bool magCalibrationActive = false;
 static uint8_t batteryAdcChannel = BATTERY_ADC_CHANNEL;
 static bool bootServoPinConfigValid = true;
+static bool mavlinkRuntimeConfigured = false;
 static BuzzerFeedback buzzerFeedback;
 static MavlinkServiceCommands mavlinkServiceCommands;
 static ServiceCommandMailbox serviceCommandMailbox;
@@ -83,6 +84,9 @@ static TaskHandle_t sensorTaskHandle = nullptr;
 static TaskHandle_t flightTaskHandle = nullptr;
 static TaskHandle_t telemetryTaskHandle = nullptr;
 static PreflightResult evaluatePreflight();
+static uint16_t provideEnabledSensorCapabilities();
+static void applyRCOverride(uint16_t aileron, uint16_t elevator, uint16_t throttle, uint16_t rudder);
+static void clearRCOverride();
 
 static void sendI2cScanStatusText() {
     char line[50] = {};
@@ -133,6 +137,24 @@ static bool handleMavlinkArmCommand(bool arm, bool force, char* reason, size_t r
 
 static uint8_t handleMavlinkServiceCommand(uint16_t action, float p2, float p3, float p4, char* reason, size_t reasonLen) {
     return mavlinkServiceCommands.handle(action, p2, p3, p4, reason, reasonLen);
+}
+
+static void configureMavlinkRuntime() {
+    if (mavlinkRuntimeConfigured) {
+        return;
+    }
+
+    mavlink.setFlightDataProvider(provideFlightData);
+    mavlink.setArmStateProvider(provideArmState);
+    mavlink.setArmCommandHandler(handleMavlinkArmCommand);
+    mavlink.setServiceCommandHandler(handleMavlinkServiceCommand);
+    mavlink.setRCOverrideHandler(applyRCOverride);
+    mavlink.setClearRCOverrideHandler(clearRCOverride);
+    mavlink.setSensorCapabilityProvider(provideEnabledSensorCapabilities);
+    mavlink.setRCOverrideEnabled(true);
+    mavlink.setRCOverrideAllowedWhileArmed(false);
+    mavlink.init();
+    mavlinkRuntimeConfigured = true;
 }
 
 #if BATTERY_ADC_ENABLED
@@ -428,6 +450,9 @@ void setup() {
     buzzerFeedback.init(PIN_BUZZER);
 #endif
     buzzerFeedback.bootChirp();
+    configureMavlinkRuntime();
+    mavlink.sendHeartbeat();
+    mavlink.sendStatusText("BOOT_STAGE mavlink ready", MAV_SEVERITY_INFO);
 #if BATTERY_ADC_ENABLED
     batteryAdc.init(
 #ifdef MAVLINK_PARAMS_ENABLED
@@ -441,7 +466,9 @@ void setup() {
 #else
     batteryMonitor.init();
 #endif
+    mavlink.sendStatusText("BOOT_STAGE sensors init start", MAV_SEVERITY_INFO);
     flightManager.init(&sensorManager, &rxManager);
+    mavlink.sendStatusText("BOOT_STAGE sensors init done", MAV_SEVERITY_INFO);
     preflightRuntime.init({
         &sensorManager,
         &gpsManager,
@@ -483,16 +510,6 @@ void setup() {
     serviceProcessorContext.mailbox = &serviceCommandMailbox;
     serviceCommandProcessor.init(serviceProcessorContext);
 
-    mavlink.setFlightDataProvider(provideFlightData);
-    mavlink.setArmStateProvider(provideArmState);
-    mavlink.setArmCommandHandler(handleMavlinkArmCommand);
-    mavlink.setServiceCommandHandler(handleMavlinkServiceCommand);
-    mavlink.setRCOverrideHandler(applyRCOverride);
-    mavlink.setClearRCOverrideHandler(clearRCOverride);
-    mavlink.setSensorCapabilityProvider(provideEnabledSensorCapabilities);
-    mavlink.setRCOverrideEnabled(true);
-    mavlink.setRCOverrideAllowedWhileArmed(false);
-    mavlink.init();
     mavlink.sendHeartbeat();
     mavlink.sendStatusText("Boot complete; scheduler starting", MAV_SEVERITY_INFO);
     sendI2cScanStatusText();
