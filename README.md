@@ -9,17 +9,6 @@
   <img src="https://github.com/user-attachments/assets/0a66fec3-2c89-4f69-b286-e269c3606a84" width="658" height="298" />
 </div>
 
-##### License
-
-**License:** PolyForm Noncommercial 1.0.0
-
-AeroPico-FC source code is publicly visible for noncommercial review,
-education, evaluation and research use.
-
-Commercial use, product integration, resale, flight-controller kit production,
-paid UAV operation or derivative commercial firmware requires explicit written
-permission from the copyright holder.
-
 # AeroPico FC : Fixed-Wing Flight Controller
 
 **AeroPico FC** is a source-available fixed-wing flight controller firmware for the
