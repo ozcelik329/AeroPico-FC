@@ -1,5 +1,5 @@
 [![TR](docs/assets/badges/aeropico-tr.svg)](https://aeropico-fc.vercel.app)
-![PlatformIO](https://img.shields.io/badge/PlatformIO-Compatible-orange)
+![PlatformIO](https://img.shields.io/badge/PlatformIO-orange)
 ![RP2350](https://img.shields.io/badge/Platform-RP2350%20%2F%20Pico%202-7546C6)
 ![C++](https://img.shields.io/badge/Language-C%2B%2B17-00599C)
 ![MAVLink](https://img.shields.io/badge/Protocol-MAVLink-red)
