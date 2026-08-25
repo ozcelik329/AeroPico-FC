@@ -1,8 +1,8 @@
 ![PlatformIO](https://img.shields.io/badge/PlatformIO-Compatible-orange)
 ![RP2350](https://img.shields.io/badge/Platform-RP2350%20%2F%20Pico%202-7546C6)
-![C++](https://img.shields.io/badge/Language-C%2B%2B-00599C)
+![C++](https://img.shields.io/badge/Language-C%2B%2B17-00599C)
 ![MAVLink](https://img.shields.io/badge/Protocol-MAVLink-red)
-![License](https://img.shields.io/badge/License-GPLv3-green)
+![License](https://img.shields.io/badge/License-PolyForm%20Noncommercial%201.0.0-blue)
 ![Release](https://img.shields.io/badge/Release-v1.0.0--rc1-blue)
 
 <div align="center">
@@ -11,17 +11,18 @@
 
 ##### License
 
-License: PolyForm Noncommercial 1.0.0
+**License:** PolyForm Noncommercial 1.0.0
 
-AeroPico-FC source code is publicly visible for review, education,
-evaluation, and non-commercial research use.
+AeroPico-FC source code is publicly visible for noncommercial review,
+education, evaluation and research use.
 
 Commercial use, product integration, resale, flight-controller kit production,
-or derivative commercial firmware requires written permission from the author.
+paid UAV operation or derivative commercial firmware requires explicit written
+permission from the copyright holder.
 
 # AeroPico FC : Fixed-Wing Flight Controller
 
-**AeroPico FC** is an open-source fixed-wing flight controller firmware for the
+**AeroPico FC** is a source-available fixed-wing flight controller firmware for the
 **RP2350 / Raspberry Pi Pico 2**. It uses the chip's dual-core architecture,
 PIO, DMA and a deterministic FreeRTOS task model to keep acquisition,
 estimation, control, telemetry and safety logic separated in a way that stays
@@ -35,6 +36,12 @@ integration and controlled engineering tests before real flight.
 > **Safety note:** This is not a certified flight system. Physical bench
 > validation, HIL evidence, airframe-specific tuning and field test records are
 > mandatory before any real flight or commercial use.
+
+> **License note:** The source is published for noncommercial review,
+> evaluation, education and research. Commercial use, product integration,
+> resale, flight-controller kit production, paid UAV operation or derivative
+> commercial firmware requires explicit written permission from the copyright
+> holder.
 
 ---
 
@@ -458,14 +465,22 @@ remain mandatory before declaring flight-ready v1.0 final.
 
 ## Contribute
 
-Issues and pull requests are welcome. If you want to understand how a small
-fixed-wing flight controller works from the ground up, this codebase is meant
-to be readable enough to learn from and serious enough to extend.
+Issues and technical feedback are welcome. Because this project is licensed for
+noncommercial use, proposed contributions must be compatible with the project
+license and may require explicit maintainer approval before they are merged.
 
 ---
 
 ## License
 
-AeroPico-FC is released under the MIT License. See `LICENSE`.
+AeroPico-FC and AeroPico Configurator are made available under the
+**PolyForm Noncommercial License 1.0.0**. See `LICENSE`.
+
+The source code is publicly visible for review, education, evaluation and
+noncommercial research use.
+
+Commercial use, product integration, resale, flight-controller kit production,
+paid UAV operation or derivative commercial firmware requires explicit written
+permission from the copyright holder.
 
 Developed by Muhammed Fatih Emre Ozcelik.
