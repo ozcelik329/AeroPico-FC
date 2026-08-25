@@ -11,10 +11,13 @@
 
 ##### License
 
-This project is licensed under the PolyForm Noncommercial License 1.0.0.
+License: PolyForm Noncommercial 1.0.0
 
-The source code is published for review, evaluation, and non-commercial research use.
-Commercial use, resale, product integration, flight-controller kit production, or derivative commercial firmware requires written permission from the copyright holder.
+AeroPico-FC source code is publicly visible for review, education,
+evaluation, and non-commercial research use.
+
+Commercial use, product integration, resale, flight-controller kit production,
+or derivative commercial firmware requires written permission from the author.
 
 # AeroPico FC : Fixed-Wing Flight Controller
 
