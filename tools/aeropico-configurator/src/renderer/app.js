@@ -1881,7 +1881,7 @@
     renderRows(els.terminalMavlinkList);
   }
 
-  function describeMavlinkMessage(message) {
+	  function describeMavlinkMessage(message) {
     if (message.type === "heartbeat") {
       const armed = (message.baseMode & 0x80) !== 0;
       const status = systemStatusText(message.systemStatus);
@@ -1919,19 +1919,89 @@
         advice: accepted ? "Komut firmware tarafından kabul edildi." : "Reddedildiyse preflight, armed state ve safety gate sebebini kontrol et."
       };
     }
-    if (message.type === "statusText") {
-      const upper = message.text.toUpperCase();
-      const bad = upper.includes("FAIL") || upper.includes("MISSING") || upper.includes("MISMATCH") || upper.includes("BROWNOUT");
-      const warn = bad || upper.includes("WARN") || upper.includes("DROPPED") || upper.includes("INVALID");
-      return {
-        kind: bad ? "bad" : warn ? "warn" : "ok",
-        title: "STATUSTEXT",
-        detail: message.text,
-        advice: adviceForStatusText(upper)
-      };
-    }
-    return null;
-  }
+	    if (message.type === "statusText") {
+	      const upper = message.text.toUpperCase();
+	      const i2c = parseI2cDiagnostics(upper);
+	      const bad = upper.includes("FAIL") || upper.includes("MISSING") || upper.includes("MISMATCH") || upper.includes("BROWNOUT") || i2c.ackNone;
+	      const warn = bad || upper.includes("WARN") || upper.includes("DROPPED") || upper.includes("INVALID") || i2c.hasI2c;
+	      return {
+	        kind: i2c.hasUsefulScan ? "ok" : bad ? "bad" : warn ? "warn" : "ok",
+	        title: i2c.hasI2c ? "I2C DIAGNOSTIC" : "STATUSTEXT",
+	        detail: message.text,
+	        advice: adviceForStatusText(upper)
+	      };
+	    }
+	    return null;
+	  }
+
+	  function parseI2cDiagnostics(text) {
+	    const result = {
+	      hasI2c: false,
+	      hasUsefulScan: false,
+	      ackNone: false,
+	      regNone: false,
+	      ack: new Set(),
+	      reg: new Set()
+	    };
+	    const scanGroups = [
+	      { key: "ack", patterns: [/I2C_ACK(?:\s+((?:0X[0-9A-F]{2}\s*)+|NONE))/g, /ACK_([0-9A-F_]+|NONE)/g] },
+	      { key: "reg", patterns: [/I2C_REG(?:\s+((?:0X[0-9A-F]{2}\s*)+|NONE))/g, /REG_([0-9A-F_]+|NONE)/g] }
+	    ];
+	    for (const group of scanGroups) {
+	      for (const pattern of group.patterns) {
+	        let match;
+	        while ((match = pattern.exec(text)) !== null) {
+	          result.hasI2c = true;
+	          const value = match[1] || "";
+	          if (value === "NONE") {
+	            if (group.key === "ack") result.ackNone = true;
+	            if (group.key === "reg") result.regNone = true;
+	            continue;
+	          }
+	          const addresses = value.includes("0X")
+	            ? value.match(/0X[0-9A-F]{2}/g) || []
+	            : value.split("_").filter(Boolean).map((part) => `0X${part}`);
+	          for (const address of addresses) {
+	            result[group.key].add(address.replace("0X", ""));
+	          }
+	        }
+	      }
+	    }
+	    result.hasUsefulScan = result.ack.size > 0 || result.reg.size > 0;
+	    return result;
+	  }
+
+	  function formatI2cAddressList(addresses) {
+	    const list = [...addresses].sort();
+	    return list.length ? list.map((address) => `0x${address}`).join(", ") : "none";
+	  }
+
+	  function logI2cDiagnostics(text) {
+	    const i2c = parseI2cDiagnostics(text);
+	    if (!i2c.hasI2c) return false;
+
+	    log(`I2C ACK scan: ${formatI2cAddressList(i2c.ack)}`);
+	    log(`I2C register probe: ${formatI2cAddressList(i2c.reg)}`);
+
+	    if (i2c.ackNone) {
+	      els.preflightText.textContent = "I2C ACK yok: Pico bus seviyesinde sensor gormuyor.";
+	      return true;
+	    }
+	    if (i2c.ack.has("68") && i2c.reg.has("68")) {
+	      state.modules.imu = "ok";
+	    } else if (i2c.ack.has("68")) {
+	      state.modules.imu = "bad";
+	    }
+	    if (i2c.ack.has("77") && i2c.reg.has("77")) {
+	      state.modules.baro = "ok";
+	    } else if (i2c.ack.has("77")) {
+	      state.modules.baro = "bad";
+	    }
+
+	    const summary = `I2C ACK ${formatI2cAddressList(i2c.ack)} | REG ${formatI2cAddressList(i2c.reg)}`;
+	    els.preflightText.textContent = summary;
+	    return true;
+	  }
 
   function systemStatusText(status) {
     switch (status) {
@@ -1955,8 +2025,17 @@
     return value.toFixed(3).replace(/0+$/, "").replace(/\.$/, "");
   }
 
-  function adviceForStatusText(text) {
-    if (text.includes("WHOAMI") || text.includes("IMU")) return "IMU kablo/I2C adresi ve GY-87 beslemesini kontrol et.";
+	  function adviceForStatusText(text) {
+	    const i2c = parseI2cDiagnostics(text);
+	    if (i2c.hasI2c) {
+	      const ackList = [...i2c.ack].join(", ") || "yok";
+	      const regList = [...i2c.reg].join(", ") || "yok";
+	      if (i2c.ackNone) return "Pico I2C hattinda ACK gormuyor; GP4/GP5, ortak GND, SDA/SCL ve flash pin parametrelerini kontrol et.";
+	      if (i2c.ack.has("68") && !i2c.reg.has("68")) return `ACK var (${ackList}) ama register probe eksik (${regList}); repeated-start/register okuma veya MPU backend akisini kontrol et.`;
+	      if (i2c.ack.has("68") && i2c.reg.has("68")) return `I2C temel erisim tamam (${ackList}); IMU hala yoksa init/DMA/backend sonraki adim.`;
+	      return `I2C scan: ACK ${ackList}, REG ${regList}.`;
+	    }
+	    if (text.includes("WHOAMI") || text.includes("IMU")) return "IMU kablo/I2C adresi ve GY-87 beslemesini kontrol et.";
     if (text.includes("BARO") || text.includes("BMP")) return "Barometre adresi 0x77 ve lehim/I2C hattını doğrula.";
     if (text.includes("MAG") || text.includes("HMC") || text.includes("QMC")) return "Mag opsiyonelse preflight politikasını, gerekliyse bypass/profil seçimini kontrol et.";
     if (text.includes("RC")) return "SBUS sinyali, inverter ve mode/throttle kanallarını kontrol et.";
@@ -2044,10 +2123,11 @@
       return;
     }
 
-    if (message.type === "statusText") {
-      log(`FC: ${message.text}`);
-      const text = message.text.toUpperCase();
-      if (text.includes("IMU CALIBRATION SAVED") || text.includes("SENSOR_CHECK_OK")) state.modules.imu = "ok";
+	    if (message.type === "statusText") {
+	      log(`FC: ${message.text}`);
+	      const text = message.text.toUpperCase();
+	      logI2cDiagnostics(text);
+	      if (text.includes("IMU CALIBRATION SAVED") || text.includes("SENSOR_CHECK_OK")) state.modules.imu = "ok";
       if (text.includes("IMU MISSING") || text.includes("WHOAMI")) state.modules.imu = "bad";
       if (text.includes("BMP") || text.includes("BARO")) state.modules.baro = text.includes("HAZIR") || text.includes("OK") ? "ok" : "bad";
       if (text.includes("MAG")) state.modules.mag = text.includes("MISSING") || text.includes("FAILED") ? "bad" : "ok";
