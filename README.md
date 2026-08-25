@@ -1,6 +1,6 @@
 ![PlatformIO](https://img.shields.io/badge/PlatformIO-Compatible-orange)
 ![RP2350](https://img.shields.io/badge/Platform-RP2350%20%2F%20Pico%202-7546C6)
-![C++](https://img.shields.io/badge/Language-C%2B%2B17-00599C)
+![C++](https://img.shields.io/badge/Language-C%2B%2B-00599C)
 ![MAVLink](https://img.shields.io/badge/Protocol-MAVLink-red)
 ![License](https://img.shields.io/badge/License-GPLv3-green)
 ![Release](https://img.shields.io/badge/Release-v1.0.0--rc1-blue)
