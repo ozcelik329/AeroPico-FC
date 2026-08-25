@@ -1,4 +1,5 @@
 #include "RuntimeHealthReporter.h"
+#include <cstring>
 #include "pico/time.h"
 #include "../core/events/SystemEventBus.h"
 #include "../core/safety/BatteryMonitor.h"
@@ -33,7 +34,7 @@ bool RuntimeHealthReporter::run(const PreflightResult& preflight,
         ? 0xFFFFu : (uint16_t)_context.events->droppedCount();
 
     if (!preflight.canArm) {
-        _context.mavlink->sendStatusText(preflight.firstFailureReason);
+        sendStatusTextThrottled(preflight.firstFailureReason);
     }
 
     if (battery.configured && !battery.healthy && !_batteryWarningLatched) {
@@ -49,7 +50,7 @@ bool RuntimeHealthReporter::run(const PreflightResult& preflight,
     }
 
     if (_context.sensors->getFaultCode() != SensorFaultCode::None) {
-        _context.mavlink->sendStatusText(_context.sensors->getFaultText());
+        sendStatusTextThrottled(_context.sensors->getFaultText());
     }
 
     if (!SystemTimer::checkTimingBudgets()) {
@@ -82,4 +83,46 @@ bool RuntimeHealthReporter::run(const PreflightResult& preflight,
 
 uint16_t RuntimeHealthReporter::clampStackWords(UBaseType_t value) {
     return value > 0xFFFFu ? 0xFFFFu : (uint16_t)value;
+}
+
+void RuntimeHealthReporter::sendStatusTextThrottled(const char* text) {
+    constexpr uint32_t REPEAT_MS = 5000;
+    if (!text || text[0] == '\0') {
+        return;
+    }
+
+    const uint32_t nowMs = millis();
+    StatusThrottleSlot* freeSlot = nullptr;
+    StatusThrottleSlot* oldestSlot = &_statusThrottleSlots[0];
+
+    for (StatusThrottleSlot& slot : _statusThrottleSlots) {
+        if (slot.text[0] == '\0') {
+            if (!freeSlot) {
+                freeSlot = &slot;
+            }
+            continue;
+        }
+
+        if (strncmp(text, slot.text, sizeof(slot.text)) == 0) {
+            if ((uint32_t)(nowMs - slot.lastSentMs) < REPEAT_MS) {
+                return;
+            }
+            slot.lastSentMs = nowMs;
+            _context.mavlink->sendStatusText(text);
+            return;
+        }
+
+        if ((uint32_t)(slot.lastSentMs - oldestSlot->lastSentMs) > 0) {
+            continue;
+        }
+        oldestSlot = &slot;
+    }
+
+    StatusThrottleSlot* slot = freeSlot ? freeSlot : oldestSlot;
+    strncpy(slot->text, text, sizeof(slot->text) - 1);
+    slot->text[sizeof(slot->text) - 1] = '\0';
+    slot->lastSentMs = nowMs;
+    if (_context.mavlink) {
+        _context.mavlink->sendStatusText(text);
+    }
 }

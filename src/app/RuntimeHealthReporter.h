@@ -28,13 +28,19 @@ class RuntimeHealthReporter {
              TaskHandle_t flightTask,
              TaskHandle_t telemetryTask);
 
-  private:
-    static uint16_t clampStackWords(UBaseType_t value);
+	  private:
+	    static uint16_t clampStackWords(UBaseType_t value);
+	    void sendStatusTextThrottled(const char* text);
+	    struct StatusThrottleSlot {
+	        char text[50] = {};
+	        uint32_t lastSentMs = 0;
+	    };
 
-    RuntimeHealthReporterContext _context = {};
-    RuntimeHealthStatus _runtimeHealth = {};
-    uint32_t _lastBlackboxDroppedRecords = 0;
-    bool _batteryWarningLatched = false;
-};
+	    RuntimeHealthReporterContext _context = {};
+	    RuntimeHealthStatus _runtimeHealth = {};
+	    uint32_t _lastBlackboxDroppedRecords = 0;
+	    StatusThrottleSlot _statusThrottleSlots[8] = {};
+	    bool _batteryWarningLatched = false;
+	};
 
 #endif
