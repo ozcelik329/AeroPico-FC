@@ -1,4 +1,4 @@
-![TR](https://img.shields.io/badge/%F0%9F%87%B9%F0%9F%87%B7%20AeroPico-FC-red)
+[![Türkiye AeroPico FC](docs/assets/badges/aeropico-tr.svg)](https://aeropico-fc.vercel.app)
 ![PlatformIO](https://img.shields.io/badge/PlatformIO-Compatible-orange)
 ![RP2350](https://img.shields.io/badge/Platform-RP2350%20%2F%20Pico%202-7546C6)
 ![C++](https://img.shields.io/badge/Language-C%2B%2B17-00599C)
