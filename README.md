@@ -4,15 +4,16 @@
 ![MAVLink](https://img.shields.io/badge/Protocol-MAVLink-red)
 ![License](https://img.shields.io/badge/License-GPLv3-green)
 ![Release](https://img.shields.io/badge/Release-v1.0.0--rc1-blue)
+
+<div align="center">
+  <img src="https://github.com/user-attachments/assets/0a66fec3-2c89-4f69-b286-e269c3606a84" width="658" height="298" />
+</div>
 ##### License
 
 This project is licensed under the PolyForm Noncommercial License 1.0.0.
 
 The source code is published for review, evaluation, and non-commercial research use.
 Commercial use, resale, product integration, flight-controller kit production, or derivative commercial firmware requires written permission from the copyright holder.
-<div align="center">
-  <img src="https://github.com/user-attachments/assets/0a66fec3-2c89-4f69-b286-e269c3606a84" width="658" height="298" />
-</div>
 
 # AeroPico FC : Fixed-Wing Flight Controller
 
