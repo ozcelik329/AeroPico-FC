@@ -1,6 +1,9 @@
 <p align="center">
-[![TR](docs/assets/badges/aeropico-tr.svg)](https://aeropico-fc.vercel.app) ![RP2350](https://img.shields.io/badge/Platform-RP2350%20%2F%20Pico%202-7546C6) ![C++](https://img.shields.io/badge/Language-C%2B%2B-00599C) ![Release](https://img.shields.io/badge/Release-v1.0.0--rc1-blue)
-<p>
+  <a href="https://aeropico-fc.vercel.app"><img src="docs/assets/badges/aeropico-tr.svg" alt="TR"></a>
+  <img src="https://img.shields.io/badge/Platform-RP2350%20%2F%20Pico%202-7546C6" alt="RP2350">
+  <img src="https://img.shields.io/badge/Language-C%2B%2B-00599C" alt="C++">
+  <img src="https://img.shields.io/badge/Release-v1.0.0--rc1-blue" alt="Release">
+</p>
 </details>
 <div align="center">
   <img src="https://github.com/user-attachments/assets/0a66fec3-2c89-4f69-b286-e269c3606a84" width="658" height="298" />
