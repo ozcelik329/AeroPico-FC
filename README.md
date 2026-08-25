@@ -1,4 +1,15 @@
-[![TR](docs/assets/badges/aeropico-tr.svg)](https://aeropico-fc.vercel.app) ![PlatformIO](https://img.shields.io/badge/PlatformIO-orange) ![RP2350](https://img.shields.io/badge/Platform-RP2350%20%2F%20Pico%202-7546C6) ![C++](https://img.shields.io/badge/Language-C%2B%2B-00599C) ![MAVLink](https://img.shields.io/badge/Protocol-MAVLink-red) ![License](https://img.shields.io/badge/License-PolyForm%20Noncommercial%201.0.0-darkblue) ![Release](https://img.shields.io/badge/Release-v1.0.0--rc1-blue)
+<details>
+<summary><b>Proje Rozetleri ve Durumu</b> (Görmek için tıklayın)</summary>
+
+[![TR](docs/assets/badges/aeropico-tr.svg)](https://aeropico-fc.vercel.app)  
+![PlatformIO](https://img.shields.io/badge/PlatformIO-orange)  
+![RP2350](https://img.shields.io/badge/Platform-RP2350%20%2F%20Pico%202-7546C6)  
+![C++](https://img.shields.io/badge/Language-C%2B%2B-00599C)  
+![MAVLink](https://img.shields.io/badge/Protocol-MAVLink-red)  
+![License](https://img.shields.io/badge/License-PolyForm%20Noncommercial%201.0.0-darkblue)  
+![Release](https://img.shields.io/badge/Release-v1.0.0--rc1-blue)
+
+</details>
 <div align="center">
   <img src="https://github.com/user-attachments/assets/0a66fec3-2c89-4f69-b286-e269c3606a84" width="658" height="298" />
 </div>
