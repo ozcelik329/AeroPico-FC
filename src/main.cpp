@@ -86,17 +86,27 @@ static PreflightResult evaluatePreflight();
 
 static void sendI2cScanStatusText() {
     char line[50] = {};
-    size_t used = snprintf(line, sizeof(line), "I2C_SCAN");
-    const uint8_t count = sensorManager.getI2cScanCount();
-    if (count == 0) {
-        snprintf(line, sizeof(line), "I2C_SCAN none");
-        mavlink.sendStatusText(line, MAV_SEVERITY_WARNING);
-        return;
+    size_t used = snprintf(line, sizeof(line), "I2C_ACK");
+    const uint8_t ackCount = sensorManager.getI2cAckScanCount();
+    if (ackCount == 0) {
+        mavlink.sendStatusText("I2C_ACK none", MAV_SEVERITY_WARNING);
+    } else {
+        for (uint8_t i = 0; i < ackCount && used < sizeof(line); ++i) {
+            used += snprintf(line + used, sizeof(line) - used, " 0x%02X", sensorManager.getI2cAckScanAddress(i));
+        }
+        mavlink.sendStatusText(line, MAV_SEVERITY_INFO);
     }
-    for (uint8_t i = 0; i < count && used < sizeof(line); ++i) {
-        used += snprintf(line + used, sizeof(line) - used, " 0x%02X", sensorManager.getI2cScanAddress(i));
+
+    used = snprintf(line, sizeof(line), "I2C_REG");
+    const uint8_t regCount = sensorManager.getI2cRegisterScanCount();
+    if (regCount == 0) {
+        mavlink.sendStatusText("I2C_REG none", MAV_SEVERITY_WARNING);
+    } else {
+        for (uint8_t i = 0; i < regCount && used < sizeof(line); ++i) {
+            used += snprintf(line + used, sizeof(line) - used, " 0x%02X", sensorManager.getI2cRegisterScanAddress(i));
+        }
+        mavlink.sendStatusText(line, MAV_SEVERITY_INFO);
     }
-    mavlink.sendStatusText(line, MAV_SEVERITY_INFO);
 }
 
 static WatchdogDecision evaluateWatchdogGate() {

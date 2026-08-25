@@ -21,6 +21,11 @@ bool RP2350I2C::readRaw(uint8_t address, uint8_t* data, size_t length, bool nost
     return i2c_read_blocking(_instance, address, data, length, nostop) == (int)length;
 }
 
+bool RP2350I2C::probeAddress(uint8_t address, uint timeoutUs) {
+    uint8_t value = 0;
+    return i2c_read_timeout_us(_instance, address, &value, 1, false, timeoutUs) == 1;
+}
+
 bool RP2350I2C::writeRegister(uint8_t address, uint8_t reg, uint8_t value) {
     const uint8_t bytes[2] = {reg, value};
     return writeRaw(address, bytes, sizeof(bytes), false);

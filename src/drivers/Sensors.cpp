@@ -250,7 +250,7 @@ void SensorManager::init() {
     _gyroAccelDriver.resetFilters();
 
     _bus().init(_sdaPin, _sclPin, I2C_SENSOR_BAUD_HZ);
-    _scanI2cBus();
+    scanI2cBus();
 
     uint8_t whoami = 0;
     const ImuDeviceProfile& imu = *_imuProfile;
@@ -318,7 +318,25 @@ void SensorManager::init() {
     }
 }
 
-void SensorManager::_scanI2cBus() {
+void SensorManager::scanI2cBus() {
+    _scanI2cAckBus();
+    _scanI2cRegisterProbes();
+}
+
+void SensorManager::_scanI2cAckBus() {
+    _i2cAckScanCount = 0;
+    RP2350I2C* rpBus = _rpBus();
+    for (uint8_t address = 0x08; address < 0x78; ++address) {
+        uint8_t value = 0;
+        const bool present = rpBus ? rpBus->probeAddress(address) : _bus().readRaw(address, &value, 1, false);
+        if (present &&
+            _i2cAckScanCount < sizeof(_i2cAckScanAddresses)) {
+            _i2cAckScanAddresses[_i2cAckScanCount++] = address;
+        }
+    }
+}
+
+void SensorManager::_scanI2cRegisterProbes() {
     struct Probe {
         uint8_t address;
         uint8_t reg;
@@ -331,12 +349,12 @@ void SensorManager::_scanI2cBus() {
         {0x2C, 0x00}  // GY-87 clone/QMC variant seen on bench
     };
 
-    _i2cScanCount = 0;
+    _i2cRegisterScanCount = 0;
     for (const Probe& probe : probes) {
         uint8_t value = 0;
         if (_bus().readRegisters(probe.address, probe.reg, &value, 1) &&
-            _i2cScanCount < sizeof(_i2cScanAddresses)) {
-            _i2cScanAddresses[_i2cScanCount++] = probe.address;
+            _i2cRegisterScanCount < sizeof(_i2cRegisterScanAddresses)) {
+            _i2cRegisterScanAddresses[_i2cRegisterScanCount++] = probe.address;
         }
     }
 }

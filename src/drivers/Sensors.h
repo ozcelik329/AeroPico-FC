@@ -42,9 +42,14 @@ class SensorManager : public IImuDriver, public IMagDriver, public IBaroDriver, 
     SensorCapabilityStatus capabilities() const;
     SensorFaultCode getFaultCode() const;
     const char* getFaultText() const;
-    uint8_t getI2cScanCount() const { return _i2cScanCount; }
-    uint8_t getI2cScanAddress(uint8_t index) const {
-        return index < _i2cScanCount ? _i2cScanAddresses[index] : 0;
+    void scanI2cBus();
+    uint8_t getI2cRegisterScanCount() const { return _i2cRegisterScanCount; }
+    uint8_t getI2cRegisterScanAddress(uint8_t index) const {
+        return index < _i2cRegisterScanCount ? _i2cRegisterScanAddresses[index] : 0;
+    }
+    uint8_t getI2cAckScanCount() const { return _i2cAckScanCount; }
+    uint8_t getI2cAckScanAddress(uint8_t index) const {
+        return index < _i2cAckScanCount ? _i2cAckScanAddresses[index] : 0;
     }
     uint8_t getLastWhoAmI() const { return _lastWhoAmI; }
     bool runBootCalibration() override;
@@ -99,8 +104,10 @@ class SensorManager : public IImuDriver, public IMagDriver, public IBaroDriver, 
     uint8_t _sdaPin = PIN_SDA;
     uint8_t _sclPin = PIN_SCL;
     bool _dmaFastPath = false;
-    uint8_t _i2cScanCount = 0;
-    uint8_t _i2cScanAddresses[16] = {};
+    uint8_t _i2cRegisterScanCount = 0;
+    uint8_t _i2cRegisterScanAddresses[16] = {};
+    uint8_t _i2cAckScanCount = 0;
+    uint8_t _i2cAckScanAddresses[32] = {};
 
     // Boot kalibrasyon ofsetleri
     float _gyroBiasX = 0.0f, _gyroBiasY = 0.0f, _gyroBiasZ = 0.0f;
@@ -119,7 +126,8 @@ class SensorManager : public IImuDriver, public IMagDriver, public IBaroDriver, 
     void _observeCalibrationRawFrame(const uint8_t raw[GyroAccelDriver::RAW_LEN]);
     void _finishAsyncImuCalibration();
     void _setFault(SensorFaultCode code);
-    void _scanI2cBus();
+    void _scanI2cRegisterProbes();
+    void _scanI2cAckBus();
     IHALI2C& _bus();
     RP2350I2C* _rpBus();
 

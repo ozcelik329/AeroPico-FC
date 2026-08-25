@@ -23,6 +23,34 @@ void MavlinkServiceCommands::copyReason(char* reason, size_t reasonLen, const ch
     }
 }
 
+static size_t appendScanList(char* reason,
+                             size_t reasonLen,
+                             size_t used,
+                             const char* label,
+                             uint8_t count,
+                             uint8_t (*addressAt)(void*, uint8_t),
+                             void* context) {
+    if (!reason || reasonLen == 0 || used >= reasonLen - 1) {
+        return used;
+    }
+    if (count == 0) {
+        return used + snprintf(reason + used, reasonLen - used, " %s_NONE", label);
+    }
+    used += snprintf(reason + used, reasonLen - used, " %s", label);
+    for (uint8_t i = 0; i < count && used < reasonLen - 1; ++i) {
+        used += snprintf(reason + used, reasonLen - used, "_%02X", addressAt(context, i));
+    }
+    return used;
+}
+
+static uint8_t ackAddressAt(void* context, uint8_t index) {
+    return static_cast<SensorManager*>(context)->getI2cAckScanAddress(index);
+}
+
+static uint8_t regAddressAt(void* context, uint8_t index) {
+    return static_cast<SensorManager*>(context)->getI2cRegisterScanAddress(index);
+}
+
 void MavlinkServiceCommands::appendI2cScan(char* reason, size_t reasonLen) const {
     if (!reason || reasonLen == 0 || !_context.sensors) {
         return;
@@ -31,15 +59,20 @@ void MavlinkServiceCommands::appendI2cScan(char* reason, size_t reasonLen) const
     if (used >= reasonLen - 1) {
         return;
     }
-    const uint8_t count = _context.sensors->getI2cScanCount();
-    if (count == 0) {
-        snprintf(reason + used, reasonLen - used, " SCAN_NONE");
-        return;
-    }
-    used += snprintf(reason + used, reasonLen - used, " SCAN");
-    for (uint8_t i = 0; i < count && used < reasonLen - 1; ++i) {
-        used += snprintf(reason + used, reasonLen - used, "_%02X", _context.sensors->getI2cScanAddress(i));
-    }
+    used = appendScanList(reason,
+                          reasonLen,
+                          used,
+                          "ACK",
+                          _context.sensors->getI2cAckScanCount(),
+                          ackAddressAt,
+                          _context.sensors);
+    appendScanList(reason,
+                   reasonLen,
+                   used,
+                   "REG",
+                   _context.sensors->getI2cRegisterScanCount(),
+                   regAddressAt,
+                   _context.sensors);
 }
 
 uint8_t MavlinkServiceCommands::enqueue(uint16_t action,
@@ -192,6 +225,7 @@ uint8_t MavlinkServiceCommands::handle(uint16_t action,
             return MAV_RESULT_ACCEPTED;
 
         case AEROPICO_CMD_SENSOR_CHECK: {
+            _context.sensors->scanI2cBus();
             SensorCapabilityStatus caps = _context.sensors->capabilities();
             if (!caps.imuAvailable) {
                 char detail[50] = {};
