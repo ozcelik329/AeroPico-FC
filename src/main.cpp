@@ -114,8 +114,12 @@ static void sendI2cScanStatusText() {
 
     uint8_t mpuId = 0;
     uint8_t baroId = 0;
-    const bool mpuRegOk = sensorManager.getI2cRegisterProbeValue(0x68, 0x75, mpuId);
+    bool mpuRegOk = sensorManager.getI2cRegisterProbeValue(0x68, 0x75, mpuId);
     const bool baroRegOk = sensorManager.getI2cRegisterProbeValue(0x77, 0xD0, baroId);
+    if (!mpuRegOk && sensorManager.isImuAvailable() && sensorManager.getLastWhoAmI() != 0) {
+        mpuId = sensorManager.getLastWhoAmI();
+        mpuRegOk = true;
+    }
     snprintf(line,
              sizeof(line),
              "I2C_ID MPU=%s%02X BARO=%s%02X",

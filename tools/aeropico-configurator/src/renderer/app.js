@@ -2083,6 +2083,11 @@
 	    return list.length ? list.map((address) => `0x${address}`).join(", ") : "none";
 	  }
 
+  function formatI2cAddressEvidence(addresses, hasDiagnostic) {
+    if (!hasDiagnostic) return "teşhis bekleniyor";
+    return formatI2cAddressList(addresses);
+  }
+
 	  function logI2cDiagnostics(text) {
 	    const i2c = parseI2cDiagnostics(text);
 	    if (!i2c.hasI2c) return false;
@@ -2146,6 +2151,7 @@
     if (!els.i2cDiagnosticList || !els.i2cSummary) return;
     const diag = state.i2cDiagnostics;
     const nowMs = Date.now();
+    const hasDiagnostic = diag.lastSeenMs > 0;
     const goodAge = diag.lastGoodMs ? `${Math.max(0, ((nowMs - diag.lastGoodMs) / 1000)).toFixed(1)} sn önce` : "yok";
     const badAge = diag.lastBadMs ? `${Math.max(0, ((nowMs - diag.lastBadMs) / 1000)).toFixed(1)} sn önce` : "yok";
     const imuIdentityOk = diag.ids.mpu === "68";
@@ -2157,9 +2163,9 @@
     const imuRuntime = state.modules.imu === "ok" ? "healthy" : hasI2cEvidence("imu") ? "identity-only" : "missing";
     const baroRuntime = state.modules.baro === "ok" ? "healthy" : hasI2cEvidence("baro") ? "identity-only" : "missing";
     const rows = [
-      i2cDiagnosticRow("Bus ACK", formatI2cAddressList(diag.ack), imuBusOk && baroBusOk ? "ok" : diag.ack.size > 0 ? "warn" : diag.lastSeenMs ? "bad" : "muted", "I2C hattında cevap veren adresler. GY-87 için 0x68 ve 0x77 beklenir."),
-      i2cDiagnosticRow("MPU register", `0x68 / 0x75 -> ${formatI2cId(diag.ids.mpu)}`, imuIdentityOk ? "ok" : imuRegOk ? "warn" : imuBusOk ? "warn" : "bad", "MPU6050 WHOAMI registerı. Doğru kimlik 0x68 olmalı."),
-      i2cDiagnosticRow("BARO register", `0x77 / 0xD0 -> ${formatI2cId(diag.ids.baro)}`, baroIdentityOk ? "ok" : baroRegOk ? "warn" : baroBusOk ? "warn" : "bad", "BMP180/BMP085 chip ID registerı. Doğru kimlik 0x55 olmalı."),
+      i2cDiagnosticRow("Bus ACK", formatI2cAddressEvidence(diag.ack, hasDiagnostic), imuBusOk && baroBusOk ? "ok" : diag.ack.size > 0 ? "warn" : hasDiagnostic ? "bad" : "muted", "I2C hattında cevap veren adresler. GY-87 için 0x68 ve 0x77 beklenir."),
+      i2cDiagnosticRow("MPU register", `0x68 / 0x75 -> ${hasDiagnostic || diag.ids.mpu ? formatI2cId(diag.ids.mpu) : "teşhis bekleniyor"}`, imuIdentityOk ? "ok" : imuRegOk ? "warn" : imuBusOk ? "warn" : hasDiagnostic ? "bad" : state.modules.imu === "ok" ? "warn" : "muted", "MPU6050 WHOAMI registerı. Doğru kimlik 0x68 olmalı."),
+      i2cDiagnosticRow("BARO register", `0x77 / 0xD0 -> ${hasDiagnostic || diag.ids.baro ? formatI2cId(diag.ids.baro) : "teşhis bekleniyor"}`, baroIdentityOk ? "ok" : baroRegOk ? "warn" : baroBusOk ? "warn" : hasDiagnostic ? "bad" : "muted", "BMP180/BMP085 chip ID registerı. Doğru kimlik 0x55 olmalı."),
       i2cDiagnosticRow("Runtime IMU", imuRuntime, state.modules.imu === "ok" ? "ok" : hasI2cEvidence("imu") ? "warn" : "bad", "Firmware SYS_STATUS içinde gerçek IMU health durumu."),
       i2cDiagnosticRow("Runtime BARO", baroRuntime, state.modules.baro === "ok" ? "ok" : hasI2cEvidence("baro") ? "warn" : "bad", "Firmware SYS_STATUS içinde gerçek barometre health durumu."),
       i2cDiagnosticRow("Son iyi teşhis", goodAge, diag.lastGoodMs ? "ok" : "muted", "ACK/REG/ID içeren son geçerli teşhis zamanı."),
