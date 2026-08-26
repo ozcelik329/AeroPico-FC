@@ -32,6 +32,24 @@ void test_ringbuffer_peek_does_not_consume() {
     TEST_ASSERT_TRUE(buf.isEmpty());
 }
 
+void test_ringbuffer_peek_returns_next_fifo_item() {
+    ThreadSafeRingBuffer<Sample, 4> buf;
+    TEST_ASSERT_TRUE(buf.push({1}));
+    TEST_ASSERT_TRUE(buf.push({2}));
+    TEST_ASSERT_TRUE(buf.push({3}));
+
+    Sample peeked{0};
+    TEST_ASSERT_TRUE(buf.peek(peeked));
+    TEST_ASSERT_EQUAL_INT(1, peeked.value);
+
+    Sample out{0};
+    TEST_ASSERT_TRUE(buf.pop(out));
+    TEST_ASSERT_EQUAL_INT(1, out.value);
+
+    TEST_ASSERT_TRUE(buf.peek(peeked));
+    TEST_ASSERT_EQUAL_INT(2, peeked.value);
+}
+
 void test_ringbuffer_full_rejects_push() {
     ThreadSafeRingBuffer<Sample, 4> buf;
     TEST_ASSERT_EQUAL_UINT8(3, buf.capacity());
@@ -68,6 +86,7 @@ int main() {
     UNITY_BEGIN();
     RUN_TEST(test_ringbuffer_push_pop_single_consumer);
     RUN_TEST(test_ringbuffer_peek_does_not_consume);
+    RUN_TEST(test_ringbuffer_peek_returns_next_fifo_item);
     RUN_TEST(test_ringbuffer_full_rejects_push);
     RUN_TEST(test_ringbuffer_wraps_power_of_two_capacity);
     return UNITY_END();
