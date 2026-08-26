@@ -2088,7 +2088,7 @@
     return formatI2cAddressList(addresses);
   }
 
-	  function logI2cDiagnostics(text) {
+  function logI2cDiagnostics(text) {
 	    const i2c = parseI2cDiagnostics(text);
 	    if (!i2c.hasI2c) return false;
 
@@ -2142,6 +2142,17 @@
       renderArmChecklist();
 	    return true;
 	  }
+
+  function applySensorCheckStatus(text) {
+    if (!text.includes("SENSOR_CHECK")) return false;
+    if (text.includes("IMU_OK")) setModuleState("imu", "ok");
+    if (text.includes("IMU_MISS") || text.includes("SENSOR_FAIL IMU")) setModuleState("imu", "bad");
+    if (text.includes("BARO_OK")) setModuleState("baro", "ok");
+    if (text.includes("BARO_MISS") && !hasI2cEvidence("baro")) setModuleState("baro", "bad");
+    if (text.includes("MAG_OK")) state.modules.mag = "ok";
+    if (text.includes("MAG_MISS")) state.modules.mag = hasI2cEvidence("mag") ? "detected" : "bad";
+    return true;
+  }
 
   function formatI2cId(value) {
     return value ? `0x${value}` : "--";
@@ -2244,6 +2255,7 @@
   }
 
   function preserveDetected(moduleId, fallback) {
+    if (state.modules[moduleId] === "ok") return "ok";
     return state.modules[moduleId] === "detected" ? "detected" : fallback;
   }
 
@@ -2255,10 +2267,17 @@
     if (moduleId === "baro") {
       return diag.ack.has("77") || diag.reg.has("77") || diag.ids.baro === "55";
     }
+    if (moduleId === "mag") {
+      return diag.ack.has("1E") || diag.ack.has("0D") || diag.ack.has("2C") ||
+        diag.reg.has("1E") || diag.reg.has("0D") || diag.reg.has("2C");
+    }
     return false;
   }
 
   function setModuleState(moduleId, value) {
+    if (state.modules[moduleId] === "ok" && value === "detected") {
+      return;
+    }
     if ((moduleId === "imu" || moduleId === "baro") && value === "bad" && hasI2cEvidence(moduleId)) {
       state.modules[moduleId] = "detected";
       return;
@@ -2344,6 +2363,7 @@
     if (message.type === "statusText") {
       log(`FC: ${message.text}`);
       const text = message.text.toUpperCase();
+      const handledSensorCheck = applySensorCheckStatus(text);
       const handledI2c = logI2cDiagnostics(text);
       if (!handledI2c) {
         if (text.includes("IMU CALIBRATION SAVED") || text.includes("SENSOR_CHECK_OK")) setModuleState("imu", "ok");
@@ -2365,6 +2385,11 @@
       }
       if (text.includes("SENSOR_CHECK_PARTIAL")) {
         els.preflightText.textContent = "Sensor kontrolu kismi basarili: opsiyonel sensorlerden biri eksik.";
+      }
+      if (handledSensorCheck) {
+        renderModules();
+        renderI2cDiagnostics();
+        renderArmChecklist();
       }
       if (text.includes("PREFLIGHT_OK")) {
         state.lastPreflightText = "PREFLIGHT_OK";
