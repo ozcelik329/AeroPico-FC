@@ -2128,14 +2128,14 @@
 	    }
     const ack = state.i2cDiagnostics.ack;
     const reg = state.i2cDiagnostics.reg;
-    if (ack.has("68")) {
+    if (ack.has("68") && state.modules.imu !== "ok") {
       setModuleState("imu", "detected");
     }
-    if (state.i2cDiagnostics.ids.mpu === "68") setModuleState("imu", "detected");
-    if (ack.has("77")) {
+    if (state.i2cDiagnostics.ids.mpu === "68" && state.modules.imu !== "ok") setModuleState("imu", "detected");
+    if (ack.has("77") && state.modules.baro !== "ok") {
       setModuleState("baro", "detected");
     }
-    if (state.i2cDiagnostics.ids.baro === "55") setModuleState("baro", "detected");
+    if (state.i2cDiagnostics.ids.baro === "55" && state.modules.baro !== "ok") setModuleState("baro", "detected");
 
 	    const summary = `I2C ACK ${formatI2cAddressList(ack)} | REG ${formatI2cAddressList(reg)} | MPU ${formatI2cId(state.i2cDiagnostics.ids.mpu)} | BARO ${formatI2cId(state.i2cDiagnostics.ids.baro)}`;
 	    els.preflightText.textContent = summary;
