@@ -53,9 +53,26 @@ void test_gps_manager_sets_gps_capability_after_fix() {
     TEST_ASSERT_TRUE(hasSensorCapability(capability.functionMask, SENSOR_CAP_GPS));
 }
 
+void test_gps_manager_clears_capability_when_fix_goes_stale() {
+    FakeGpsUart uart;
+    uart.sentence = "$GPGGA,123519,4807.038,N,01131.000,E,1,08,0.9,545.4,M,46.9,M,,*47\n";
+    GpsManager gps;
+    gps.init(&uart, true, 9600);
+    gps.update(1000);
+    TEST_ASSERT_TRUE(gps.capabilities().gpsAvailable);
+
+    gps.update(1000 + GPS_FIX_STALE_TIMEOUT_MS + 1);
+
+    SensorCapabilityStatus capability = gps.capabilities();
+    TEST_ASSERT_FALSE(gps.status().fix.valid);
+    TEST_ASSERT_FALSE(capability.gpsAvailable);
+    TEST_ASSERT_FALSE(hasSensorCapability(capability.functionMask, SENSOR_CAP_GPS));
+}
+
 int main() {
     UNITY_BEGIN();
     RUN_TEST(test_gps_manager_reports_no_capability_until_valid_fix);
     RUN_TEST(test_gps_manager_sets_gps_capability_after_fix);
+    RUN_TEST(test_gps_manager_clears_capability_when_fix_goes_stale);
     return UNITY_END();
 }

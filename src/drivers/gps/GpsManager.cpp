@@ -22,6 +22,11 @@ void GpsManager::update(uint32_t nowMs) {
             _status.lastFixMs = nowMs;
         }
     }
+    if (_status.fix.valid &&
+        _status.lastFixMs > 0 &&
+        (uint32_t)(nowMs - _status.lastFixMs) > GPS_FIX_STALE_TIMEOUT_MS) {
+        _status.fix.valid = false;
+    }
     _status.sentences = _parser.sentences();
     _status.checksumErrors = _parser.checksumErrors();
 }
