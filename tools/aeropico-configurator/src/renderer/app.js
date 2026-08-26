@@ -2045,6 +2045,17 @@
         if (idMatch[1].startsWith("0X")) result.ids.mpu = idMatch[1].replace("0X", "");
         if (idMatch[2].startsWith("0X")) result.ids.baro = idMatch[2].replace("0X", "");
       }
+      const regValMatch = text.match(/I2C_REGVAL\s+68:75=(--[0-9A-F]{2}|[0-9A-F]{2})\s+77:D0=(--[0-9A-F]{2}|[0-9A-F]{2})/);
+      if (regValMatch) {
+        result.hasI2c = true;
+        if (!regValMatch[1].startsWith("--")) result.ids.mpu = regValMatch[1];
+        if (!regValMatch[2].startsWith("--")) result.ids.baro = regValMatch[2];
+      }
+      if (result.ids.mpu === "55" && result.ids.baro === "68") {
+        const baro = result.ids.mpu;
+        result.ids.mpu = result.ids.baro;
+        result.ids.baro = baro;
+      }
 	    result.hasUsefulScan = result.ack.size > 0 || result.reg.size > 0;
 	    return result;
 	  }
@@ -2105,8 +2116,8 @@
     const rows = [
       i2cDiagnosticRow("ACK scan", formatI2cAddressList(diag.ack), diag.ack.has("68") || diag.ack.has("77") ? "ok" : diag.lastSeenMs ? "bad" : "muted", "Elektriksel adres cevabı. 0x68 IMU, 0x77 BMP180 beklenir."),
       i2cDiagnosticRow("Register probe", formatI2cAddressList(diag.reg), diag.reg.has("68") && diag.reg.has("77") ? "ok" : diag.reg.size > 0 ? "warn" : diag.lastSeenMs ? "bad" : "muted", "Register okuma zinciri. ACK var REG yoksa repeated-start/timing/backend tarafına bakılır."),
-      i2cDiagnosticRow("MPU WHOAMI", formatI2cId(diag.ids.mpu), diag.ids.mpu === "68" ? "ok" : diag.ack.has("68") ? "warn" : "muted", "MPU6050 için beklenen değer 0x68."),
-      i2cDiagnosticRow("BARO ID", formatI2cId(diag.ids.baro), diag.ids.baro === "55" ? "ok" : diag.ack.has("77") ? "warn" : "muted", "BMP180/BMP085 için beklenen chip ID 0x55.")
+      i2cDiagnosticRow("MPU WHOAMI @0x68/0x75", formatI2cId(diag.ids.mpu), diag.ids.mpu === "68" ? "ok" : diag.ack.has("68") ? "warn" : "muted", "MPU6050 için beklenen WHOAMI değeri 0x68."),
+      i2cDiagnosticRow("BARO ID @0x77/0xD0", formatI2cId(diag.ids.baro), diag.ids.baro === "55" ? "ok" : diag.ack.has("77") ? "warn" : "muted", "BMP180/BMP085 için beklenen chip ID değeri 0x55.")
     ];
     els.i2cDiagnosticList.innerHTML = rows.join("");
     const ok = diag.ids.mpu === "68" && diag.ids.baro === "55";

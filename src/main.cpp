@@ -114,14 +114,23 @@ static void sendI2cScanStatusText() {
 
     uint8_t mpuId = 0;
     uint8_t baroId = 0;
-    const bool mpuRegOk = sensorManager.getI2cRegisterProbeValue(0x68, mpuId);
-    const bool baroRegOk = sensorManager.getI2cRegisterProbeValue(0x77, baroId);
+    const bool mpuRegOk = sensorManager.getI2cRegisterProbeValue(0x68, 0x75, mpuId);
+    const bool baroRegOk = sensorManager.getI2cRegisterProbeValue(0x77, 0xD0, baroId);
     snprintf(line,
              sizeof(line),
              "I2C_ID MPU=%s%02X BARO=%s%02X",
              mpuRegOk ? "0x" : "--",
              mpuRegOk ? mpuId : 0,
              baroRegOk ? "0x" : "--",
+             baroRegOk ? baroId : 0);
+    mavlink.sendStatusText(line, (mpuRegOk || baroRegOk) ? MAV_SEVERITY_INFO : MAV_SEVERITY_WARNING);
+
+    snprintf(line,
+             sizeof(line),
+             "I2C_REGVAL 68:75=%s%02X 77:D0=%s%02X",
+             mpuRegOk ? "" : "--",
+             mpuRegOk ? mpuId : 0,
+             baroRegOk ? "" : "--",
              baroRegOk ? baroId : 0);
     mavlink.sendStatusText(line, (mpuRegOk || baroRegOk) ? MAV_SEVERITY_INFO : MAV_SEVERITY_WARNING);
 }

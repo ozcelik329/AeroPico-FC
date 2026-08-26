@@ -101,9 +101,9 @@ bool SensorManager::_readRawFrame(uint8_t raw[GyroAccelDriver::RAW_LEN]) {
 bool SensorManager::isImuAvailable() const { return _imuAvailable; }
 bool SensorManager::isDmaOk() const { return _dmaBus.hasMpuChannels(); }
 
-bool SensorManager::getI2cRegisterProbeValue(uint8_t address, uint8_t& value) const {
+bool SensorManager::getI2cRegisterProbeValue(uint8_t address, uint8_t reg, uint8_t& value) const {
     for (uint8_t i = 0; i < _i2cRegisterScanCount; ++i) {
-        if (_i2cRegisterScanAddresses[i] == address) {
+        if (_i2cRegisterScanAddresses[i] == address && _i2cRegisterScanRegisters[i] == reg) {
             value = _i2cRegisterScanValues[i];
             return true;
         }
@@ -368,7 +368,9 @@ void SensorManager::_scanI2cRegisterProbes() {
         uint8_t value = 0;
         if (_bus().readRegisters(probe.address, probe.reg, &value, 1) &&
             _i2cRegisterScanCount < sizeof(_i2cRegisterScanAddresses)) {
-            _i2cRegisterScanAddresses[_i2cRegisterScanCount++] = probe.address;
+            _i2cRegisterScanAddresses[_i2cRegisterScanCount] = probe.address;
+            _i2cRegisterScanRegisters[_i2cRegisterScanCount] = probe.reg;
+            _i2cRegisterScanCount++;
             _i2cRegisterScanValues[_i2cRegisterScanCount - 1] = value;
         }
     }
