@@ -47,6 +47,10 @@ class SensorManager : public IImuDriver, public IMagDriver, public IBaroDriver, 
     uint8_t getI2cRegisterScanAddress(uint8_t index) const {
         return index < _i2cRegisterScanCount ? _i2cRegisterScanAddresses[index] : 0;
     }
+    uint8_t getI2cRegisterScanValue(uint8_t index) const {
+        return index < _i2cRegisterScanCount ? _i2cRegisterScanValues[index] : 0;
+    }
+    bool getI2cRegisterProbeValue(uint8_t address, uint8_t& value) const;
     uint8_t getI2cAckScanCount() const { return _i2cAckScanCount; }
     uint8_t getI2cAckScanAddress(uint8_t index) const {
         return index < _i2cAckScanCount ? _i2cAckScanAddresses[index] : 0;
@@ -106,6 +110,7 @@ class SensorManager : public IImuDriver, public IMagDriver, public IBaroDriver, 
     bool _dmaFastPath = false;
     uint8_t _i2cRegisterScanCount = 0;
     uint8_t _i2cRegisterScanAddresses[16] = {};
+    uint8_t _i2cRegisterScanValues[16] = {};
     uint8_t _i2cAckScanCount = 0;
     uint8_t _i2cAckScanAddresses[32] = {};
 

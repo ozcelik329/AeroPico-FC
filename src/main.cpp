@@ -111,6 +111,19 @@ static void sendI2cScanStatusText() {
         }
         mavlink.sendStatusText(line, MAV_SEVERITY_INFO);
     }
+
+    uint8_t mpuId = 0;
+    uint8_t baroId = 0;
+    const bool mpuRegOk = sensorManager.getI2cRegisterProbeValue(0x68, mpuId);
+    const bool baroRegOk = sensorManager.getI2cRegisterProbeValue(0x77, baroId);
+    snprintf(line,
+             sizeof(line),
+             "I2C_ID MPU=%s%02X BARO=%s%02X",
+             mpuRegOk ? "0x" : "--",
+             mpuRegOk ? mpuId : 0,
+             baroRegOk ? "0x" : "--",
+             baroRegOk ? baroId : 0);
+    mavlink.sendStatusText(line, (mpuRegOk || baroRegOk) ? MAV_SEVERITY_INFO : MAV_SEVERITY_WARNING);
 }
 
 static WatchdogDecision evaluateWatchdogGate() {
@@ -136,7 +149,11 @@ static bool handleMavlinkArmCommand(bool arm, bool force, char* reason, size_t r
 }
 
 static uint8_t handleMavlinkServiceCommand(uint16_t action, float p2, float p3, float p4, char* reason, size_t reasonLen) {
-    return mavlinkServiceCommands.handle(action, p2, p3, p4, reason, reasonLen);
+    const uint8_t result = mavlinkServiceCommands.handle(action, p2, p3, p4, reason, reasonLen);
+    if (action == AEROPICO_CMD_SENSOR_CHECK) {
+        sendI2cScanStatusText();
+    }
+    return result;
 }
 
 static void configureMavlinkRuntime() {

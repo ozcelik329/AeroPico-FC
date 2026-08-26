@@ -363,7 +363,7 @@ void MavlinkHandler::sendSysStatus(bool armed, bool failsafe, SensorHealth senso
         sensorBits |= MAV_SYS_STATUS_SENSOR_GPS;
     }
     const bool sensorsHealthy = sensorHealth == SensorHealth::Ok;
-    const uint32_t healthBits = (sensorsHealthy && !failsafe) ? sensorBits : 0;
+    const uint32_t healthBits = sensorsHealthy ? sensorBits : 0;
     const uint16_t loadPermille = armed ? 500 : 0;
     const uint16_t commDropPermille = failsafe ? 1000 : 0;
 

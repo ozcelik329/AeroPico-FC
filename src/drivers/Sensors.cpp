@@ -101,6 +101,16 @@ bool SensorManager::_readRawFrame(uint8_t raw[GyroAccelDriver::RAW_LEN]) {
 bool SensorManager::isImuAvailable() const { return _imuAvailable; }
 bool SensorManager::isDmaOk() const { return _dmaBus.hasMpuChannels(); }
 
+bool SensorManager::getI2cRegisterProbeValue(uint8_t address, uint8_t& value) const {
+    for (uint8_t i = 0; i < _i2cRegisterScanCount; ++i) {
+        if (_i2cRegisterScanAddresses[i] == address) {
+            value = _i2cRegisterScanValues[i];
+            return true;
+        }
+    }
+    return false;
+}
+
 SensorCapabilityStatus SensorManager::capabilities() const {
     SensorCapabilityStatus status = {};
     status.imuAvailable = _imuAvailable;
@@ -297,12 +307,15 @@ void SensorManager::init() {
     }
 
     #ifdef USE_GY87
-        if (!_dmaFastPath || !_dmaBus.configureAuxRx(*rpBus)) {
-            _setFault(SensorFaultCode::DmaChannelClaimFailed);
-            Logger::log("[SENSOR] Yardimci I2C DMA kanali alinamadi.");
+        if (!rpBus) {
+            Logger::log("[SENSOR] Yardimci I2C bus yok.");
             _hasMag = false;
             _hasBaro = false;
         } else {
+            const bool auxDmaOk = _dmaFastPath && _dmaBus.configureAuxRx(*rpBus);
+            if (!auxDmaOk) {
+                Logger::log("[SENSOR] Yardimci I2C DMA yok, polling fallback aktif.");
+            }
             _auxBus.configure(_dmaBus, *rpBus, _baroDriver, _hasMag, _hasBaro, _faultCode);
             if (!_hasMag) Logger::log("[SENSOR] HMC5883L bulunamadi!");
             else          Logger::log("[SENSOR] HMC5883L hazir.");
@@ -310,6 +323,7 @@ void SensorManager::init() {
             if (!_hasBaro) Logger::log("[SENSOR] BMP085 bulunamadi!");
             else           Logger::log("[SENSOR] BMP085 hazir.");
         }
+        scanI2cBus();
     #endif
 
     // İlk DMA okumayı başlat
@@ -355,6 +369,7 @@ void SensorManager::_scanI2cRegisterProbes() {
         if (_bus().readRegisters(probe.address, probe.reg, &value, 1) &&
             _i2cRegisterScanCount < sizeof(_i2cRegisterScanAddresses)) {
             _i2cRegisterScanAddresses[_i2cRegisterScanCount++] = probe.address;
+            _i2cRegisterScanValues[_i2cRegisterScanCount - 1] = value;
         }
     }
 }
@@ -423,6 +438,11 @@ void SensorManager::update() {
         _observeCalibrationRawFrame(raw);
         buf.baroValid = false;
         buf.pressureHpa = 0.0f;
+#ifdef USE_GY87
+        if (RP2350I2C* rpBus = _rpBus()) {
+            _auxBus.update(_dmaBus, *rpBus, _magDriver, _baroDriver, buf, _faultCode);
+        }
+#endif
         mutex_enter_blocking(&_mutex);
         _writeIdx = writeIdx;
         mutex_exit(&_mutex);

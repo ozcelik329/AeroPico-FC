@@ -214,6 +214,13 @@ bool SensorAuxBus::initBaro(SensorDmaBus& dmaBus,
                             SensorFaultCode& faultCode) {
     _baroProfile = &SensorBackendRegistry::bmp085();
     const BaroDeviceProfile& profile = *_baroProfile;
+    uint8_t chipId = 0;
+    if (!readRegsPolling(bus, profile.address, 0xD0, &chipId, 1, faultCode) || chipId != 0x55) {
+        _baroProfile = nullptr;
+        setFaultIfNeeded(faultCode, SensorFaultCode::BaroReadFailed);
+        return false;
+    }
+
     uint8_t calib[22];
     if (!readRegsDma(dmaBus, bus, profile.address, profile.calibrationReg, calib, profile.calibrationLen, faultCode)) {
         _baroProfile = nullptr;

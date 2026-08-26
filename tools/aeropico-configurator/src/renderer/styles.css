@@ -1666,12 +1666,12 @@ body.app-ready .app-shell {
 
 .terminal-tab {
   min-height: 25px;
-  padding: 0 8px;
+  padding: 0 7px;
   border: 0;
   box-shadow: none;
   background: transparent;
   color: var(--text-secondary);
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 700;
 }
 
@@ -1725,6 +1725,100 @@ body.app-ready .app-shell {
   font-size: 11px;
   line-height: 1.42;
   overflow: auto;
+}
+
+.checklist-list,
+.i2c-diagnostic-list {
+  display: grid;
+  gap: 6px;
+  padding: 9px 10px;
+  overflow: auto;
+  min-height: 0;
+}
+
+.checklist-row,
+.diagnostic-row {
+  display: grid;
+  grid-template-columns: 12px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  min-height: 39px;
+  padding: 6px 8px;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+}
+
+.checklist-row {
+  grid-template-columns: 12px minmax(0, 1fr);
+}
+
+.checklist-row strong,
+.diagnostic-row strong {
+  display: block;
+  color: var(--text);
+  font-size: 11.5px;
+  line-height: 1.2;
+}
+
+.checklist-row p,
+.diagnostic-row p {
+  margin: 2px 0 0;
+  color: var(--text-secondary);
+  font-size: 10.5px;
+  line-height: 1.25;
+}
+
+.diagnostic-row code {
+  color: var(--text);
+  font-family: 'SF Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.checklist-mark,
+.diagnostic-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--muted);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--muted) 14%, transparent);
+}
+
+.checklist-row.ok,
+.diagnostic-row.ok {
+  border-color: rgba(53, 194, 134, 0.30);
+  background: color-mix(in srgb, var(--ok-dim) 72%, var(--surface-2));
+}
+
+.checklist-row.ok .checklist-mark,
+.diagnostic-row.ok .diagnostic-dot {
+  background: var(--ok);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ok) 14%, transparent);
+}
+
+.checklist-row.warn,
+.diagnostic-row.warn {
+  border-color: rgba(237, 181, 79, 0.32);
+  background: color-mix(in srgb, var(--warn-dim) 72%, var(--surface-2));
+}
+
+.checklist-row.warn .checklist-mark,
+.diagnostic-row.warn .diagnostic-dot {
+  background: var(--warn);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--warn) 14%, transparent);
+}
+
+.checklist-row.bad,
+.diagnostic-row.bad {
+  border-color: rgba(239, 106, 112, 0.34);
+  background: color-mix(in srgb, var(--danger-dim) 72%, var(--surface-2));
+}
+
+.checklist-row.bad .checklist-mark,
+.diagnostic-row.bad .diagnostic-dot {
+  background: var(--danger);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--danger) 14%, transparent);
 }
 
 /* ── Setting Card ─────────────────────────── */

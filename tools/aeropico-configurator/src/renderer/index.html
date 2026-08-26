@@ -220,6 +220,8 @@
         <div class="terminal-header">
           <div class="terminal-tabs" role="tablist" aria-label="Terminal görünümü">
             <button id="terminalPreflightBtn" class="terminal-tab active" type="button">Preflight</button>
+            <button id="terminalArmChecklistBtn" class="terminal-tab" type="button">Arm Checklist</button>
+            <button id="terminalI2cBtn" class="terminal-tab" type="button">I2C Teşhis</button>
             <button id="terminalLogBtn" class="terminal-tab" type="button">Olay Kaydı</button>
             <button id="terminalCommandBtn" class="terminal-tab" type="button">Komut Durumu</button>
             <button id="terminalMavlinkBtn" class="terminal-tab" type="button">MAVLink Akışı</button>
@@ -229,6 +231,16 @@
         <div class="terminal-body">
           <div id="preflightPane" class="terminal-pane active">
             <div id="preflightText" class="terminal-preflight">Cihazdan durum bekleniyor.</div>
+          </div>
+          <div id="armChecklistPane" class="terminal-pane">
+            <div id="armChecklist" class="checklist-list"></div>
+          </div>
+          <div id="i2cPane" class="terminal-pane">
+            <div class="terminal-pane-head">
+              <span>I2C Teşhis</span>
+              <span id="i2cSummary" class="status-pill muted">Bekliyor</span>
+            </div>
+            <div id="i2cDiagnosticList" class="i2c-diagnostic-list"></div>
           </div>
           <div id="logPane" class="terminal-pane">
             <div id="log" class="log"></div>

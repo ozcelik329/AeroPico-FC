@@ -348,6 +348,15 @@
     lastCommand: null,
     commandHistory: [],
     mavlinkHistory: [],
+    i2cDiagnostics: {
+      ack: new Set(),
+      reg: new Set(),
+      ids: {},
+      lastText: "",
+      lastSeenMs: 0
+    },
+    lastSysStatus: null,
+    lastPreflightText: "",
     lastHeartbeatMs: 0,
     portDisplay: { name: null, vid: null, pid: null },
     activeBaud: null,
@@ -414,10 +423,17 @@
     mavlinkInspectorSummary: document.getElementById("mavlinkInspectorSummary"),
     mavlinkInspectorList: document.getElementById("mavlinkInspectorList"),
     terminalPreflightBtn: document.getElementById("terminalPreflightBtn"),
+    terminalArmChecklistBtn: document.getElementById("terminalArmChecklistBtn"),
+    terminalI2cBtn: document.getElementById("terminalI2cBtn"),
     terminalLogBtn: document.getElementById("terminalLogBtn"),
     terminalCommandBtn: document.getElementById("terminalCommandBtn"),
     terminalMavlinkBtn: document.getElementById("terminalMavlinkBtn"),
     preflightPane: document.getElementById("preflightPane"),
+    armChecklistPane: document.getElementById("armChecklistPane"),
+    i2cPane: document.getElementById("i2cPane"),
+    armChecklist: document.getElementById("armChecklist"),
+    i2cSummary: document.getElementById("i2cSummary"),
+    i2cDiagnosticList: document.getElementById("i2cDiagnosticList"),
     logPane: document.getElementById("logPane"),
     commandPane: document.getElementById("commandPane"),
     mavlinkPane: document.getElementById("mavlinkPane"),
@@ -669,6 +685,7 @@
     els.moduleSummary.className = `status-pill ${okCount > 0 ? "ok" : "muted"}`;
     setStatusValue(els.moduleSummaryTop, okCount > 0 ? "ok" : "muted", okCount === 0 ? "Bekliyor" : `${okCount}/${MODULES.length} hazır`);
     renderModuleSetup();
+    renderArmChecklist();
   }
 
   function renderModuleSetup() {
@@ -1299,6 +1316,8 @@
       setStatusValue(els.armSummary, "muted", "Bilinmiyor");
       document.body.classList.remove("is-armed");
     }
+    renderArmChecklist();
+    renderI2cDiagnostics();
   }
 
   /* ── Baud rate select / custom ────────────── */
@@ -1853,7 +1872,7 @@
   }
 
   function renderMavlinkInspector() {
-    if (!els.mavlinkInspectorList && !els.terminalMavlinkList) return;
+    if (!els.mavlinkInspectorList) return;
     const latest = state.mavlinkHistory[0];
     if (latest) {
       els.mavlinkInspectorSummary.textContent = latest.kind === "bad" ? "Uyarı" : latest.kind === "warn" ? "Dikkat" : "Canlı";
@@ -1863,7 +1882,6 @@
       els.mavlinkInspectorSummary.className = "status-pill muted";
       const empty = `<p class="hint">Cihazdan MAVLink paketi bekleniyor.</p>`;
       if (els.mavlinkInspectorList) els.mavlinkInspectorList.innerHTML = empty;
-      if (els.terminalMavlinkList) els.terminalMavlinkList.innerHTML = empty;
       return;
     }
 
@@ -1879,7 +1897,6 @@
     };
 
     renderRows(els.mavlinkInspectorList);
-    renderRows(els.terminalMavlinkList);
   }
 
 	  function describeMavlinkMessage(message) {
@@ -1942,7 +1959,8 @@
 	      ackNone: false,
 	      regNone: false,
 	      ack: new Set(),
-	      reg: new Set()
+	      reg: new Set(),
+        ids: {}
 	    };
 	    const scanGroups = [
 	      { key: "ack", patterns: [/I2C_ACK(?:\s+((?:0X[0-9A-F]{2}\s*)+|NONE))/g, /ACK_([0-9A-F_]+|NONE)/g] },
@@ -1968,6 +1986,12 @@
 	        }
 	      }
 	    }
+      const idMatch = text.match(/I2C_ID\s+MPU=(0X[0-9A-F]{2}|--[0-9A-F]{2}|--)\s+BARO=(0X[0-9A-F]{2}|--[0-9A-F]{2}|--)/);
+      if (idMatch) {
+        result.hasI2c = true;
+        if (idMatch[1].startsWith("0X")) result.ids.mpu = idMatch[1].replace("0X", "");
+        if (idMatch[2].startsWith("0X")) result.ids.baro = idMatch[2].replace("0X", "");
+      }
 	    result.hasUsefulScan = result.ack.size > 0 || result.reg.size > 0;
 	    return result;
 	  }
@@ -1981,28 +2005,77 @@
 	    const i2c = parseI2cDiagnostics(text);
 	    if (!i2c.hasI2c) return false;
 
+      state.i2cDiagnostics.lastText = text;
+      state.i2cDiagnostics.lastSeenMs = Date.now();
+      if (i2c.ackNone) {
+        state.i2cDiagnostics.ack = new Set();
+      } else if (i2c.ack.size > 0) {
+        state.i2cDiagnostics.ack = i2c.ack;
+      }
+      if (i2c.regNone) {
+        state.i2cDiagnostics.reg = new Set();
+      } else if (i2c.reg.size > 0) {
+        state.i2cDiagnostics.reg = i2c.reg;
+      }
+      state.i2cDiagnostics.ids = { ...state.i2cDiagnostics.ids, ...i2c.ids };
+
 	    log(`I2C ACK scan: ${formatI2cAddressList(i2c.ack)}`);
 	    log(`I2C register probe: ${formatI2cAddressList(i2c.reg)}`);
+      renderI2cDiagnostics();
 
 	    if (i2c.ackNone) {
 	      els.preflightText.textContent = "I2C ACK yok: Pico bus seviyesinde sensor gormuyor.";
 	      return true;
 	    }
-    if (i2c.ack.has("68") && i2c.reg.has("68")) {
+    const ack = state.i2cDiagnostics.ack;
+    const reg = state.i2cDiagnostics.reg;
+    if (ack.has("68") && reg.has("68")) {
       state.modules.imu = "ok";
-    } else if (i2c.ack.has("68")) {
+    } else if (ack.has("68")) {
       state.modules.imu = "detected";
     }
-    if (i2c.ack.has("77") && i2c.reg.has("77")) {
+    if (ack.has("77") && reg.has("77")) {
       state.modules.baro = "ok";
-    } else if (i2c.ack.has("77")) {
+    } else if (ack.has("77")) {
       state.modules.baro = "detected";
     }
 
-	    const summary = `I2C ACK ${formatI2cAddressList(i2c.ack)} | REG ${formatI2cAddressList(i2c.reg)}`;
+	    const summary = `I2C ACK ${formatI2cAddressList(ack)} | REG ${formatI2cAddressList(reg)} | MPU ${formatI2cId(state.i2cDiagnostics.ids.mpu)} | BARO ${formatI2cId(state.i2cDiagnostics.ids.baro)}`;
 	    els.preflightText.textContent = summary;
+      renderArmChecklist();
 	    return true;
 	  }
+
+  function formatI2cId(value) {
+    return value ? `0x${value}` : "--";
+  }
+
+  function renderI2cDiagnostics() {
+    if (!els.i2cDiagnosticList || !els.i2cSummary) return;
+    const diag = state.i2cDiagnostics;
+    const rows = [
+      i2cDiagnosticRow("ACK scan", formatI2cAddressList(diag.ack), diag.ack.has("68") || diag.ack.has("77") ? "ok" : diag.lastSeenMs ? "bad" : "muted", "Elektriksel adres cevabı. 0x68 IMU, 0x77 BMP180 beklenir."),
+      i2cDiagnosticRow("Register probe", formatI2cAddressList(diag.reg), diag.reg.has("68") && diag.reg.has("77") ? "ok" : diag.reg.size > 0 ? "warn" : diag.lastSeenMs ? "bad" : "muted", "Register okuma zinciri. ACK var REG yoksa repeated-start/timing/backend tarafına bakılır."),
+      i2cDiagnosticRow("MPU WHOAMI", formatI2cId(diag.ids.mpu), diag.ids.mpu === "68" ? "ok" : diag.ack.has("68") ? "warn" : "muted", "MPU6050 için beklenen değer 0x68."),
+      i2cDiagnosticRow("BARO ID", formatI2cId(diag.ids.baro), diag.ids.baro === "55" ? "ok" : diag.ack.has("77") ? "warn" : "muted", "BMP180/BMP085 için beklenen chip ID 0x55.")
+    ];
+    els.i2cDiagnosticList.innerHTML = rows.join("");
+    const ok = diag.ids.mpu === "68" && diag.ids.baro === "55";
+    const partial = diag.ack.size > 0 || diag.reg.size > 0 || diag.ids.mpu || diag.ids.baro;
+    els.i2cSummary.textContent = ok ? "OK" : partial ? "Kısmi" : "Bekliyor";
+    els.i2cSummary.className = `status-pill ${ok ? "ok" : partial ? "warn" : "muted"}`;
+  }
+
+  function i2cDiagnosticRow(label, value, kind, note) {
+    return `<div class="diagnostic-row ${kind}">
+      <span class="diagnostic-dot"></span>
+      <div>
+        <strong>${escapeHtml(label)}</strong>
+        <p>${escapeHtml(note)}</p>
+      </div>
+      <code>${escapeHtml(value)}</code>
+    </div>`;
+  }
 
   function systemStatusText(status) {
     switch (status) {
@@ -2088,6 +2161,7 @@
       state.armed = (message.baseMode & 0x80) !== 0;
       els.preflightText.textContent = `Heartbeat alindi. System status: ${message.systemStatus}. Parametreleri okuyup preflight sonucunu kontrol et.`;
       renderModules();
+      renderArmChecklist();
       updateButtons();
       return;
     }
@@ -2099,15 +2173,18 @@
       renderModules();
       if (state.params.size === message.count) log(`${message.count} parametre okundu.`);
       renderConfigAudit();
+      renderArmChecklist();
       renderSummary();
       return;
     }
 
     if (message.type === "sysStatus") {
+      state.lastSysStatus = message;
       state.modules.battery = message.voltageBatteryMv > 0 && message.voltageBatteryMv < 65535 ? "ok" : "bad";
       updateModulesFromSysStatus(message);
       renderModules();
       renderConfigAudit();
+      renderArmChecklist();
       renderSummary();
       return;
     }
@@ -2125,6 +2202,7 @@
       } else {
         log(`COMMAND_ACK ${message.command}: ${mavResultText(message.result)}.`);
       }
+      renderArmChecklist();
       return;
     }
 
@@ -2151,14 +2229,21 @@
       if (text.includes("SENSOR_CHECK_PARTIAL")) {
         els.preflightText.textContent = "Sensor kontrolu kismi basarili: opsiyonel sensorlerden biri eksik.";
       }
-      if (text.includes("PREFLIGHT_OK")) els.preflightText.textContent = "Preflight OK: sistem arm icin yazilim tarafinda hazir.";
-      if (text.includes("PREFLIGHT") && !text.includes("OK")) els.preflightText.textContent = message.text;
+      if (text.includes("PREFLIGHT_OK")) {
+        state.lastPreflightText = "PREFLIGHT_OK";
+        els.preflightText.textContent = "Preflight OK: sistem arm icin yazilim tarafinda hazir.";
+      }
+      if (text.includes("PREFLIGHT") && !text.includes("OK")) {
+        state.lastPreflightText = message.text;
+        els.preflightText.textContent = message.text;
+      }
       if (state.commandHistory[0] && state.commandHistory[0].state !== "pending") {
         state.commandHistory[0].detail = message.text;
         renderCommandStatus();
       }
       renderModules();
       renderConfigAudit();
+      renderArmChecklist();
       renderSummary();
     }
   }
@@ -2255,6 +2340,58 @@
       row.append(dot, label);
       els.configAudit.appendChild(row);
     }
+  }
+
+  function renderArmChecklist() {
+    if (!els.armChecklist) return;
+    const heartbeatAgeMs = state.lastHeartbeatMs > 0 ? Date.now() - state.lastHeartbeatMs : Infinity;
+    const paramComplete = state.expectedParamCount > 0 && state.params.size >= state.expectedParamCount;
+    const rcRequired = getConfigValue("EN_RC", 1) >= 0.5 && getConfigValue("TYPE_RC", 1) !== 0;
+    const batteryRequired = getConfigValue("EN_BATT", 1) >= 0.5 && getConfigValue("TYPE_BATT", 1) !== 0;
+    const baroRequired = getConfigValue("EN_BARO", 1) >= 0.5;
+    const magRequired = getConfigValue("EN_MAG", 1) >= 0.5;
+    const gpsRequired = getConfigValue("EN_GPS", 0) >= 0.5;
+    const preflightOk = state.lastPreflightText.toUpperCase().includes("PREFLIGHT_OK");
+    const preflightBlocked = state.lastPreflightText && !preflightOk;
+
+    const items = [
+      checklistItem("Bağlantı", state.connected ? "ok" : "bad", state.connected ? "USB/MAVLink port açık." : "Önce USB Bağlan."),
+      checklistItem("Heartbeat", heartbeatAgeMs < 5000 ? "ok" : heartbeatAgeMs < Infinity ? "warn" : "bad", heartbeatAgeMs < 5000 ? "Canlı heartbeat alınıyor." : "Heartbeat yok veya bayat."),
+      checklistItem("Parametreler", paramComplete ? "ok" : state.params.size > 0 ? "warn" : "bad", paramComplete ? `${state.params.size}/${state.expectedParamCount} parametre okundu.` : "Parametreleri Oku çalıştır."),
+      checklistItem("IMU", state.modules.imu === "ok" ? "ok" : state.modules.imu === "detected" ? "warn" : "bad", state.modules.imu === "ok" ? "MPU sağlıklı raporlandı." : state.modules.imu === "detected" ? "0x68 I2C'de var, register/init zinciri kontrol ediliyor." : "IMU arm için zorunlu."),
+      checklistItem("Barometre", optionalModuleState("baro", baroRequired), baroRequired ? moduleChecklistText("baro", "BMP180/BMP085") : "Setup'ta devre dışı, arm engeli değil."),
+      checklistItem("Manyetometre", optionalModuleState("mag", magRequired), magRequired ? moduleChecklistText("mag", "HMC/QMC") : "Setup'ta devre dışı, arm engeli değil."),
+      checklistItem("GPS", optionalModuleState("gps", gpsRequired), gpsRequired ? moduleChecklistText("gps", "GPS") : "Setup'ta devre dışı, arm engeli değil."),
+      checklistItem("Batarya", optionalModuleState("battery", batteryRequired), batteryRequired ? moduleChecklistText("battery", "Batarya ADC") : "Bench/setup gereği batarya arm engeli değil."),
+      checklistItem("RC", optionalModuleState("rc", rcRequired), rcRequired ? moduleChecklistText("rc", "SBUS") : "Setup'ta devre dışı, RC failsafe arm engeli değil."),
+      checklistItem("Servo/ESC Pinleri", actuatorSetupHealth() === "ok" ? "ok" : "bad", actuatorSetupHealth() === "ok" ? "Pin Mapper servo/ESC çakışması yok." : "Pin Mapper servo/ESC setup çakışması var."),
+      checklistItem("Son Preflight", preflightOk ? "ok" : preflightBlocked ? "bad" : "muted", preflightOk ? "Firmware preflight kabul etti." : preflightBlocked ? state.lastPreflightText : "Preflight Kontrol komutu bekleniyor.")
+    ];
+
+    els.armChecklist.innerHTML = items.join("");
+  }
+
+  function optionalModuleState(moduleId, required) {
+    if (!required) return "muted";
+    if (state.modules[moduleId] === "ok") return "ok";
+    if (state.modules[moduleId] === "detected") return "warn";
+    return "bad";
+  }
+
+  function moduleChecklistText(moduleId, label) {
+    if (state.modules[moduleId] === "ok") return `${label} firmware health içinde sağlıklı.`;
+    if (state.modules[moduleId] === "detected") return `${label} I2C'de görünüyor ama firmware healthy demedi.`;
+    return `${label} gerekli ama sağlıklı görünmüyor.`;
+  }
+
+  function checklistItem(title, kind, detail) {
+    return `<div class="checklist-row ${kind}">
+      <span class="checklist-mark"></span>
+      <div>
+        <strong>${escapeHtml(title)}</strong>
+        <p>${escapeHtml(detail)}</p>
+      </div>
+    </div>`;
   }
 
   function hasAssignedRole(role) {
@@ -2548,13 +2685,17 @@
   /* ── Bindings ──────────────────────────────── */
 
   function showTerminalPane(name) {
-    const panes = new Set(["preflight", "log", "command", "mavlink"]);
+    const panes = new Set(["preflight", "arm", "i2c", "log", "command", "mavlink"]);
     const pane = panes.has(name) ? name : "preflight";
     els.terminalPreflightBtn.classList.toggle("active", pane === "preflight");
+    els.terminalArmChecklistBtn.classList.toggle("active", pane === "arm");
+    els.terminalI2cBtn.classList.toggle("active", pane === "i2c");
     els.terminalLogBtn.classList.toggle("active", pane === "log");
     els.terminalCommandBtn.classList.toggle("active", pane === "command");
     els.terminalMavlinkBtn.classList.toggle("active", pane === "mavlink");
     els.preflightPane.classList.toggle("active", pane === "preflight");
+    els.armChecklistPane.classList.toggle("active", pane === "arm");
+    els.i2cPane.classList.toggle("active", pane === "i2c");
     els.logPane.classList.toggle("active", pane === "log");
     els.commandPane.classList.toggle("active", pane === "command");
     els.mavlinkPane.classList.toggle("active", pane === "mavlink");
@@ -2569,6 +2710,8 @@
       els.log.textContent = "";
     });
     els.terminalPreflightBtn.addEventListener("click", () => showTerminalPane("preflight"));
+    els.terminalArmChecklistBtn.addEventListener("click", () => showTerminalPane("arm"));
+    els.terminalI2cBtn.addEventListener("click", () => showTerminalPane("i2c"));
     els.terminalLogBtn.addEventListener("click", () => showTerminalPane("log"));
     els.terminalCommandBtn.addEventListener("click", () => showTerminalPane("command"));
     els.terminalMavlinkBtn.addEventListener("click", () => showTerminalPane("mavlink"));
@@ -2624,6 +2767,8 @@
   renderModules();
   renderSettings();
   renderCommandStatus();
+  renderI2cDiagnostics();
+  renderArmChecklist();
   updateButtons();
   updatePortInfoDisplay();
   initPinMapper();
