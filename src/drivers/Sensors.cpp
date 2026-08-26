@@ -57,6 +57,7 @@ bool SensorManager::_readWhoAmI(uint8_t& whoami) {
         return false;
     }
     _lastWhoAmI = whoami;
+    _seedI2cProbe(imu.address, imu.whoAmIReg, whoami);
     return true;
 }
 
@@ -349,6 +350,9 @@ void SensorManager::scanI2cBus() {
 
     _scanI2cAckBus();
     _scanI2cRegisterProbes();
+    if (_imuAvailable && _lastWhoAmI != 0) {
+        _seedI2cProbe(_imuProfile->address, _imuProfile->whoAmIReg, _lastWhoAmI);
+    }
     _lastI2cScanMs = millis();
     _i2cScanValid = true;
     mutex_exit(&_i2cScanMutex);
@@ -390,6 +394,31 @@ void SensorManager::_scanI2cRegisterProbes() {
             _i2cRegisterScanCount++;
             _i2cRegisterScanValues[_i2cRegisterScanCount - 1] = value;
         }
+    }
+}
+
+void SensorManager::_seedI2cProbe(uint8_t address, uint8_t reg, uint8_t value) {
+    for (uint8_t i = 0; i < _i2cAckScanCount; ++i) {
+        if (_i2cAckScanAddresses[i] == address) {
+            goto seed_register;
+        }
+    }
+    if (_i2cAckScanCount < sizeof(_i2cAckScanAddresses)) {
+        _i2cAckScanAddresses[_i2cAckScanCount++] = address;
+    }
+
+seed_register:
+    for (uint8_t i = 0; i < _i2cRegisterScanCount; ++i) {
+        if (_i2cRegisterScanAddresses[i] == address && _i2cRegisterScanRegisters[i] == reg) {
+            _i2cRegisterScanValues[i] = value;
+            return;
+        }
+    }
+    if (_i2cRegisterScanCount < sizeof(_i2cRegisterScanAddresses)) {
+        _i2cRegisterScanAddresses[_i2cRegisterScanCount] = address;
+        _i2cRegisterScanRegisters[_i2cRegisterScanCount] = reg;
+        _i2cRegisterScanValues[_i2cRegisterScanCount] = value;
+        _i2cRegisterScanCount++;
     }
 }
 

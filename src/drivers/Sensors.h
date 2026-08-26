@@ -136,6 +136,7 @@ class SensorManager : public IImuDriver, public IMagDriver, public IBaroDriver, 
     void _setFault(SensorFaultCode code);
     void _scanI2cRegisterProbes();
     void _scanI2cAckBus();
+    void _seedI2cProbe(uint8_t address, uint8_t reg, uint8_t value);
     IHALI2C& _bus();
     RP2350I2C* _rpBus();
 

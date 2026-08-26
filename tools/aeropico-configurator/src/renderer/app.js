@@ -2118,8 +2118,8 @@
       }
       state.i2cDiagnostics.ids = { ...state.i2cDiagnostics.ids, ...i2c.ids };
 
-	    log(`I2C ACK scan: ${formatI2cAddressList(i2c.ack)}`);
-	    log(`I2C register probe: ${formatI2cAddressList(i2c.reg)}`);
+      log(`I2C ACK scan: ${formatI2cAddressList(state.i2cDiagnostics.ack)}`);
+      log(`I2C register probe: ${formatI2cAddressList(state.i2cDiagnostics.reg)}`);
       renderI2cDiagnostics();
 
 	    if (i2c.ackNone && (!hasGoodAck || !recentGood)) {
