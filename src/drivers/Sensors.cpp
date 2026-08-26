@@ -253,6 +253,7 @@ void SensorManager::setMagCalibration(const MagCalibration& calibration) {
 
 void SensorManager::init() {
     mutex_init(&_mutex);
+    mutex_init(&_i2cScanMutex);
     _buf[0] = {};
     _buf[1] = {};
     _buf[0].health = SensorHealth::WarmingUp;
@@ -333,8 +334,24 @@ void SensorManager::init() {
 }
 
 void SensorManager::scanI2cBus() {
+    static constexpr uint32_t I2C_SCAN_MIN_INTERVAL_MS = 750;
+    const uint32_t nowMs = millis();
+    if (_i2cScanValid && (uint32_t)(nowMs - _lastI2cScanMs) < I2C_SCAN_MIN_INTERVAL_MS) {
+        return;
+    }
+
+    mutex_enter_blocking(&_i2cScanMutex);
+    const uint32_t lockedNowMs = millis();
+    if (_i2cScanValid && (uint32_t)(lockedNowMs - _lastI2cScanMs) < I2C_SCAN_MIN_INTERVAL_MS) {
+        mutex_exit(&_i2cScanMutex);
+        return;
+    }
+
     _scanI2cAckBus();
     _scanI2cRegisterProbes();
+    _lastI2cScanMs = millis();
+    _i2cScanValid = true;
+    mutex_exit(&_i2cScanMutex);
 }
 
 void SensorManager::_scanI2cAckBus() {

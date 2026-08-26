@@ -108,6 +108,8 @@ class SensorManager : public IImuDriver, public IMagDriver, public IBaroDriver, 
     uint8_t _sdaPin = PIN_SDA;
     uint8_t _sclPin = PIN_SCL;
     bool _dmaFastPath = false;
+    bool _i2cScanValid = false;
+    uint32_t _lastI2cScanMs = 0;
     uint8_t _i2cRegisterScanCount = 0;
     uint8_t _i2cRegisterScanAddresses[16] = {};
     uint8_t _i2cRegisterScanRegisters[16] = {};
@@ -140,6 +142,7 @@ class SensorManager : public IImuDriver, public IMagDriver, public IBaroDriver, 
     SensorBuffer _buf[2];
     volatile uint8_t _writeIdx = 0;
     mutex_t _mutex;
+    mutex_t _i2cScanMutex;
 };
 
 #endif

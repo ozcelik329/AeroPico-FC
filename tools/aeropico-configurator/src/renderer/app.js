@@ -346,6 +346,7 @@
     },
     armed: null,
     lastCommand: null,
+    lastCommandAtMs: 0,
     commandHistory: [],
     mavlinkHistory: [],
     i2cDiagnostics: {
@@ -353,7 +354,10 @@
       reg: new Set(),
       ids: {},
       lastText: "",
-      lastSeenMs: 0
+      lastSeenMs: 0,
+      lastGoodMs: 0,
+      lastBadMs: 0,
+      lastBadText: ""
     },
     lastSysStatus: null,
     lastPreflightText: "",
@@ -1272,6 +1276,8 @@
   }
 
   function updateButtons() {
+    const commandBusy = state.lastCommand && (Date.now() - state.lastCommandAtMs) < 2500;
+    if (state.lastCommand && !commandBusy) state.lastCommand = null;
     els.connectBtn.disabled = state.connected;
     els.disconnectBtn.disabled = !state.connected;
     els.readParamsBtn.disabled = !state.connected;
@@ -1279,7 +1285,7 @@
     document.querySelectorAll("[data-command]").forEach((button) => {
       const command = button.dataset.command;
       const dangerousWhileArmed = command === "CAL_IMU" || command === "CAL_MAG" || command === "SERVO_TEST";
-      button.disabled = !state.connected || (dangerousWhileArmed && state.armed === true);
+      button.disabled = !state.connected || commandBusy || (dangerousWhileArmed && state.armed === true);
     });
     document.querySelectorAll("[data-arm-command]").forEach((button) => {
       const command = button.dataset.armCommand;
@@ -1834,11 +1840,17 @@
       log(`${SERVICE_LABELS[command] || command}: once baglan.`);
       return;
     }
+    if (state.lastCommand && (Date.now() - state.lastCommandAtMs) < 2500) {
+      log(`${SERVICE_LABELS[command] || command}: once mevcut komut ACK beklesin.`);
+      return;
+    }
     const [p1, p2, p3, p4] = serviceCommandParams(command);
     if (!writeFrame(encoder.aeroPicoService(p1, p2, p3, p4), SERVICE_LABELS[command] || command)) return;
     state.lastCommand = command;
+    state.lastCommandAtMs = Date.now();
     pushCommandHistory(command, "pending", "ACK bekleniyor");
     updateButtons();
+    window.setTimeout(updateButtons, 2600);
     log(`${SERVICE_LABELS[command] || command} komutu gonderildi.`);
   }
 
@@ -2048,8 +2060,14 @@
       const regValMatch = text.match(/I2C_REGVAL\s+68:75=(--[0-9A-F]{2}|[0-9A-F]{2})\s+77:D0=(--[0-9A-F]{2}|[0-9A-F]{2})/);
       if (regValMatch) {
         result.hasI2c = true;
-        if (!regValMatch[1].startsWith("--")) result.ids.mpu = regValMatch[1];
-        if (!regValMatch[2].startsWith("--")) result.ids.baro = regValMatch[2];
+        if (!regValMatch[1].startsWith("--")) {
+          result.ids.mpu = regValMatch[1];
+          result.reg.add("68");
+        }
+        if (!regValMatch[2].startsWith("--")) {
+          result.ids.baro = regValMatch[2];
+          result.reg.add("77");
+        }
       }
       if (result.ids.mpu === "55" && result.ids.baro === "68") {
         const baro = result.ids.mpu;
@@ -2069,15 +2087,27 @@
 	    const i2c = parseI2cDiagnostics(text);
 	    if (!i2c.hasI2c) return false;
 
+      const nowMs = Date.now();
+      const hasGoodAck = state.i2cDiagnostics.ack.size > 0;
+      const hasGoodReg = state.i2cDiagnostics.reg.size > 0;
+      const recentGood = state.i2cDiagnostics.lastSeenMs > 0 && (nowMs - state.i2cDiagnostics.lastSeenMs) < 5000;
       state.i2cDiagnostics.lastText = text;
-      state.i2cDiagnostics.lastSeenMs = Date.now();
+      state.i2cDiagnostics.lastSeenMs = nowMs;
+      const incomingGood = i2c.ack.size > 0 || i2c.reg.size > 0 || i2c.ids.mpu || i2c.ids.baro;
+      if (incomingGood) {
+        state.i2cDiagnostics.lastGoodMs = nowMs;
+      }
+      if (i2c.ackNone || i2c.regNone) {
+        state.i2cDiagnostics.lastBadMs = nowMs;
+        state.i2cDiagnostics.lastBadText = text;
+      }
       if (i2c.ackNone) {
-        state.i2cDiagnostics.ack = new Set();
+        if (!hasGoodAck || !recentGood) state.i2cDiagnostics.ack = new Set();
       } else if (i2c.ack.size > 0) {
         state.i2cDiagnostics.ack = i2c.ack;
       }
       if (i2c.regNone) {
-        state.i2cDiagnostics.reg = new Set();
+        if (!hasGoodReg || !recentGood) state.i2cDiagnostics.reg = new Set();
       } else if (i2c.reg.size > 0) {
         state.i2cDiagnostics.reg = i2c.reg;
       }
@@ -2087,18 +2117,20 @@
 	    log(`I2C register probe: ${formatI2cAddressList(i2c.reg)}`);
       renderI2cDiagnostics();
 
-	    if (i2c.ackNone) {
+	    if (i2c.ackNone && (!hasGoodAck || !recentGood)) {
 	      els.preflightText.textContent = "I2C ACK yok: Pico bus seviyesinde sensor gormuyor.";
 	      return true;
 	    }
     const ack = state.i2cDiagnostics.ack;
     const reg = state.i2cDiagnostics.reg;
     if (ack.has("68")) {
-      state.modules.imu = "detected";
+      setModuleState("imu", "detected");
     }
+    if (state.i2cDiagnostics.ids.mpu === "68") setModuleState("imu", "detected");
     if (ack.has("77")) {
-      state.modules.baro = "detected";
+      setModuleState("baro", "detected");
     }
+    if (state.i2cDiagnostics.ids.baro === "55") setModuleState("baro", "detected");
 
 	    const summary = `I2C ACK ${formatI2cAddressList(ack)} | REG ${formatI2cAddressList(reg)} | MPU ${formatI2cId(state.i2cDiagnostics.ids.mpu)} | BARO ${formatI2cId(state.i2cDiagnostics.ids.baro)}`;
 	    els.preflightText.textContent = summary;
@@ -2113,14 +2145,28 @@
   function renderI2cDiagnostics() {
     if (!els.i2cDiagnosticList || !els.i2cSummary) return;
     const diag = state.i2cDiagnostics;
+    const nowMs = Date.now();
+    const goodAge = diag.lastGoodMs ? `${Math.max(0, ((nowMs - diag.lastGoodMs) / 1000)).toFixed(1)} sn önce` : "yok";
+    const badAge = diag.lastBadMs ? `${Math.max(0, ((nowMs - diag.lastBadMs) / 1000)).toFixed(1)} sn önce` : "yok";
+    const imuIdentityOk = diag.ids.mpu === "68";
+    const baroIdentityOk = diag.ids.baro === "55";
+    const imuBusOk = diag.ack.has("68");
+    const baroBusOk = diag.ack.has("77");
+    const imuRegOk = diag.reg.has("68") || imuIdentityOk;
+    const baroRegOk = diag.reg.has("77") || baroIdentityOk;
+    const imuRuntime = state.modules.imu === "ok" ? "healthy" : hasI2cEvidence("imu") ? "identity-only" : "missing";
+    const baroRuntime = state.modules.baro === "ok" ? "healthy" : hasI2cEvidence("baro") ? "identity-only" : "missing";
     const rows = [
-      i2cDiagnosticRow("ACK scan", formatI2cAddressList(diag.ack), diag.ack.has("68") || diag.ack.has("77") ? "ok" : diag.lastSeenMs ? "bad" : "muted", "Elektriksel adres cevabı. 0x68 IMU, 0x77 BMP180 beklenir."),
-      i2cDiagnosticRow("Register probe", formatI2cAddressList(diag.reg), diag.reg.has("68") && diag.reg.has("77") ? "ok" : diag.reg.size > 0 ? "warn" : diag.lastSeenMs ? "bad" : "muted", "Register okuma zinciri. ACK var REG yoksa repeated-start/timing/backend tarafına bakılır."),
-      i2cDiagnosticRow("MPU WHOAMI @0x68/0x75", formatI2cId(diag.ids.mpu), diag.ids.mpu === "68" ? "ok" : diag.ack.has("68") ? "warn" : "muted", "MPU6050 için beklenen WHOAMI değeri 0x68."),
-      i2cDiagnosticRow("BARO ID @0x77/0xD0", formatI2cId(diag.ids.baro), diag.ids.baro === "55" ? "ok" : diag.ack.has("77") ? "warn" : "muted", "BMP180/BMP085 için beklenen chip ID değeri 0x55.")
+      i2cDiagnosticRow("Bus ACK", formatI2cAddressList(diag.ack), imuBusOk && baroBusOk ? "ok" : diag.ack.size > 0 ? "warn" : diag.lastSeenMs ? "bad" : "muted", "I2C hattında cevap veren adresler. GY-87 için 0x68 ve 0x77 beklenir."),
+      i2cDiagnosticRow("MPU register", `0x68 / 0x75 -> ${formatI2cId(diag.ids.mpu)}`, imuIdentityOk ? "ok" : imuRegOk ? "warn" : imuBusOk ? "warn" : "bad", "MPU6050 WHOAMI registerı. Doğru kimlik 0x68 olmalı."),
+      i2cDiagnosticRow("BARO register", `0x77 / 0xD0 -> ${formatI2cId(diag.ids.baro)}`, baroIdentityOk ? "ok" : baroRegOk ? "warn" : baroBusOk ? "warn" : "bad", "BMP180/BMP085 chip ID registerı. Doğru kimlik 0x55 olmalı."),
+      i2cDiagnosticRow("Runtime IMU", imuRuntime, state.modules.imu === "ok" ? "ok" : hasI2cEvidence("imu") ? "warn" : "bad", "Firmware SYS_STATUS içinde gerçek IMU health durumu."),
+      i2cDiagnosticRow("Runtime BARO", baroRuntime, state.modules.baro === "ok" ? "ok" : hasI2cEvidence("baro") ? "warn" : "bad", "Firmware SYS_STATUS içinde gerçek barometre health durumu."),
+      i2cDiagnosticRow("Son iyi teşhis", goodAge, diag.lastGoodMs ? "ok" : "muted", "ACK/REG/ID içeren son geçerli teşhis zamanı."),
+      i2cDiagnosticRow("Son kötü teşhis", badAge, diag.lastBadMs ? "warn" : "muted", diag.lastBadText || "Henüz boş/kötü scan yok.")
     ];
     els.i2cDiagnosticList.innerHTML = rows.join("");
-    const ok = diag.ids.mpu === "68" && diag.ids.baro === "55";
+    const ok = imuIdentityOk && baroIdentityOk;
     const partial = diag.ack.size > 0 || diag.reg.size > 0 || diag.ids.mpu || diag.ids.baro;
     els.i2cSummary.textContent = ok ? "OK" : partial ? "Kısmi" : "Bekliyor";
     els.i2cSummary.className = `status-pill ${ok ? "ok" : partial ? "warn" : "muted"}`;
@@ -2206,20 +2252,28 @@
     return false;
   }
 
+  function setModuleState(moduleId, value) {
+    if ((moduleId === "imu" || moduleId === "baro") && value === "bad" && hasI2cEvidence(moduleId)) {
+      state.modules[moduleId] = "detected";
+      return;
+    }
+    state.modules[moduleId] = value;
+  }
+
   function updateModulesFromSysStatus(message) {
     const present = message.onboardControlSensorsPresent || 0;
     const enabled = message.onboardControlSensorsEnabled || 0;
     const healthy = message.onboardControlSensorsHealth || 0;
     const hasImu = (present & MAV_SENSOR_BITS.gyro) && (present & MAV_SENSOR_BITS.accel);
     const imuHealthy = (healthy & MAV_SENSOR_BITS.gyro) && (healthy & MAV_SENSOR_BITS.accel);
-    state.modules.imu = hasImu
+    setModuleState("imu", hasImu
       ? (imuHealthy ? "ok" : hasI2cEvidence("imu") ? "detected" : "bad")
-      : preserveDetected("imu", "bad");
-    state.modules.baro = present & MAV_SENSOR_BITS.pressure
+      : preserveDetected("imu", "bad"));
+    setModuleState("baro", present & MAV_SENSOR_BITS.pressure
       ? ((enabled & MAV_SENSOR_BITS.pressure) && (healthy & MAV_SENSOR_BITS.pressure)
         ? "ok"
         : hasI2cEvidence("baro") ? "detected" : "bad")
-      : preserveDetected("baro", "bad");
+      : preserveDetected("baro", "bad"));
     state.modules.mag = present & MAV_SENSOR_BITS.mag
       ? ((enabled & MAV_SENSOR_BITS.mag) && (healthy & MAV_SENSOR_BITS.mag) ? "ok" : "bad")
       : "bad";
@@ -2286,9 +2340,9 @@
       const text = message.text.toUpperCase();
       const handledI2c = logI2cDiagnostics(text);
       if (!handledI2c) {
-        if (text.includes("IMU CALIBRATION SAVED") || text.includes("SENSOR_CHECK_OK")) state.modules.imu = "ok";
-        if (text.includes("IMU MISSING") || text.includes("WHOAMI")) state.modules.imu = "bad";
-        if (text.includes("BMP") || text.includes("BARO")) state.modules.baro = text.includes("HAZIR") || text.includes("OK") ? "ok" : "bad";
+        if (text.includes("IMU CALIBRATION SAVED") || text.includes("SENSOR_CHECK_OK")) setModuleState("imu", "ok");
+        if (text.includes("IMU MISSING") || text.includes("WHOAMI")) setModuleState("imu", "bad");
+        if (text.includes("BMP") || text.includes("BARO")) setModuleState("baro", text.includes("HAZIR") || text.includes("OK") ? "ok" : "bad");
         if (text.includes("MAG")) state.modules.mag = text.includes("MISSING") || text.includes("FAILED") ? "bad" : "ok";
         if (text.includes("HMC")) state.modules.mag = text.includes("HAZIR") || text.includes("OK") ? "ok" : "bad";
         if (text.includes("GPS")) state.modules.gps = text.includes("FIX") || text.includes("HAZIR") ? "ok" : "bad";
