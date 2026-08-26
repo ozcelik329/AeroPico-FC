@@ -184,7 +184,8 @@ bool SensorAuxBus::processPendingRead(SensorDmaBus& dmaBus,
                     baroDriver.setRawTemperature((int32_t)(_bmpDmaBuf[0] << 8) | _bmpDmaBuf[1]);
                     _bmpState = BMP_TEMP_READ;
                 } else {
-                    const int32_t up = ((int32_t)_bmpDmaBuf[0] << 16 | (int32_t)_bmpDmaBuf[1] << 8 | _bmpDmaBuf[2]) >> (8 - 3);
+                    const uint8_t oss = _baroProfile ? _baroProfile->pressureOversampling : 0;
+                    const int32_t up = ((int32_t)_bmpDmaBuf[0] << 16 | (int32_t)_bmpDmaBuf[1] << 8 | _bmpDmaBuf[2]) >> (8 - oss);
                     if (!baroDriver.applyRawPressure(up, buffer)) {
                         noteBaroReadFail(faultCode);
                     } else {
@@ -216,7 +217,8 @@ bool SensorAuxBus::processPendingRead(SensorDmaBus& dmaBus,
         baroDriver.setRawTemperature((int32_t)(_bmpDmaBuf[0] << 8) | _bmpDmaBuf[1]);
         _bmpState = BMP_TEMP_READ;
     } else if (_auxReadKind == AUX_BARO_PRESSURE) {
-        const int32_t up = ((int32_t)_bmpDmaBuf[0] << 16 | (int32_t)_bmpDmaBuf[1] << 8 | _bmpDmaBuf[2]) >> (8 - 3);
+        const uint8_t oss = _baroProfile ? _baroProfile->pressureOversampling : 0;
+        const int32_t up = ((int32_t)_bmpDmaBuf[0] << 16 | (int32_t)_bmpDmaBuf[1] << 8 | _bmpDmaBuf[2]) >> (8 - oss);
         if (!baroDriver.applyRawPressure(up, buffer)) {
             noteBaroReadFail(faultCode);
         } else {
@@ -300,6 +302,7 @@ bool SensorAuxBus::initBaro(SensorDmaBus& dmaBus,
     }
 
     baroDriver.loadCalibration(calib);
+    baroDriver.setOversampling(profile.pressureOversampling);
     _bmpState = BMP_IDLE;
     return true;
 }
@@ -383,7 +386,7 @@ bool SensorAuxBus::readBaro(SensorDmaBus& dmaBus,
                 noteBaroReadFail(faultCode);
                 return false;
             }
-            const int32_t up = ((int32_t)_bmpDmaBuf[0] << 16 | (int32_t)_bmpDmaBuf[1] << 8 | _bmpDmaBuf[2]) >> (8 - 3);
+            const int32_t up = ((int32_t)_bmpDmaBuf[0] << 16 | (int32_t)_bmpDmaBuf[1] << 8 | _bmpDmaBuf[2]) >> (8 - profile.pressureOversampling);
             _bmpState = BMP_IDLE;
             if (!baroDriver.applyRawPressure(up, buffer)) {
                 noteBaroReadFail(faultCode);

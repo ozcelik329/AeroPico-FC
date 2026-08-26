@@ -24,6 +24,10 @@ bool Bmp085Backend::loadCalibration(const uint8_t calibrationData[22]) {
     return true;
 }
 
+void Bmp085Backend::setOversampling(uint8_t oversampling) {
+    _oversampling = oversampling > 3 ? 3 : oversampling;
+}
+
 void Bmp085Backend::setRawTemperature(int32_t rawTemperature) {
     _rawTemperature = rawTemperature;
 }
@@ -45,16 +49,16 @@ bool Bmp085Backend::applyRawPressure(int32_t rawPressure, SensorBuffer& buffer) 
     int32_t x1p = (_b2 * (b6 * b6 >> 12)) >> 11;
     int32_t x2p = (_ac2 * b6) >> 11;
     int32_t x3 = x1p + x2p;
-    int32_t b3 = (((int32_t)_ac1 * 4 + x3) + 2) >> 2;
+    int32_t b3 = ((((int32_t)_ac1 * 4 + x3) << _oversampling) + 2) >> 2;
     int32_t x1pp = (_ac3 * b6) >> 13;
     int32_t x2pp = (_b1 * ((b6 * b6) >> 12)) >> 16;
     int32_t x3p = ((x1pp + x2pp) + 2) >> 2;
-    int32_t b4 = (_ac4 * (uint32_t)(x1pp + x3p + 32768)) >> 15;
+    int32_t b4 = (_ac4 * (uint32_t)(x3p + 32768)) >> 15;
     if (b4 == 0) {
         return false;
     }
-    int32_t b7 = ((uint32_t)rawPressure - b3) * (50000 >> 3);
-    int32_t p = (b7 < 0) ? (b7 * 2) / b4 : (b7 / b4) * 2;
+    uint32_t b7 = ((uint32_t)rawPressure - (uint32_t)b3) * (uint32_t)(50000 >> _oversampling);
+    int32_t p = (b7 < 0x80000000UL) ? (int32_t)((b7 * 2U) / (uint32_t)b4) : (int32_t)((b7 / (uint32_t)b4) * 2U);
     int32_t x1ppp = (p >> 8) * (p >> 8);
     int32_t x1pppp = (x1ppp * 3038) >> 16;
     int32_t x2pppp = (-7357 * p) >> 16;

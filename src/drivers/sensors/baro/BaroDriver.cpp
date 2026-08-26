@@ -4,6 +4,10 @@ bool BaroDriver::loadCalibration(const uint8_t calibrationData[22]) {
     return _backend.loadCalibration(calibrationData);
 }
 
+void BaroDriver::setOversampling(uint8_t oversampling) {
+    _backend.setOversampling(oversampling);
+}
+
 void BaroDriver::setRawTemperature(int32_t rawTemperature) {
     _backend.setRawTemperature(rawTemperature);
 }

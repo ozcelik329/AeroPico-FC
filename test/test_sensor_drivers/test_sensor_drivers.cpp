@@ -110,8 +110,8 @@ void test_baro_driver_rejects_pressure_without_calibration() {
 void test_baro_driver_computes_pressure_with_calibration() {
     BaroDriver driver;
     uint8_t calibration[22] = {
-        0x01, 0x98, 0xFF, 0xB8, 0xC7, 0xD1, 0x80, 0x00,
-        0x80, 0x00, 0x5A, 0x71, 0x18, 0x2E, 0x00, 0x04,
+        0x01, 0x98, 0xFF, 0xB8, 0xC7, 0xD1, 0x7F, 0xE5,
+        0x7F, 0xF5, 0x5A, 0x71, 0x18, 0x2E, 0x00, 0x04,
         0x80, 0x00, 0xDD, 0xF9, 0x0B, 0x34
     };
 
@@ -120,7 +120,8 @@ void test_baro_driver_computes_pressure_with_calibration() {
 
     SensorBuffer buffer = {};
     TEST_ASSERT_TRUE(driver.applyRawPressure(23843, buffer));
-    TEST_ASSERT_TRUE(buffer.pressureHpa > 0.0f);
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, 699.64f, buffer.pressureHpa);
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, 15.0f, buffer.tempC);
     TEST_ASSERT_TRUE(buffer.baroValid);
 }
 

@@ -6,6 +6,7 @@
 class Bmp085Backend {
   public:
     bool loadCalibration(const uint8_t calibrationData[22]);
+    void setOversampling(uint8_t oversampling);
     void setRawTemperature(int32_t rawTemperature);
     bool applyRawPressure(int32_t rawPressure, SensorBuffer& buffer) const;
 
@@ -22,6 +23,7 @@ class Bmp085Backend {
     int16_t _mc = 0;
     int16_t _md = 0;
     int32_t _rawTemperature = 0;
+    uint8_t _oversampling = 0;
     bool _calibrated = false;
 };
 

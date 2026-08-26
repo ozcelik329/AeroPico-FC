@@ -7,6 +7,7 @@
 class BaroDriver {
   public:
     bool loadCalibration(const uint8_t calibrationData[22]);
+    void setOversampling(uint8_t oversampling);
     void setRawTemperature(int32_t rawTemperature);
     bool applyRawPressure(int32_t rawPressure, SensorBuffer& buffer) const;
 
