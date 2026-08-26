@@ -48,6 +48,18 @@ app.whenReady().then(() => {
   // Holds the pending Chromium callback while the renderer shows a manual
   // port picker. Only one connect flow is expected at a time.
   let pendingPortCallback = null;
+  let pendingPortTimer = null;
+
+  function clearPendingPortRequest(portId = "") {
+    if (pendingPortTimer) {
+      clearTimeout(pendingPortTimer);
+      pendingPortTimer = null;
+    }
+    if (pendingPortCallback) {
+      pendingPortCallback(portId);
+      pendingPortCallback = null;
+    }
+  }
 
   session.defaultSession.setPermissionCheckHandler((webContents, permission) => {
     const url = webContents && typeof webContents.getURL === "function" ? webContents.getURL() : "";
@@ -67,20 +79,21 @@ app.whenReady().then(() => {
     }
 
     // Resolve any stale pending request before starting a new one.
-    if (pendingPortCallback) {
-      pendingPortCallback("");
-      pendingPortCallback = null;
-    }
+    clearPendingPortRequest("");
 
     pendingPortCallback = callback;
+    pendingPortTimer = setTimeout(() => {
+      clearPendingPortRequest("");
+    }, 10000);
     webContents.send("serial-port-list", portList.map(serializePort));
   });
 
   ipcMain.on("serial-port-choice", (_event, portId) => {
-    if (pendingPortCallback) {
-      pendingPortCallback(portId || "");
-      pendingPortCallback = null;
-    }
+    clearPendingPortRequest(portId || "");
+  });
+
+  ipcMain.on("serial-port-cancel", () => {
+    clearPendingPortRequest("");
   });
 
   app.on("web-contents-created", (_event, contents) => {

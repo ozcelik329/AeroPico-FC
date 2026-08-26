@@ -1401,6 +1401,19 @@
     }
   }
 
+  function withTimeout(promise, ms, message, onTimeout) {
+    let timer = null;
+    const timeout = new Promise((_, reject) => {
+      timer = window.setTimeout(() => {
+        if (typeof onTimeout === "function") onTimeout();
+        reject(new Error(message));
+      }, ms);
+    });
+    return Promise.race([promise, timeout]).finally(() => {
+      if (timer) window.clearTimeout(timer);
+    });
+  }
+
   function renderPortPicker(ports) {
     const recommended = chooseLikelyAeroPicoPort(ports);
     els.portPickerList.innerHTML = "";
@@ -1457,11 +1470,27 @@
       log("1200 bps RP2350 bootloader reset tetikler; baglanti 115200 bps ile aciliyor.");
     }
 
+    let openedPort = null;
     try {
       els.connectBtn.classList.add("loading");
       els.connectBtn.disabled = true;
-      state.port = await navigator.serial.requestPort();
-      await state.port.open({ baudRate });
+      state.port = await withTimeout(
+        navigator.serial.requestPort(),
+        12000,
+        "Port secimi zaman asimina ugradi.",
+        () => {
+          if (window.aeropicoBridge && typeof window.aeropicoBridge.cancelSerialPort === "function") {
+            window.aeropicoBridge.cancelSerialPort();
+          }
+          closeModal(els.portPickerModal);
+        }
+      );
+      openedPort = state.port;
+      await withTimeout(
+        state.port.open({ baudRate }),
+        5000,
+        `Port acma zaman asimi: ${state.portDisplay.name || "USB serial"}`
+      );
       if (typeof state.port.setSignals === "function") {
         await state.port.setSignals({ dataTerminalReady: true, requestToSend: false }).catch(() => {});
       }
@@ -1483,6 +1512,18 @@
       log(`Baglanti hatasi: ${error.message}`);
       toast("Bağlantı kurulamadı.", "bad");
       setLinkStatus("Hata", "bad");
+      state.connected = false;
+      state.reader = null;
+      state.writer = null;
+      state.port = null;
+      state.activeBaud = null;
+      state.txQueue = [];
+      state.txBusy = false;
+      if (openedPort && typeof openedPort.close === "function") {
+        await openedPort.close().catch(() => {});
+      }
+      updatePortInfoDisplay();
+      updateButtons();
     } finally {
       els.connectBtn.classList.remove("loading");
       els.connectBtn.classList.toggle("connected-ok", state.connected);
@@ -1527,6 +1568,18 @@
         if (state.connected) log(`Okuma hatasi: ${error.message}`);
         break;
       }
+    }
+    if (state.connected) {
+      state.connected = false;
+      state.reader = null;
+      state.writer = null;
+      state.port = null;
+      state.activeBaud = null;
+      setLinkStatus("Kapali", "muted");
+      updatePortInfoDisplay();
+      updateButtons();
+      log("USB serial akisi kapandi.");
+      toast("USB bağlantısı kesildi.", "warn");
     }
   }
 
@@ -2734,7 +2787,11 @@
     els.themeToggleBtn.addEventListener("click", toggleTheme);
     els.cancelPortPickBtn.addEventListener("click", () => {
       closeModal(els.portPickerModal);
-      if (window.aeropicoBridge) window.aeropicoBridge.chooseSerialPort("");
+      if (window.aeropicoBridge && typeof window.aeropicoBridge.cancelSerialPort === "function") {
+        window.aeropicoBridge.cancelSerialPort();
+      } else if (window.aeropicoBridge) {
+        window.aeropicoBridge.chooseSerialPort("");
+      }
     });
     if (els.applyDefaultPinsBtn) {
       els.applyDefaultPinsBtn.addEventListener("click", () => {

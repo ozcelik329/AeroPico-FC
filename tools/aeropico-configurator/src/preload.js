@@ -6,5 +6,8 @@ contextBridge.exposeInMainWorld("aeropicoBridge", {
   },
   chooseSerialPort: (portId) => {
     ipcRenderer.send("serial-port-choice", typeof portId === "string" ? portId : "");
+  },
+  cancelSerialPort: () => {
+    ipcRenderer.send("serial-port-cancel");
   }
 });
