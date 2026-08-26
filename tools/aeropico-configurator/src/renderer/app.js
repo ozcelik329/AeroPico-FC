@@ -638,7 +638,7 @@
     for (const [id, label, desc] of MODULES) {
       const value = state.modules[id];
       const card = document.createElement("div");
-      card.className = `module ${value === "ok" ? "ok" : value === "bad" ? "bad" : ""}`;
+      card.className = `module ${value === "ok" ? "ok" : value === "bad" ? "bad" : value === "detected" ? "detected" : ""}`;
       const icon = MODULE_ICONS[id] || "";
       const enableParam = moduleEnableParam(id);
       const enabled = !enableParam || getConfigValue(enableParam, 1) >= 0.5;
@@ -680,7 +680,7 @@
       const health = isDisabled
         ? "disabled"
         : item.id === "servo" ? actuatorSetupHealth() : item.id === "battery" ? state.modules.battery : state.modules[item.id];
-      card.className = `module-setup-card ${health === "ok" ? "ok" : health === "bad" ? "bad" : ""}`;
+      card.className = `module-setup-card ${health === "ok" ? "ok" : health === "bad" ? "bad" : health === "detected" ? "detected" : ""}`;
       const enableControl = item.enableParam ? renderModuleEnableControl(item.enableParam) : "";
       const typeControl = item.typeParam ? renderModuleTypeControl(item.typeParam) : "";
       const pinControls = item.pinParams ? renderModulePinControls(item.pinParams) : "";
@@ -909,6 +909,7 @@
   function moduleText(value) {
     if (value === "disabled") return "Devre dışı";
     if (value === "ok") return "✓ Algılandı";
+    if (value === "detected") return "• I2C'de görüldü";
     if (value === "bad") return "✗ Yok / pasif";
     return "— Bilinmiyor";
   }
@@ -1987,16 +1988,16 @@
 	      els.preflightText.textContent = "I2C ACK yok: Pico bus seviyesinde sensor gormuyor.";
 	      return true;
 	    }
-	    if (i2c.ack.has("68") && i2c.reg.has("68")) {
-	      state.modules.imu = "ok";
-	    } else if (i2c.ack.has("68")) {
-	      state.modules.imu = "bad";
-	    }
-	    if (i2c.ack.has("77") && i2c.reg.has("77")) {
-	      state.modules.baro = "ok";
-	    } else if (i2c.ack.has("77")) {
-	      state.modules.baro = "bad";
-	    }
+    if (i2c.ack.has("68") && i2c.reg.has("68")) {
+      state.modules.imu = "ok";
+    } else if (i2c.ack.has("68")) {
+      state.modules.imu = "detected";
+    }
+    if (i2c.ack.has("77") && i2c.reg.has("77")) {
+      state.modules.baro = "ok";
+    } else if (i2c.ack.has("77")) {
+      state.modules.baro = "detected";
+    }
 
 	    const summary = `I2C ACK ${formatI2cAddressList(i2c.ack)} | REG ${formatI2cAddressList(i2c.reg)}`;
 	    els.preflightText.textContent = summary;
@@ -2057,16 +2058,20 @@
     }
   }
 
+  function preserveDetected(moduleId, fallback) {
+    return state.modules[moduleId] === "detected" ? "detected" : fallback;
+  }
+
   function updateModulesFromSysStatus(message) {
     const present = message.onboardControlSensorsPresent || 0;
     const enabled = message.onboardControlSensorsEnabled || 0;
     const healthy = message.onboardControlSensorsHealth || 0;
     const hasImu = (present & MAV_SENSOR_BITS.gyro) && (present & MAV_SENSOR_BITS.accel);
     const imuHealthy = (healthy & MAV_SENSOR_BITS.gyro) && (healthy & MAV_SENSOR_BITS.accel);
-    state.modules.imu = hasImu ? (imuHealthy ? "ok" : "bad") : "bad";
+    state.modules.imu = hasImu ? (imuHealthy ? "ok" : "bad") : preserveDetected("imu", "bad");
     state.modules.baro = present & MAV_SENSOR_BITS.pressure
       ? ((enabled & MAV_SENSOR_BITS.pressure) && (healthy & MAV_SENSOR_BITS.pressure) ? "ok" : "bad")
-      : "bad";
+      : preserveDetected("baro", "bad");
     state.modules.mag = present & MAV_SENSOR_BITS.mag
       ? ((enabled & MAV_SENSOR_BITS.mag) && (healthy & MAV_SENSOR_BITS.mag) ? "ok" : "bad")
       : "bad";
