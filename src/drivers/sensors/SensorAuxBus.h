@@ -20,6 +20,9 @@ class SensorAuxBus {
                    bool& hasMag,
                    bool& hasBaro,
                    SensorFaultCode& faultCode);
+    bool retryBaro(SensorDmaBus& dmaBus,
+                   RP2350I2C& bus,
+                   BaroDriver& baroDriver);
     void update(SensorDmaBus& dmaBus,
                 RP2350I2C& bus,
                 MagDriver& magDriver,

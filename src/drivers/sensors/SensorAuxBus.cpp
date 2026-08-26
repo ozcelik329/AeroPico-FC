@@ -22,6 +22,18 @@ bool SensorAuxBus::configure(SensorDmaBus& dmaBus,
     return _hasMag || _hasBaro;
 }
 
+bool SensorAuxBus::retryBaro(SensorDmaBus& dmaBus,
+                             RP2350I2C& bus,
+                             BaroDriver& baroDriver) {
+    if (_hasBaro) {
+        return true;
+    }
+
+    SensorFaultCode ignoredFault = SensorFaultCode::None;
+    _hasBaro = initBaro(dmaBus, bus, baroDriver, ignoredFault);
+    return _hasBaro;
+}
+
 void SensorAuxBus::update(SensorDmaBus& dmaBus,
                           RP2350I2C& bus,
                           MagDriver& magDriver,

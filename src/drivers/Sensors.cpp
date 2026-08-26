@@ -353,6 +353,22 @@ void SensorManager::scanI2cBus() {
     if (_imuAvailable && _lastWhoAmI != 0) {
         _seedI2cProbe(_imuProfile->address, _imuProfile->whoAmIReg, _lastWhoAmI);
     }
+#ifdef USE_GY87
+    bool sawBmp085Identity = false;
+    for (uint8_t i = 0; i < _i2cRegisterScanCount; ++i) {
+        if (_i2cRegisterScanAddresses[i] == 0x77 &&
+            _i2cRegisterScanRegisters[i] == 0xD0 &&
+            _i2cRegisterScanValues[i] == 0x55) {
+            sawBmp085Identity = true;
+            break;
+        }
+    }
+    if (!_hasBaro && sawBmp085Identity) {
+        if (RP2350I2C* rpBus = _rpBus()) {
+            _hasBaro = _auxBus.retryBaro(_dmaBus, *rpBus, _baroDriver);
+        }
+    }
+#endif
     _lastI2cScanMs = millis();
     _i2cScanValid = true;
     mutex_exit(&_i2cScanMutex);
