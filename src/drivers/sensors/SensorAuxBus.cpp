@@ -233,8 +233,9 @@ bool SensorAuxBus::initBaro(SensorDmaBus& dmaBus,
         return false;
     }
 
+    (void)dmaBus;
     uint8_t calib[22];
-    if (!readRegsDma(dmaBus, bus, profile.address, profile.calibrationReg, calib, profile.calibrationLen, faultCode)) {
+    if (!readRegsPolling(bus, profile.address, profile.calibrationReg, calib, profile.calibrationLen, faultCode)) {
         _baroProfile = nullptr;
         setFaultIfNeeded(faultCode, SensorFaultCode::BaroReadFailed);
         return false;
