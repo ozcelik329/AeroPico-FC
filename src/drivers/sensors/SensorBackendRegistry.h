@@ -23,7 +23,8 @@ class SensorBackendRegistry {
         static const MagDeviceProfile profile = {
             0x1E,
             0x00, 0x70,
-            0x01, 0xA0,
+            // GN=000 keeps the HMC5883L at +/-1.3 Gauss, matching the 0.92 mG/LSB backend scale.
+            0x01, 0x00,
             0x02, 0x00,
             0x03,
             6
