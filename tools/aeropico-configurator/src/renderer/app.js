@@ -2021,6 +2021,10 @@
 	    const result = {
 	      hasI2c: false,
 	      hasUsefulScan: false,
+	      ackReportSeen: false,
+	      regReportSeen: false,
+	      idReportSeen: false,
+	      regValReportSeen: false,
 	      ackNone: false,
 	      regNone: false,
 	      ack: new Set(),
@@ -2034,9 +2038,11 @@
 	    for (const group of scanGroups) {
 	      for (const pattern of group.patterns) {
 	        let match;
-	        while ((match = pattern.exec(text)) !== null) {
-	          result.hasI2c = true;
-	          const value = match[1] || "";
+	      while ((match = pattern.exec(text)) !== null) {
+	        result.hasI2c = true;
+	        if (group.key === "ack") result.ackReportSeen = true;
+	        if (group.key === "reg") result.regReportSeen = true;
+	        const value = match[1] || "";
 	          if (value === "NONE") {
 	            if (group.key === "ack") result.ackNone = true;
 	            if (group.key === "reg") result.regNone = true;
@@ -2052,23 +2058,27 @@
 	      }
 	    }
       const idMatch = text.match(/I2C_ID\s+MPU=(0X[0-9A-F]{2}|--[0-9A-F]{2}|--)\s+BARO=(0X[0-9A-F]{2}|--[0-9A-F]{2}|--)/);
-      if (idMatch) {
-        result.hasI2c = true;
-        if (idMatch[1].startsWith("0X")) result.ids.mpu = idMatch[1].replace("0X", "");
-        if (idMatch[2].startsWith("0X")) result.ids.baro = idMatch[2].replace("0X", "");
-      }
-      const regValMatch = text.match(/I2C_REGVAL\s+68:75=(--[0-9A-F]{2}|[0-9A-F]{2})\s+77:D0=(--[0-9A-F]{2}|[0-9A-F]{2})/);
-      if (regValMatch) {
-        result.hasI2c = true;
-        if (!regValMatch[1].startsWith("--")) {
-          result.ids.mpu = regValMatch[1];
-          result.reg.add("68");
-        }
-        if (!regValMatch[2].startsWith("--")) {
-          result.ids.baro = regValMatch[2];
-          result.reg.add("77");
-        }
-      }
+	  if (idMatch) {
+	    result.hasI2c = true;
+	    result.idReportSeen = true;
+	    if (idMatch[1].startsWith("0X")) result.ids.mpu = idMatch[1].replace("0X", "");
+	    else result.ids.mpu = null;
+	    if (idMatch[2].startsWith("0X")) result.ids.baro = idMatch[2].replace("0X", "");
+	    else result.ids.baro = null;
+	  }
+	  const regValMatch = text.match(/I2C_REGVAL\s+68:75=(--[0-9A-F]{2}|[0-9A-F]{2})\s+77:D0=(--[0-9A-F]{2}|[0-9A-F]{2})/);
+	  if (regValMatch) {
+	    result.hasI2c = true;
+	    result.regValReportSeen = true;
+	    if (!regValMatch[1].startsWith("--")) {
+	      result.ids.mpu = regValMatch[1];
+	      result.reg.add("68");
+	    } else result.ids.mpu = null;
+	    if (!regValMatch[2].startsWith("--")) {
+	      result.ids.baro = regValMatch[2];
+	      result.reg.add("77");
+	    } else result.ids.baro = null;
+	  }
       if (result.ids.mpu === "55" && result.ids.baro === "68") {
         const baro = result.ids.mpu;
         result.ids.mpu = result.ids.baro;
@@ -2093,9 +2103,6 @@
 	    if (!i2c.hasI2c) return false;
 
       const nowMs = Date.now();
-      const hasGoodAck = state.i2cDiagnostics.ack.size > 0;
-      const hasGoodReg = state.i2cDiagnostics.reg.size > 0;
-      const recentGood = state.i2cDiagnostics.lastSeenMs > 0 && (nowMs - state.i2cDiagnostics.lastSeenMs) < 5000;
       state.i2cDiagnostics.lastText = text;
       state.i2cDiagnostics.lastSeenMs = nowMs;
       const incomingGood = i2c.ack.size > 0 || i2c.reg.size > 0 || i2c.ids.mpu || i2c.ids.baro;
@@ -2106,23 +2113,21 @@
         state.i2cDiagnostics.lastBadMs = nowMs;
         state.i2cDiagnostics.lastBadText = text;
       }
-      if (i2c.ackNone) {
-        if (!hasGoodAck || !recentGood) state.i2cDiagnostics.ack = new Set();
-      } else if (i2c.ack.size > 0) {
+      if (i2c.ackReportSeen) {
         state.i2cDiagnostics.ack = i2c.ack;
       }
-      if (i2c.regNone) {
-        if (!hasGoodReg || !recentGood) state.i2cDiagnostics.reg = new Set();
-      } else if (i2c.reg.size > 0) {
+      if (i2c.regReportSeen || i2c.regValReportSeen) {
         state.i2cDiagnostics.reg = i2c.reg;
       }
-      state.i2cDiagnostics.ids = { ...state.i2cDiagnostics.ids, ...i2c.ids };
+      if (i2c.idReportSeen || i2c.regValReportSeen) {
+        state.i2cDiagnostics.ids = { mpu: i2c.ids.mpu || undefined, baro: i2c.ids.baro || undefined };
+      }
 
       log(`I2C ACK scan: ${formatI2cAddressList(state.i2cDiagnostics.ack)}`);
       log(`I2C register probe: ${formatI2cAddressList(state.i2cDiagnostics.reg)}`);
       renderI2cDiagnostics();
 
-	    if (i2c.ackNone && (!hasGoodAck || !recentGood)) {
+	    if (i2c.ackNone) {
 	      els.preflightText.textContent = "I2C ACK yok: Pico bus seviyesinde sensor gormuyor.";
 	      return true;
 	    }
@@ -2254,11 +2259,6 @@
     }
   }
 
-  function preserveDetected(moduleId, fallback) {
-    if (state.modules[moduleId] === "ok") return "ok";
-    return state.modules[moduleId] === "detected" ? "detected" : fallback;
-  }
-
   function hasI2cEvidence(moduleId) {
     const diag = state.i2cDiagnostics;
     if (moduleId === "imu") {
@@ -2275,13 +2275,6 @@
   }
 
   function setModuleState(moduleId, value) {
-    if (state.modules[moduleId] === "ok" && value === "detected") {
-      return;
-    }
-    if ((moduleId === "imu" || moduleId === "baro") && value === "bad" && hasI2cEvidence(moduleId)) {
-      state.modules[moduleId] = "detected";
-      return;
-    }
     state.modules[moduleId] = value;
   }
 
@@ -2293,12 +2286,12 @@
     const imuHealthy = (healthy & MAV_SENSOR_BITS.gyro) && (healthy & MAV_SENSOR_BITS.accel);
     setModuleState("imu", hasImu
       ? (imuHealthy ? "ok" : hasI2cEvidence("imu") ? "detected" : "bad")
-      : preserveDetected("imu", "bad"));
+      : hasI2cEvidence("imu") ? "detected" : "bad");
     setModuleState("baro", present & MAV_SENSOR_BITS.pressure
       ? ((enabled & MAV_SENSOR_BITS.pressure) && (healthy & MAV_SENSOR_BITS.pressure)
         ? "ok"
         : hasI2cEvidence("baro") ? "detected" : "bad")
-      : preserveDetected("baro", "bad"));
+      : hasI2cEvidence("baro") ? "detected" : "bad");
     state.modules.mag = present & MAV_SENSOR_BITS.mag
       ? ((enabled & MAV_SENSOR_BITS.mag) && (healthy & MAV_SENSOR_BITS.mag) ? "ok" : "bad")
       : "bad";

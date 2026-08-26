@@ -350,9 +350,6 @@ void SensorManager::scanI2cBus() {
 
     _scanI2cAckBus();
     _scanI2cRegisterProbes();
-    if (_imuAvailable && _lastWhoAmI != 0) {
-        _seedI2cProbe(_imuProfile->address, _imuProfile->whoAmIReg, _lastWhoAmI);
-    }
 #ifdef USE_GY87
     bool sawBmp085Identity = false;
     for (uint8_t i = 0; i < _i2cRegisterScanCount; ++i) {
@@ -366,6 +363,20 @@ void SensorManager::scanI2cBus() {
     if (!_hasBaro && sawBmp085Identity) {
         if (RP2350I2C* rpBus = _rpBus()) {
             _hasBaro = _auxBus.retryBaro(_dmaBus, *rpBus, _baroDriver);
+        }
+    }
+    bool sawHmcIdentity = false;
+    for (uint8_t i = 0; i < _i2cRegisterScanCount; ++i) {
+        if (_i2cRegisterScanAddresses[i] == 0x1E &&
+            _i2cRegisterScanRegisters[i] == 0x0A &&
+            _i2cRegisterScanValues[i] == 0x48) {
+            sawHmcIdentity = true;
+            break;
+        }
+    }
+    if (!_hasMag && sawHmcIdentity) {
+        if (RP2350I2C* rpBus = _rpBus()) {
+            _hasMag = _auxBus.retryMag(*rpBus);
         }
     }
 #endif
@@ -505,6 +516,8 @@ void SensorManager::update() {
 #ifdef USE_GY87
         if (RP2350I2C* rpBus = _rpBus()) {
             _auxBus.update(_dmaBus, *rpBus, _magDriver, _baroDriver, buf, _faultCode);
+            _hasMag = _auxBus.hasMag();
+            _hasBaro = _auxBus.hasBaro();
         }
 #endif
         mutex_enter_blocking(&_mutex);
@@ -545,6 +558,8 @@ void SensorManager::update() {
     #ifdef USE_GY87
         if (RP2350I2C* rpBus = _rpBus()) {
             _auxBus.update(_dmaBus, *rpBus, _magDriver, _baroDriver, buf, _faultCode);
+            _hasMag = _auxBus.hasMag();
+            _hasBaro = _auxBus.hasBaro();
         }
     #endif
 
