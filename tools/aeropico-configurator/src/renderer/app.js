@@ -2082,14 +2082,10 @@
 	    }
     const ack = state.i2cDiagnostics.ack;
     const reg = state.i2cDiagnostics.reg;
-    if (ack.has("68") && reg.has("68")) {
-      state.modules.imu = "ok";
-    } else if (ack.has("68")) {
+    if (ack.has("68")) {
       state.modules.imu = "detected";
     }
-    if (ack.has("77") && reg.has("77")) {
-      state.modules.baro = "ok";
-    } else if (ack.has("77")) {
+    if (ack.has("77")) {
       state.modules.baro = "detected";
     }
 
@@ -2188,15 +2184,30 @@
     return state.modules[moduleId] === "detected" ? "detected" : fallback;
   }
 
+  function hasI2cEvidence(moduleId) {
+    const diag = state.i2cDiagnostics;
+    if (moduleId === "imu") {
+      return diag.ack.has("68") || diag.reg.has("68") || diag.ids.mpu === "68";
+    }
+    if (moduleId === "baro") {
+      return diag.ack.has("77") || diag.reg.has("77") || diag.ids.baro === "55";
+    }
+    return false;
+  }
+
   function updateModulesFromSysStatus(message) {
     const present = message.onboardControlSensorsPresent || 0;
     const enabled = message.onboardControlSensorsEnabled || 0;
     const healthy = message.onboardControlSensorsHealth || 0;
     const hasImu = (present & MAV_SENSOR_BITS.gyro) && (present & MAV_SENSOR_BITS.accel);
     const imuHealthy = (healthy & MAV_SENSOR_BITS.gyro) && (healthy & MAV_SENSOR_BITS.accel);
-    state.modules.imu = hasImu ? (imuHealthy ? "ok" : "bad") : preserveDetected("imu", "bad");
+    state.modules.imu = hasImu
+      ? (imuHealthy ? "ok" : hasI2cEvidence("imu") ? "detected" : "bad")
+      : preserveDetected("imu", "bad");
     state.modules.baro = present & MAV_SENSOR_BITS.pressure
-      ? ((enabled & MAV_SENSOR_BITS.pressure) && (healthy & MAV_SENSOR_BITS.pressure) ? "ok" : "bad")
+      ? ((enabled & MAV_SENSOR_BITS.pressure) && (healthy & MAV_SENSOR_BITS.pressure)
+        ? "ok"
+        : hasI2cEvidence("baro") ? "detected" : "bad")
       : preserveDetected("baro", "bad");
     state.modules.mag = present & MAV_SENSOR_BITS.mag
       ? ((enabled & MAV_SENSOR_BITS.mag) && (healthy & MAV_SENSOR_BITS.mag) ? "ok" : "bad")
@@ -2259,18 +2270,20 @@
       return;
     }
 
-	    if (message.type === "statusText") {
-	      log(`FC: ${message.text}`);
-	      const text = message.text.toUpperCase();
-	      logI2cDiagnostics(text);
-	      if (text.includes("IMU CALIBRATION SAVED") || text.includes("SENSOR_CHECK_OK")) state.modules.imu = "ok";
-      if (text.includes("IMU MISSING") || text.includes("WHOAMI")) state.modules.imu = "bad";
-      if (text.includes("BMP") || text.includes("BARO")) state.modules.baro = text.includes("HAZIR") || text.includes("OK") ? "ok" : "bad";
-      if (text.includes("MAG")) state.modules.mag = text.includes("MISSING") || text.includes("FAILED") ? "bad" : "ok";
-      if (text.includes("HMC")) state.modules.mag = text.includes("HAZIR") || text.includes("OK") ? "ok" : "bad";
-      if (text.includes("GPS")) state.modules.gps = text.includes("FIX") || text.includes("HAZIR") ? "ok" : "bad";
-      if (text.includes("RC_MONITOR_OK")) state.modules.rc = "ok";
-      if (text.includes("RC_MONITOR_FAIL")) state.modules.rc = "bad";
+    if (message.type === "statusText") {
+      log(`FC: ${message.text}`);
+      const text = message.text.toUpperCase();
+      const handledI2c = logI2cDiagnostics(text);
+      if (!handledI2c) {
+        if (text.includes("IMU CALIBRATION SAVED") || text.includes("SENSOR_CHECK_OK")) state.modules.imu = "ok";
+        if (text.includes("IMU MISSING") || text.includes("WHOAMI")) state.modules.imu = "bad";
+        if (text.includes("BMP") || text.includes("BARO")) state.modules.baro = text.includes("HAZIR") || text.includes("OK") ? "ok" : "bad";
+        if (text.includes("MAG")) state.modules.mag = text.includes("MISSING") || text.includes("FAILED") ? "bad" : "ok";
+        if (text.includes("HMC")) state.modules.mag = text.includes("HAZIR") || text.includes("OK") ? "ok" : "bad";
+        if (text.includes("GPS")) state.modules.gps = text.includes("FIX") || text.includes("HAZIR") ? "ok" : "bad";
+        if (text.includes("RC_MONITOR_OK")) state.modules.rc = "ok";
+        if (text.includes("RC_MONITOR_FAIL")) state.modules.rc = "bad";
+      }
       if (text.includes("RC_MAP_OK")) {
         state.modules.rc = "ok";
         els.preflightText.textContent = message.text;
