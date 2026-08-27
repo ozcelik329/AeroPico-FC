@@ -355,14 +355,15 @@ body.app-ready .app-shell {
   border-right: 0;
   border-left: 1px solid var(--line);
   overflow-y: auto;
+  gap: 7px;
 }
 
 .rightbar .panel {
-  padding: 10px;
+  padding: 9px;
 }
 
 .rightbar .panel-title {
-  margin-bottom: 8px;
+  margin-bottom: 7px;
 }
 
 /* ── Workspace ────────────────────────────── */
@@ -508,15 +509,15 @@ body.app-ready .app-shell {
 }
 
 .firmware-panel {
-  padding-bottom: 12px;
+  padding-bottom: 9px;
 }
 
 .firmware-card {
   position: relative;
   display: grid;
   gap: 3px;
-  min-height: 68px;
-  padding: 12px 13px;
+  min-height: 50px;
+  padding: 9px 12px;
   border: 1px solid var(--glass-border);
   border-radius: 8px;
   background:
@@ -528,8 +529,8 @@ body.app-ready .app-shell {
 .firmware-card::after {
   content: "";
   position: absolute;
-  right: 12px;
-  top: 14px;
+  right: 11px;
+  top: 12px;
   width: 8px;
   height: 8px;
   border-radius: 99px;
@@ -544,8 +545,7 @@ body.app-ready .app-shell {
   animation: led-blink 1.2s ease-in-out infinite;
 }
 
-.firmware-card span,
-.firmware-card small {
+.firmware-card span {
   color: var(--muted);
   font-size: 10.5px;
 }
