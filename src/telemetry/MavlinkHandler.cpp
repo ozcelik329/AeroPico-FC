@@ -1,4 +1,5 @@
 #include "MavlinkHandler.h"
+#include "../BuildInfo.h"
 #ifdef MAVLINK_PARAMS_ENABLED
 #include "ParamManager.h"
 #endif
@@ -73,6 +74,7 @@ void MavlinkHandler::update() {
     // GCS heartbeat timeout - 3 saniye
     if (_groundStationAlive && (now - _lastGroundStationHeartbeat > 3000)) {
         _groundStationAlive = false;
+        _sentVersionToGcs = false;
         Serial.println("[MAVLINK] GCS heartbeat kayboldu.");
     }
 
@@ -130,6 +132,10 @@ void MavlinkHandler::_handleMessage(mavlink_message_t& msg) {
                 _groundStationAlive = true;
                 Serial.println("[MAVLINK] GCS heartbeat alindi.");
             }
+            if (!_sentVersionToGcs) {
+                sendAutopilotVersion();
+                _sentVersionToGcs = true;
+            }
             break;
         }
         case MAVLINK_MSG_ID_RC_CHANNELS_OVERRIDE: {
@@ -185,6 +191,16 @@ void MavlinkHandler::_handleCommandLong(const mavlink_message_t& msg) {
     mavlink_command_long_t command;
     mavlink_msg_command_long_decode(&msg, &command);
     if (!_targetsThisVehicle(command.target_system, command.target_component)) {
+        return;
+    }
+
+    if (command.command == MAV_CMD_REQUEST_MESSAGE) {
+        if ((uint32_t)command.param1 == MAVLINK_MSG_ID_AUTOPILOT_VERSION) {
+            sendAutopilotVersion();
+            sendCommandAck(command.command, MAV_RESULT_ACCEPTED);
+        } else {
+            sendCommandAck(command.command, MAV_RESULT_UNSUPPORTED);
+        }
         return;
     }
 
@@ -473,6 +489,38 @@ void MavlinkHandler::sendStatusText(const char* text, uint8_t severity) {
     );
 
     _sendMessage(msg);
+}
+
+void MavlinkHandler::sendAutopilotVersion() {
+    mavlink_message_t msg;
+    uint8_t flightCustom[8] = {};
+    uint8_t middlewareCustom[8] = {};
+    uint8_t osCustom[8] = {};
+    uint8_t uid2[18] = {};
+    strncpy((char*)flightCustom, AEROPICO_VERSION, sizeof(flightCustom));
+
+    mavlink_msg_autopilot_version_pack(
+        MAV_SYSTEM_ID,
+        MAV_COMPONENT_ID,
+        &msg,
+        0,
+        AEROPICO_FLIGHT_SW_VERSION,
+        0,
+        0,
+        0,
+        flightCustom,
+        middlewareCustom,
+        osCustom,
+        0,
+        0,
+        0,
+        uid2
+    );
+    _sendMessage(msg);
+
+    char line[50] = {};
+    snprintf(line, sizeof(line), "FW_VERSION %s %s", AEROPICO_VERSION, AEROPICO_MCU);
+    sendStatusText(line, MAV_SEVERITY_INFO);
 }
 
 bool MavlinkHandler::isGroundStationAlive() const {

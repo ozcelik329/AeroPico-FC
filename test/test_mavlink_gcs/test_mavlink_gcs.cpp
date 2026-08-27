@@ -96,6 +96,20 @@ void test_heartbeat_reports_safety_armed_bit() {
     TEST_ASSERT_TRUE((heartbeat.base_mode & MAV_MODE_FLAG_SAFETY_ARMED) != 0);
 }
 
+void test_autopilot_version_reports_firmware_version() {
+    MavlinkHandler handler;
+
+    handler.sendAutopilotVersion();
+
+    mavlink_message_t message;
+    TEST_ASSERT_TRUE(decodeMessageById(MAVLINK_MSG_ID_AUTOPILOT_VERSION, message));
+    mavlink_autopilot_version_t version;
+    mavlink_msg_autopilot_version_decode(&message, &version);
+    TEST_ASSERT_EQUAL_UINT32(AEROPICO_FLIGHT_SW_VERSION, version.flight_sw_version);
+    const uint8_t expectedCustom[8] = {'v', '1', '.', '0', '.', '0', '-', 'r'};
+    TEST_ASSERT_EQUAL_UINT8_ARRAY(expectedCustom, version.flight_custom_version, 8);
+}
+
 void test_command_long_arm_sends_ack_and_invokes_handler() {
     MavlinkHandler handler;
     handler.setArmCommandHandler(handleArmCommand);
@@ -158,6 +172,29 @@ void test_unsupported_command_sends_unsupported_ack() {
     mavlink_command_ack_t ack;
     mavlink_msg_command_ack_decode(&ackMessage, &ack);
     TEST_ASSERT_EQUAL_UINT8(MAV_RESULT_UNSUPPORTED, ack.result);
+}
+
+void test_request_message_returns_autopilot_version() {
+    MavlinkHandler handler;
+    mavlink_message_t command;
+    mavlink_msg_command_long_pack(
+        255, 1, &command,
+        MAV_SYSTEM_ID, MAV_COMPONENT_ID,
+        MAV_CMD_REQUEST_MESSAGE,
+        0,
+        MAVLINK_MSG_ID_AUTOPILOT_VERSION, 0, 0, 0, 0, 0, 0
+    );
+
+    handler.handleMessageForTest(command);
+
+    mavlink_message_t versionMessage;
+    TEST_ASSERT_TRUE(decodeMessageById(MAVLINK_MSG_ID_AUTOPILOT_VERSION, versionMessage));
+    mavlink_message_t ackMessage;
+    TEST_ASSERT_TRUE(decodeMessageById(MAVLINK_MSG_ID_COMMAND_ACK, ackMessage));
+    mavlink_command_ack_t ack;
+    mavlink_msg_command_ack_decode(&ackMessage, &ack);
+    TEST_ASSERT_EQUAL_UINT16(MAV_CMD_REQUEST_MESSAGE, ack.command);
+    TEST_ASSERT_EQUAL_UINT8(MAV_RESULT_ACCEPTED, ack.result);
 }
 
 void test_aeropico_service_command_sends_ack_and_statustext() {
@@ -244,9 +281,11 @@ void test_mission_request_list_returns_zero_count() {
 int main() {
     UNITY_BEGIN();
     RUN_TEST(test_heartbeat_reports_safety_armed_bit);
+    RUN_TEST(test_autopilot_version_reports_firmware_version);
     RUN_TEST(test_command_long_arm_sends_ack_and_invokes_handler);
     RUN_TEST(test_command_long_disarm_force_flag);
     RUN_TEST(test_unsupported_command_sends_unsupported_ack);
+    RUN_TEST(test_request_message_returns_autopilot_version);
     RUN_TEST(test_aeropico_service_command_sends_ack_and_statustext);
     RUN_TEST(test_vfr_hud_reports_altitude_climb_heading_and_throttle);
     RUN_TEST(test_gps_raw_int_reports_no_gps);

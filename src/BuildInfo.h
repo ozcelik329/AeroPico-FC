@@ -5,5 +5,6 @@
 #define AEROPICO_VERSION "v1.0.0-rc1"
 #define AEROPICO_TARGET "Raspberry Pi Pico 2"
 #define AEROPICO_MCU "RP2350"
+#define AEROPICO_FLIGHT_SW_VERSION ((1UL << 24) | (0UL << 16) | (0UL << 8) | 192UL)
 
 #endif

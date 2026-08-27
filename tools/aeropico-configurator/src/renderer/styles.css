@@ -1465,7 +1465,7 @@ body.app-ready .app-shell {
   top: 0;
   z-index: 20;
   display: grid;
-  grid-template-columns: repeat(5, minmax(124px, 1fr));
+  grid-template-columns: repeat(6, minmax(104px, 1fr));
   align-items: center;
   justify-content: center;
   gap: 8px;

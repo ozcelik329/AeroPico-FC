@@ -15,6 +15,7 @@
     PARAM_SET: 23,
     COMMAND_LONG: 76,
     COMMAND_ACK: 77,
+    AUTOPILOT_VERSION: 148,
     STATUSTEXT: 253
   };
 
@@ -26,6 +27,7 @@
     23: 168,
     76: 152,
     77: 143,
+    148: 178,
     253: 83
   };
 
@@ -250,6 +252,18 @@
           type: "commandAck",
           command: view.getUint16(0, true),
           result: view.getUint8(2)
+        });
+        return;
+      }
+
+      if (msgId === MSG.AUTOPILOT_VERSION && payload.length >= 60) {
+        this.onMessage({
+          type: "autopilotVersion",
+          flightSwVersion: view.getUint32(16, true),
+          boardVersion: view.getUint32(28, true),
+          flightCustomVersion: readString(view, 36, 8),
+          vendorId: view.getUint16(32, true),
+          productId: view.getUint16(34, true)
         });
         return;
       }

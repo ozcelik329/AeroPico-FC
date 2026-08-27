@@ -349,6 +349,7 @@
     lastCommandAtMs: 0,
     commandHistory: [],
     mavlinkHistory: [],
+    firmwareVersion: null,
     i2cDiagnostics: {
       ack: new Set(),
       reg: new Set(),
@@ -421,6 +422,7 @@
     paramSummary: document.getElementById("paramSummary"),
     moduleSummaryTop: document.getElementById("moduleSummaryTop"),
     heartbeatSummary: document.getElementById("heartbeatSummary"),
+    firmwareSummary: document.getElementById("firmwareSummary"),
     armSummary: document.getElementById("armSummary"),
     commandSummary: document.getElementById("commandSummary"),
     commandStatusList: document.getElementById("commandStatusList"),
@@ -1312,6 +1314,12 @@
       setStatusValue(els.heartbeatSummary, "muted", "Yok");
     }
 
+    setStatusValue(
+      els.firmwareSummary,
+      state.firmwareVersion ? "ok" : "muted",
+      state.firmwareVersion || "Bilinmiyor"
+    );
+
     if (state.armed === true) {
       setStatusValue(els.armSummary, "bad", "Armed");
       document.body.classList.add("is-armed");
@@ -1363,6 +1371,16 @@
     const num = typeof value === "string" ? parseInt(value, 16) || Number(value) : value;
     if (!Number.isFinite(num)) return String(value);
     return `0x${num.toString(16).padStart(4, "0").toUpperCase()}`;
+  }
+
+  function formatFirmwareVersion(encoded) {
+    const value = Number(encoded) >>> 0;
+    const major = (value >>> 24) & 0xff;
+    const minor = (value >>> 16) & 0xff;
+    const patch = (value >>> 8) & 0xff;
+    const type = value & 0xff;
+    const suffix = type >= 192 ? "-rc" : type >= 128 ? "-beta" : type >= 64 ? "-alpha" : "";
+    return `v${major}.${minor}.${patch}${suffix}`;
   }
 
   function bindSerialBridge() {
@@ -1523,6 +1541,7 @@
       state.writer = null;
       state.port = null;
       state.activeBaud = null;
+      state.firmwareVersion = null;
       state.txQueue = [];
       state.txBusy = false;
       if (openedPort && typeof openedPort.close === "function") {
@@ -1553,6 +1572,7 @@
       state.writer = null;
       state.port = null;
       state.activeBaud = null;
+      state.firmwareVersion = null;
       state.txQueue = [];
       state.txBusy = false;
       setLinkStatus("Kapali", "muted");
@@ -1581,6 +1601,7 @@
       state.writer = null;
       state.port = null;
       state.activeBaud = null;
+      state.firmwareVersion = null;
       setLinkStatus("Kapali", "muted");
       updatePortInfoDisplay();
       updateButtons();
@@ -2002,6 +2023,14 @@
         advice: accepted ? "Komut firmware tarafından kabul edildi." : "Reddedildiyse preflight, armed state ve safety gate sebebini kontrol et."
       };
     }
+    if (message.type === "autopilotVersion") {
+      return {
+        kind: "ok",
+        title: "AUTOPILOT_VERSION",
+        detail: `${formatFirmwareVersion(message.flightSwVersion)}${message.flightCustomVersion ? ` · ${message.flightCustomVersion}` : ""}`,
+        advice: "Firmware sürümü alındı; destek/debug kayıtlarında bu değeri kullan."
+      };
+    }
 	    if (message.type === "statusText") {
 	      const upper = message.text.toUpperCase();
 	      const i2c = parseI2cDiagnostics(upper);
@@ -2336,6 +2365,12 @@
       return;
     }
 
+    if (message.type === "autopilotVersion") {
+      state.firmwareVersion = formatFirmwareVersion(message.flightSwVersion);
+      log(`Firmware surumu: ${state.firmwareVersion}`);
+      renderSummary();
+      return;
+    }
 
     if (message.type === "commandAck") {
       const accepted = message.result === 0;
@@ -2356,6 +2391,10 @@
     if (message.type === "statusText") {
       log(`FC: ${message.text}`);
       const text = message.text.toUpperCase();
+      const versionMatch = message.text.match(/^FW_VERSION\s+(\S+)/i);
+      if (versionMatch) {
+        state.firmwareVersion = versionMatch[1];
+      }
       const handledSensorCheck = applySensorCheckStatus(text);
       const handledI2c = logI2cDiagnostics(text);
       if (!handledI2c) {

@@ -51,6 +51,7 @@ class MavlinkHandler {
     void sendMissionCountZero(uint8_t targetSystem, uint8_t targetComponent);
     void sendCommandAck(uint16_t command, uint8_t result);
     void sendStatusText(const char* text, uint8_t severity = MAV_SEVERITY_WARNING);
+    void sendAutopilotVersion();
 
     bool isGroundStationAlive() const;
 
@@ -89,6 +90,7 @@ class MavlinkHandler {
     uint32_t _lastAttitudeSent    = 0;
     uint32_t _lastRCSent          = 0;
     uint32_t _lastSysStatusSent   = 0;
+    bool     _sentVersionToGcs    = false;
     uint16_t _attitudePeriodMs    = STREAM_ATTITUDE_DEFAULT_MS;
     uint16_t _rcPeriodMs          = STREAM_RC_DEFAULT_MS;
     uint16_t _sysStatusPeriodMs   = STREAM_SYS_DEFAULT_MS;
