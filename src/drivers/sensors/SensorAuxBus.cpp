@@ -332,22 +332,18 @@ void SensorAuxBus::readMag(SensorDmaBus& dmaBus,
                            MagDriver& magDriver,
                            SensorBuffer& buffer,
                            SensorFaultCode& faultCode) {
-    (void)magDriver;
-    if (!_magProfile ||
-        !startRegsDma(dmaBus, bus, _magProfile->address, _magProfile->dataReg,
-                      _hmcDmaBuf, _magProfile->sampleLen, AUX_MAG, faultCode)) {
-        if (_magProfile &&
-            readRegsPolling(bus, _magProfile->address, _magProfile->dataReg,
-                            _hmcDmaBuf, _magProfile->sampleLen, faultCode)) {
-            const int16_t mx = (int16_t)(_hmcDmaBuf[0] << 8 | _hmcDmaBuf[1]);
-            const int16_t my = (int16_t)(_hmcDmaBuf[4] << 8 | _hmcDmaBuf[5]);
-            const int16_t mz = (int16_t)(_hmcDmaBuf[2] << 8 | _hmcDmaBuf[3]);
-            magDriver.applySample(mx, my, mz, buffer);
-            noteMagReadOk(faultCode);
-        } else {
-            buffer.mx = buffer.my = buffer.mz = 0.0f;
-            noteMagReadFail(faultCode);
-        }
+    (void)dmaBus;
+    if (_magProfile &&
+        readRegsPolling(bus, _magProfile->address, _magProfile->dataReg,
+                        _hmcDmaBuf, _magProfile->sampleLen, faultCode)) {
+        const int16_t mx = (int16_t)(_hmcDmaBuf[0] << 8 | _hmcDmaBuf[1]);
+        const int16_t my = (int16_t)(_hmcDmaBuf[4] << 8 | _hmcDmaBuf[5]);
+        const int16_t mz = (int16_t)(_hmcDmaBuf[2] << 8 | _hmcDmaBuf[3]);
+        magDriver.applySample(mx, my, mz, buffer);
+        noteMagReadOk(faultCode);
+    } else {
+        buffer.mx = buffer.my = buffer.mz = 0.0f;
+        noteMagReadFail(faultCode);
     }
 }
 
@@ -356,7 +352,7 @@ bool SensorAuxBus::readBaro(SensorDmaBus& dmaBus,
                             BaroDriver& baroDriver,
                             SensorBuffer& buffer,
                             SensorFaultCode& faultCode) {
-    (void)baroDriver;
+    (void)dmaBus;
     if (!_baroProfile) {
         setFaultIfNeeded(faultCode, SensorFaultCode::BaroReadFailed);
         return false;
@@ -374,16 +370,12 @@ bool SensorAuxBus::readBaro(SensorDmaBus& dmaBus,
 
     if (_bmpState == BMP_TEMP_PENDING) {
         if ((int32_t)(micros() - _bmpWaitUntilUs) < 0) return false;
-        if (!startRegsDma(dmaBus, bus, profile.address, profile.resultReg,
-                          _bmpDmaBuf, 2, AUX_BARO_TEMP, faultCode)) {
-            if (!readRegsPolling(bus, profile.address, profile.resultReg, _bmpDmaBuf, 2, faultCode)) {
-                noteBaroReadFail(faultCode);
-                return false;
-            }
-            baroDriver.setRawTemperature((int32_t)(_bmpDmaBuf[0] << 8) | _bmpDmaBuf[1]);
-            _bmpState = BMP_TEMP_READ;
+        if (!readRegsPolling(bus, profile.address, profile.resultReg, _bmpDmaBuf, 2, faultCode)) {
+            noteBaroReadFail(faultCode);
             return false;
         }
+        baroDriver.setRawTemperature((int32_t)(_bmpDmaBuf[0] << 8) | _bmpDmaBuf[1]);
+        _bmpState = BMP_TEMP_READ;
         return false;
     }
 
@@ -400,22 +392,18 @@ bool SensorAuxBus::readBaro(SensorDmaBus& dmaBus,
 
     if (_bmpState == BMP_PRESSURE_PENDING) {
         if ((int32_t)(micros() - _bmpWaitUntilUs) < 0) return false;
-        if (!startRegsDma(dmaBus, bus, profile.address, profile.resultReg,
-                          _bmpDmaBuf, 3, AUX_BARO_PRESSURE, faultCode)) {
-            if (!readRegsPolling(bus, profile.address, profile.resultReg, _bmpDmaBuf, 3, faultCode)) {
-                noteBaroReadFail(faultCode);
-                return false;
-            }
-            const int32_t up = ((int32_t)_bmpDmaBuf[0] << 16 | (int32_t)_bmpDmaBuf[1] << 8 | _bmpDmaBuf[2]) >> (8 - profile.pressureOversampling);
-            _bmpState = BMP_IDLE;
-            if (!baroDriver.applyRawPressure(up, buffer)) {
-                noteBaroReadFail(faultCode);
-                return false;
-            }
-            noteBaroReadOk(faultCode);
-            return true;
+        if (!readRegsPolling(bus, profile.address, profile.resultReg, _bmpDmaBuf, 3, faultCode)) {
+            noteBaroReadFail(faultCode);
+            return false;
         }
-        return false;
+        const int32_t up = ((int32_t)_bmpDmaBuf[0] << 16 | (int32_t)_bmpDmaBuf[1] << 8 | _bmpDmaBuf[2]) >> (8 - profile.pressureOversampling);
+        _bmpState = BMP_IDLE;
+        if (!baroDriver.applyRawPressure(up, buffer)) {
+            noteBaroReadFail(faultCode);
+            return false;
+        }
+        noteBaroReadOk(faultCode);
+        return true;
     }
 
     return false;

@@ -577,6 +577,7 @@ void SensorManager::update() {
 
     const uint8_t* raw = _dmaBus.mpuBuffer();
     _gyroAccelDriver.parseRawSample(raw, _imuCalibration, buf, micros());
+    _dmaBus.finishMpu();
     _clearRecoverableMpuFault();
     _observeCalibrationRawFrame(raw);
     buf.baroValid = false;

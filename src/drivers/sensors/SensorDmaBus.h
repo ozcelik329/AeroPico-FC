@@ -20,6 +20,7 @@ class SensorDmaBus {
     void startMpuRead(RP2350I2C& bus, uint8_t address, uint8_t reg, uint32_t nowUs);
     bool isMpuReady() const;
     bool mpuTimedOut(uint32_t nowUs, uint32_t timeoutUs) const;
+    void finishMpu();
     void abortMpu();
 
     const uint8_t* mpuBuffer() const { return _mpuRx; }
@@ -44,6 +45,7 @@ class SensorDmaBus {
 
   private:
     static constexpr uint16_t READ_CMD = I2C_IC_DATA_CMD_CMD_BITS;
+    static constexpr uint16_t RESTART_CMD = I2C_IC_DATA_CMD_RESTART_BITS;
     static constexpr uint16_t STOP_CMD = I2C_IC_DATA_CMD_STOP_BITS;
 
     int _mpuRxChan = -1;
@@ -55,6 +57,7 @@ class SensorDmaBus {
     uint16_t _auxCmd[AUX_MAX_LEN] = {};
     uint32_t _mpuStartUs = 0;
     uint32_t _auxStartUs = 0;
+    bool _mpuActive = false;
     bool _auxActive = false;
 
     void prepareMpuCommands(uint8_t reg);
