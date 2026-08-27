@@ -114,6 +114,7 @@
   const SERIAL_REQUEST_TIMEOUT_MS = 9500;
   const SERIAL_OPEN_TIMEOUT_MS = 4500;
   const SERIAL_CLOSE_TIMEOUT_MS = 900;
+  const SERIAL_CONNECT_GUARD_MS = 11000;
   const MAV_SENSOR_BITS = Object.freeze({
     gyro: 1 << 0,
     accel: 1 << 1,
@@ -375,7 +376,10 @@
     pinMap: new Map(), // pinNumber -> role string
     dirtyParams: new Map(),
     txQueue: [],
-    txBusy: false
+    txBusy: false,
+    connecting: false,
+    connectAttemptId: 0,
+    connectGuardTimer: null
   };
 
   const encoder = new window.AeroPicoMavlink.Encoder();
@@ -1296,7 +1300,7 @@
       state.pendingCommand = null;
       state.lastCommand = null;
     }
-    els.connectBtn.disabled = state.connected;
+    els.connectBtn.disabled = state.connected || state.connecting;
     els.disconnectBtn.disabled = !state.connected;
     els.readParamsBtn.disabled = !state.connected;
     els.saveParamsBtn.disabled = !state.connected;
@@ -1505,6 +1509,7 @@
 
   function resetRuntimeConnectionState() {
     state.connected = false;
+    state.connecting = false;
     state.reader = null;
     state.writer = null;
     state.port = null;
@@ -1512,6 +1517,32 @@
     state.firmwareVersion = null;
     state.txQueue = [];
     state.txBusy = false;
+  }
+
+  function clearConnectGuard() {
+    if (state.connectGuardTimer) {
+      window.clearTimeout(state.connectGuardTimer);
+      state.connectGuardTimer = null;
+    }
+  }
+
+  function beginConnectGuard(attemptId) {
+    clearConnectGuard();
+    state.connectGuardTimer = window.setTimeout(() => {
+      if (state.connectAttemptId !== attemptId || state.connected) return;
+      state.connectAttemptId += 1;
+      if (window.aeropicoBridge && typeof window.aeropicoBridge.cancelSerialPort === "function") {
+        window.aeropicoBridge.cancelSerialPort();
+      }
+      closeModal(els.portPickerModal);
+      state.connecting = false;
+      setLinkStatus("Hata", "bad");
+      els.connectBtn.classList.remove("loading", "connected-ok");
+      els.connectBtn.disabled = false;
+      updateButtons();
+      log("Baglanti zaman asimi: port secimi/acma asamasi cevap vermedi.");
+      toast("Bağlantı zaman aşımına uğradı.", "bad");
+    }, SERIAL_CONNECT_GUARD_MS);
   }
 
   function renderPortPicker(ports) {
@@ -1553,6 +1584,7 @@
   /* ── Connection ────────────────────────────── */
 
   async function connect() {
+    if (state.connecting) return;
     if (!("serial" in navigator)) {
       log("Web Serial API bulunamadi. Electron/Chromium surumunu kontrol et.");
       return;
@@ -1571,9 +1603,14 @@
     }
 
     let openedPort = null;
+    const attemptId = state.connectAttemptId + 1;
+    state.connectAttemptId = attemptId;
     try {
+      state.connecting = true;
+      beginConnectGuard(attemptId);
       els.connectBtn.classList.add("loading");
       els.connectBtn.disabled = true;
+      log("Port secimi bekleniyor...");
       const selectedPort = await withTimeout(
         navigator.serial.requestPort(),
         SERIAL_REQUEST_TIMEOUT_MS,
@@ -1590,18 +1627,25 @@
       }
       state.port = selectedPort;
       openedPort = state.port;
+      if (state.connectAttemptId !== attemptId) throw new Error("Baglanti denemesi iptal edildi.");
+      log("Port secildi, aciliyor...");
       await withTimeout(
         state.port.open({ baudRate }),
         SERIAL_OPEN_TIMEOUT_MS,
         `Port acma zaman asimi: ${state.portDisplay.name || "USB serial"}`
       );
+      if (state.connectAttemptId !== attemptId) throw new Error("Baglanti denemesi iptal edildi.");
       if (typeof state.port.setSignals === "function") {
+        log("USB serial sinyalleri ayarlaniyor...");
         await state.port.setSignals({ dataTerminalReady: true, requestToSend: false }).catch(() => {});
       }
+      log("Reader/writer hazirlaniyor...");
       state.writer = state.port.writable.getWriter();
       state.reader = state.port.readable.getReader();
       state.connected = true;
+      state.connecting = false;
       state.activeBaud = baudRate;
+      clearConnectGuard();
 
       if (typeof state.port.getInfo === "function") setPortDisplay(normalizeSerialInfo(state.port.getInfo()));
 
@@ -1613,6 +1657,7 @@
       readLoop();
       log("Cihaz dinleniyor. Parametre okumak icin 'Parametreleri Oku'ya bas.");
     } catch (error) {
+      if (state.connectAttemptId !== attemptId) return;
       log(`Baglanti hatasi: ${error.message}`);
       toast("Bağlantı kurulamadı.", "bad");
       setLinkStatus("Hata", "bad");
@@ -1622,6 +1667,10 @@
       updatePortInfoDisplay();
       updateButtons();
     } finally {
+      if (state.connectAttemptId === attemptId) {
+        state.connecting = false;
+        clearConnectGuard();
+      }
       els.connectBtn.classList.remove("loading");
       els.connectBtn.classList.toggle("connected-ok", state.connected);
       if (!state.connected) els.connectBtn.disabled = false;
@@ -1630,7 +1679,10 @@
 
   async function disconnect() {
     try {
+      state.connectAttemptId += 1;
+      clearConnectGuard();
       state.connected = false;
+      state.connecting = false;
       const port = state.port;
       await releaseSerialLocks();
       await closeSerialPort(port);
