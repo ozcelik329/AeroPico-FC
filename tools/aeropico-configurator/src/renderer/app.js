@@ -1420,6 +1420,17 @@
     }, 2020);
   }
 
+  function showInitError(error) {
+    const message = error && error.message ? error.message : String(error || "bilinmeyen hata");
+    console.error("AeroPico Configurator init failed", error);
+    if (els.preflightText) {
+      els.preflightText.textContent = `Configurator init hatasi: ${message}`;
+    }
+    if (els.log) {
+      log(`Configurator init hatasi: ${message}`);
+    }
+  }
+
   function chooseLikelyAeroPicoPort(ports) {
     if (ports.length === 0) return null;
     const picoVid = new Set(["2e8a", "0x2e8a", 0x2e8a]);
@@ -3080,18 +3091,27 @@
     bindSerialBridge();
   }
 
-  initTheme();
-  bind();
-  renderTabs();
-  renderModules();
-  renderSettings();
-  renderCommandStatus();
-  renderI2cDiagnostics();
-  renderArmChecklist();
-  updateButtons();
-  updatePortInfoDisplay();
-  initPinMapper();
-  setInterval(renderSummary, 1000);
-  finishSplash();
-  log("AeroPico Configurator hazir.");
+  function bootConfigurator() {
+    try {
+      initTheme();
+      bind();
+      renderTabs();
+      renderModules();
+      renderSettings();
+      renderCommandStatus();
+      renderI2cDiagnostics();
+      renderArmChecklist();
+      updateButtons();
+      updatePortInfoDisplay();
+      initPinMapper();
+      setInterval(renderSummary, 1000);
+      log("AeroPico Configurator hazir.");
+    } catch (error) {
+      showInitError(error);
+    } finally {
+      finishSplash();
+    }
+  }
+
+  bootConfigurator();
 })();

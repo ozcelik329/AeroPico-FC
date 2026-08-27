@@ -295,9 +295,10 @@ input[type="number"]::-webkit-inner-spin-button {
 }
 
 body.app-loading .app-shell {
-  opacity: 0;
-  visibility: hidden;
+  opacity: 1;
+  visibility: visible;
   transform: translateY(8px);
+  animation: app-ready-in 0.26s cubic-bezier(0.16, 1, 0.3, 1) 2.42s both;
 }
 
 body.app-ready .app-shell {
@@ -2734,6 +2735,7 @@ body.is-armed::after {
     radial-gradient(circle at 50% 34%, rgba(47, 111, 235, 0.16), transparent 36%),
     linear-gradient(145deg, #f8fafd 0%, var(--bg) 58%, #e7f2ef 100%);
   transition: opacity 0.28s ease, visibility 0.28s ease;
+  animation: splash-failsafe-hide 0.28s ease 2.72s forwards;
 }
 
 :root[data-theme="dark"] .splash-screen {
@@ -2746,6 +2748,7 @@ body.is-armed::after {
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
+  animation: none;
 }
 
 .splash-card {
@@ -2872,6 +2875,14 @@ body.is-armed::after {
 
   100% {
     transform: translateX(calc(min(440px, 68vw) - 34px)) translateY(-3px) rotate(2deg);
+  }
+}
+
+@keyframes splash-failsafe-hide {
+  to {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
   }
 }
 
