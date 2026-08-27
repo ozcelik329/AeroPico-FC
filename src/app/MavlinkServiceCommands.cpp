@@ -226,6 +226,7 @@ uint8_t MavlinkServiceCommands::handle(uint16_t action,
 
         case AEROPICO_CMD_SENSOR_CHECK: {
             _context.sensors->scanI2cBus();
+            _context.sensors->refreshForDiagnostics();
             SensorCapabilityStatus caps = _context.sensors->capabilities();
             if (!caps.imuAvailable) {
                 char detail[50] = {};

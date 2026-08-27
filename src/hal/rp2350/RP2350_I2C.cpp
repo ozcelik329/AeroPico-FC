@@ -2,7 +2,7 @@
 
 #include "hardware/gpio.h"
 
-static constexpr uint I2C_BLOCKING_TIMEOUT_US = 2000;
+static constexpr uint I2C_BLOCKING_TIMEOUT_US = 8000;
 
 RP2350I2C::RP2350I2C(i2c_inst_t* instance)
     : _instance(instance) {}

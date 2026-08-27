@@ -621,6 +621,22 @@ SensorBuffer SensorManager::getLatest() {
     return copy;
 }
 
+SensorBuffer SensorManager::refreshForDiagnostics(uint32_t timeoutMs) {
+    const uint32_t startMs = millis();
+    SensorBuffer latest = getLatest();
+    while ((uint32_t)(millis() - startMs) < timeoutMs) {
+        update();
+        latest = getLatest();
+        const bool imuReady = latest.valid && latest.health == SensorHealth::Ok;
+        const bool baroReady = !hasBaro() || latest.baroValid;
+        if (imuReady && baroReady) {
+            break;
+        }
+        delay(1);
+    }
+    return latest;
+}
+
 #ifdef USE_GY87
 bool SensorManager::hasMag() const { return _hasMag; }
 bool SensorManager::hasBaro() const { return _hasBaro; }

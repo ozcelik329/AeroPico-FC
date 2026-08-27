@@ -36,6 +36,7 @@ class SensorManager : public IImuDriver, public IMagDriver, public IBaroDriver, 
     void configureI2CPins(uint8_t sdaPin, uint8_t sclPin);
     void update();
     SensorBuffer getLatest();
+    SensorBuffer refreshForDiagnostics(uint32_t timeoutMs = 90);
 
     bool isImuAvailable() const override;
     bool isDmaOk() const override;
