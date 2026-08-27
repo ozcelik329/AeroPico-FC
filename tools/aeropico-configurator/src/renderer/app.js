@@ -111,6 +111,9 @@
   const MAV_CMD_COMPONENT_ARM_DISARM = 400;
   const COMMAND_BUSY_MS = 2500;
   const COMMAND_ACK_TIMEOUT_MS = 5000;
+  const SERIAL_REQUEST_TIMEOUT_MS = 9500;
+  const SERIAL_OPEN_TIMEOUT_MS = 4500;
+  const SERIAL_CLOSE_TIMEOUT_MS = 900;
   const MAV_SENSOR_BITS = Object.freeze({
     gyro: 1 << 0,
     accel: 1 << 1,
@@ -527,10 +530,12 @@
   /* ── Generic modal handling ───────────────── */
 
   function openModal(modalEl) {
+    if (!modalEl) return;
     modalEl.classList.remove("hidden");
   }
 
   function closeModal(modalEl) {
+    if (!modalEl) return;
     modalEl.classList.add("hidden");
   }
 
@@ -1406,6 +1411,7 @@
       }
 
       log("Uygun serial port bulunamadi.");
+      closeModal(els.portPickerModal);
       window.aeropicoBridge.chooseSerialPort("");
     });
   }
@@ -1452,13 +1458,60 @@
     let timer = null;
     const timeout = new Promise((_, reject) => {
       timer = window.setTimeout(() => {
-        if (typeof onTimeout === "function") onTimeout();
+        if (typeof onTimeout === "function") {
+          try {
+            onTimeout();
+          } catch (error) {
+            console.warn("Timeout cleanup failed", error);
+          }
+        }
         reject(new Error(message));
       }, ms);
     });
-    return Promise.race([promise, timeout]).finally(() => {
+    return Promise.race([Promise.resolve(promise), timeout]).finally(() => {
       if (timer) window.clearTimeout(timer);
     });
+  }
+
+  async function releaseSerialLocks(timeoutMs = SERIAL_CLOSE_TIMEOUT_MS) {
+    if (state.reader) {
+      const reader = state.reader;
+      state.reader = null;
+      await withTimeout(reader.cancel().catch(() => {}), timeoutMs, "Serial reader kapatma zaman asimi.").catch(() => {});
+      try {
+        reader.releaseLock();
+      } catch (error) {
+        console.warn("Serial reader lock release failed", error);
+      }
+    }
+
+    if (state.writer) {
+      const writer = state.writer;
+      state.writer = null;
+      try {
+        writer.releaseLock();
+      } catch (error) {
+        console.warn("Serial writer lock release failed", error);
+      }
+    }
+  }
+
+  async function closeSerialPort(port, timeoutMs = SERIAL_CLOSE_TIMEOUT_MS) {
+    if (!port || typeof port.close !== "function") return;
+    await withTimeout(Promise.resolve().then(() => port.close()), timeoutMs, "Serial port kapatma zaman asimi.").catch((error) => {
+      console.warn(error.message);
+    });
+  }
+
+  function resetRuntimeConnectionState() {
+    state.connected = false;
+    state.reader = null;
+    state.writer = null;
+    state.port = null;
+    state.activeBaud = null;
+    state.firmwareVersion = null;
+    state.txQueue = [];
+    state.txBusy = false;
   }
 
   function renderPortPicker(ports) {
@@ -1521,9 +1574,9 @@
     try {
       els.connectBtn.classList.add("loading");
       els.connectBtn.disabled = true;
-      state.port = await withTimeout(
+      const selectedPort = await withTimeout(
         navigator.serial.requestPort(),
-        12000,
+        SERIAL_REQUEST_TIMEOUT_MS,
         "Port secimi zaman asimina ugradi.",
         () => {
           if (window.aeropicoBridge && typeof window.aeropicoBridge.cancelSerialPort === "function") {
@@ -1532,10 +1585,14 @@
           closeModal(els.portPickerModal);
         }
       );
+      if (!selectedPort) {
+        throw new Error("Port secilmedi.");
+      }
+      state.port = selectedPort;
       openedPort = state.port;
       await withTimeout(
         state.port.open({ baudRate }),
-        5000,
+        SERIAL_OPEN_TIMEOUT_MS,
         `Port acma zaman asimi: ${state.portDisplay.name || "USB serial"}`
       );
       if (typeof state.port.setSignals === "function") {
@@ -1559,17 +1616,9 @@
       log(`Baglanti hatasi: ${error.message}`);
       toast("Bağlantı kurulamadı.", "bad");
       setLinkStatus("Hata", "bad");
-      state.connected = false;
-      state.reader = null;
-      state.writer = null;
-      state.port = null;
-      state.activeBaud = null;
-      state.firmwareVersion = null;
-      state.txQueue = [];
-      state.txBusy = false;
-      if (openedPort && typeof openedPort.close === "function") {
-        await openedPort.close().catch(() => {});
-      }
+      await releaseSerialLocks();
+      await closeSerialPort(openedPort);
+      resetRuntimeConnectionState();
       updatePortInfoDisplay();
       updateButtons();
     } finally {
@@ -1582,22 +1631,13 @@
   async function disconnect() {
     try {
       state.connected = false;
-      if (state.reader) {
-        await state.reader.cancel().catch(() => { });
-        state.reader.releaseLock();
-      }
-      if (state.writer) state.writer.releaseLock();
-      if (state.port) await state.port.close();
+      const port = state.port;
+      await releaseSerialLocks();
+      await closeSerialPort(port);
     } catch (error) {
       log(`Baglanti kapatma hatasi: ${error.message}`);
     } finally {
-      state.reader = null;
-      state.writer = null;
-      state.port = null;
-      state.activeBaud = null;
-      state.firmwareVersion = null;
-      state.txQueue = [];
-      state.txBusy = false;
+      resetRuntimeConnectionState();
       setLinkStatus("Kapali", "muted");
       updateButtons();
       updatePortInfoDisplay();
@@ -1619,12 +1659,11 @@
       }
     }
     if (state.connected) {
+      const port = state.port;
       state.connected = false;
-      state.reader = null;
-      state.writer = null;
-      state.port = null;
-      state.activeBaud = null;
-      state.firmwareVersion = null;
+      await releaseSerialLocks();
+      await closeSerialPort(port);
+      resetRuntimeConnectionState();
       setLinkStatus("Kapali", "muted");
       updatePortInfoDisplay();
       updateButtons();
