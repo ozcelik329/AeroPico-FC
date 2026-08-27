@@ -49,7 +49,7 @@ class MavlinkHandler {
     void sendVfrHud(const FlightData& data);
     void sendGpsRawIntNoGps();
     void sendMissionCountZero(uint8_t targetSystem, uint8_t targetComponent);
-    void sendCommandAck(uint16_t command, uint8_t result);
+    void sendCommandAck(uint16_t command, uint8_t result, int32_t resultParam2 = 0);
     void sendStatusText(const char* text, uint8_t severity = MAV_SEVERITY_WARNING);
     void sendAutopilotVersion();
 

@@ -219,6 +219,7 @@ void test_aeropico_service_command_sends_ack_and_statustext() {
     mavlink_msg_command_ack_decode(&ackMessage, &ack);
     TEST_ASSERT_EQUAL_UINT16(MAV_CMD_USER_1, ack.command);
     TEST_ASSERT_EQUAL_UINT8(MAV_RESULT_ACCEPTED, ack.result);
+    TEST_ASSERT_EQUAL_INT32(AEROPICO_CMD_SENSOR_CHECK, ack.result_param2);
     mavlink_message_t statusText;
     TEST_ASSERT_TRUE(decodeMessageById(MAVLINK_MSG_ID_STATUSTEXT, statusText));
 }

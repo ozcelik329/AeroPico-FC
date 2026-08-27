@@ -251,7 +251,9 @@
         this.onMessage({
           type: "commandAck",
           command: view.getUint16(0, true),
-          result: view.getUint8(2)
+          result: view.getUint8(2),
+          progress: payload.length >= 4 ? view.getUint8(3) : 0,
+          resultParam2: payload.length >= 8 ? view.getInt32(4, true) : 0
         });
         return;
       }

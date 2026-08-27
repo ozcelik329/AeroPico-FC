@@ -347,6 +347,7 @@
     armed: null,
     lastCommand: null,
     lastCommandAtMs: 0,
+    pendingCommand: null,
     commandHistory: [],
     mavlinkHistory: [],
     firmwareVersion: null,
@@ -428,6 +429,9 @@
     commandStatusList: document.getElementById("commandStatusList"),
     mavlinkInspectorSummary: document.getElementById("mavlinkInspectorSummary"),
     mavlinkInspectorList: document.getElementById("mavlinkInspectorList"),
+    servoTestSurface: document.getElementById("servoTestSurface"),
+    servoTestPulse: document.getElementById("servoTestPulse"),
+    servoTestDuration: document.getElementById("servoTestDuration"),
     terminalPreflightBtn: document.getElementById("terminalPreflightBtn"),
     terminalArmChecklistBtn: document.getElementById("terminalArmChecklistBtn"),
     terminalI2cBtn: document.getElementById("terminalI2cBtn"),
@@ -1278,8 +1282,11 @@
   }
 
   function updateButtons() {
-    const commandBusy = state.lastCommand && (Date.now() - state.lastCommandAtMs) < 2500;
-    if (state.lastCommand && !commandBusy) state.lastCommand = null;
+    const commandBusy = state.pendingCommand && (Date.now() - state.pendingCommand.atMs) < 2500;
+    if (state.pendingCommand && !commandBusy) {
+      state.pendingCommand = null;
+      state.lastCommand = null;
+    }
     els.connectBtn.disabled = state.connected;
     els.disconnectBtn.disabled = !state.connected;
     els.readParamsBtn.disabled = !state.connected;
@@ -1846,9 +1853,32 @@
 
   function serviceCommandParams(command) {
     if (command === "SERVO_TEST") {
-      return [AEROPICO_SERVICE[command], 0, 1600, 700];
+      const surface = clampInteger(els.servoTestSurface?.value, 0, 4, 0);
+      const pulse = clampInteger(els.servoTestPulse?.value, 1000, 2000, 1600);
+      const duration = clampInteger(els.servoTestDuration?.value, 100, 1500, 700);
+      if (els.servoTestPulse) els.servoTestPulse.value = String(pulse);
+      if (els.servoTestDuration) els.servoTestDuration.value = String(duration);
+      return [AEROPICO_SERVICE[command], surface, pulse, duration];
     }
     return [AEROPICO_SERVICE[command], 0, 0, 0];
+  }
+
+  function serviceCommandFromAction(action) {
+    for (const [name, value] of Object.entries(AEROPICO_SERVICE)) {
+      if (value === action) return name;
+    }
+    return null;
+  }
+
+  function setPendingCommand(command, mavCommand, action = 0) {
+    state.lastCommand = command;
+    state.lastCommandAtMs = Date.now();
+    state.pendingCommand = {
+      command,
+      mavCommand,
+      action,
+      atMs: state.lastCommandAtMs
+    };
   }
 
   function sendServiceCommand(command) {
@@ -1861,14 +1891,13 @@
       log(`${SERVICE_LABELS[command] || command}: once baglan.`);
       return;
     }
-    if (state.lastCommand && (Date.now() - state.lastCommandAtMs) < 2500) {
+    if (state.pendingCommand && (Date.now() - state.pendingCommand.atMs) < 2500) {
       log(`${SERVICE_LABELS[command] || command}: once mevcut komut ACK beklesin.`);
       return;
     }
     const [p1, p2, p3, p4] = serviceCommandParams(command);
     if (!writeFrame(encoder.aeroPicoService(p1, p2, p3, p4), SERVICE_LABELS[command] || command)) return;
-    state.lastCommand = command;
-    state.lastCommandAtMs = Date.now();
+    setPendingCommand(command, 31010, p1);
     pushCommandHistory(command, "pending", "ACK bekleniyor");
     updateButtons();
     window.setTimeout(updateButtons, 2600);
@@ -1884,20 +1913,20 @@
       const ok = window.confirm("Bench force-arm icin pervane sokulu olmali ve GP20-GP21 jumper takili olmalidir. Devam?");
       if (!ok) return;
       if (!writeFrame(encoder.arm(true), "BENCH_FORCE_ARM")) return;
-      state.lastCommand = "BENCH_FORCE_ARM";
+      setPendingCommand("BENCH_FORCE_ARM", MAV_CMD_COMPONENT_ARM_DISARM);
       pushCommandHistory("BENCH_FORCE_ARM", "pending", "GP20-GP21 jumper ile ACK bekleniyor");
       log("Bench force-arm komutu gonderildi.");
       return;
     }
     if (command === "disarm") {
       if (!writeFrame(encoder.disarm(false), "DISARM")) return;
-      state.lastCommand = "DISARM";
+      setPendingCommand("DISARM", MAV_CMD_COMPONENT_ARM_DISARM);
       pushCommandHistory("DISARM", "pending", "ACK bekleniyor");
       log("Disarm komutu gonderildi.");
       return;
     }
     if (!writeFrame(encoder.arm(false), "ARM")) return;
-    state.lastCommand = "ARM";
+    setPendingCommand("ARM", MAV_CMD_COMPONENT_ARM_DISARM);
     pushCommandHistory("ARM", "pending", "Preflight gate ACK bekleniyor");
     log("Normal arm komutu gonderildi.");
   }
@@ -1915,10 +1944,32 @@
     renderCommandStatus();
   }
 
-  function updateLastCommand(stateName, detail) {
-    if (!state.lastCommand) return;
-    pushCommandHistory(state.lastCommand, stateName, detail);
-    if (stateName !== "pending") state.lastCommand = null;
+  function updateLastCommandFromAck(message, stateName, detail) {
+    const pending = state.pendingCommand;
+    if (!pending) return false;
+    if (Date.now() - pending.atMs > 5000) {
+      state.pendingCommand = null;
+      state.lastCommand = null;
+      return false;
+    }
+    if (pending.mavCommand !== message.command) return false;
+    if (message.command === 31010) {
+      if (message.resultParam2 <= 0) {
+        log("Etiketsiz servis ACK yok sayildi.");
+        return false;
+      }
+      if (message.resultParam2 !== pending.action) {
+        const actionName = serviceCommandFromAction(message.resultParam2) || `Aksiyon ${message.resultParam2}`;
+        log(`Gecikmis servis ACK yok sayildi: ${actionName}.`);
+        return false;
+      }
+    }
+    pushCommandHistory(pending.command, stateName, detail);
+    if (stateName !== "pending") {
+      state.pendingCommand = null;
+      state.lastCommand = null;
+    }
+    return true;
   }
 
   function renderCommandStatus() {
@@ -2374,13 +2425,14 @@
 
     if (message.type === "commandAck") {
       const accepted = message.result === 0;
-      updateLastCommand(accepted ? "accepted" : "rejected", mavResultText(message.result));
+      const matched = updateLastCommandFromAck(message, accepted ? "accepted" : "rejected", mavResultText(message.result));
       if (message.command === MAV_CMD_COMPONENT_ARM_DISARM) {
         log(`ARM/DISARM ACK: ${mavResultText(message.result)}.`);
-        toast(accepted ? "ARM/DISARM kabul edildi." : "ARM/DISARM reddedildi.", accepted ? "ok" : "bad");
+        if (matched) toast(accepted ? "ARM/DISARM kabul edildi." : "ARM/DISARM reddedildi.", accepted ? "ok" : "bad");
       } else if (message.command === 31010) {
-        log(`Servis komutu ACK: ${mavResultText(message.result)}.`);
-        toast(accepted ? "Servis komutu kabul edildi." : "Servis komutu reddedildi.", accepted ? "ok" : "bad");
+        const actionName = serviceCommandFromAction(message.resultParam2) || "etiketsiz";
+        log(`Servis komutu ACK (${actionName}): ${mavResultText(message.result)}.`);
+        if (matched) toast(accepted ? "Servis komutu kabul edildi." : "Servis komutu reddedildi.", accepted ? "ok" : "bad");
       } else {
         log(`COMMAND_ACK ${message.command}: ${mavResultText(message.result)}.`);
       }
@@ -2872,8 +2924,8 @@
       if (stageParam(name, value)) staged++;
     }
     renderModules();
-    log(`Modul setup varsayilanlari hazirlandi (${staged}/${moduleDefaults.length}).`);
-    toast("Modül setup varsayılanları hazır. Değişenleri Uygula + Flash'a Kaydet.", "warn");
+    log(`Pin varsayilanlari gonderildi; modul setup varsayilanlari beklemeye alindi (${staged}/${moduleDefaults.length}).`);
+    toast("Pinler gönderildi; modül setup bekliyor. Değişenleri Uygula + Flash'a Kaydet.", "warn");
   }
 
   /* ── Bindings ──────────────────────────────── */

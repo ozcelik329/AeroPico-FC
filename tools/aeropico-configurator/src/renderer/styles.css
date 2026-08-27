@@ -1027,6 +1027,36 @@ body.app-ready .app-shell {
   animation: tool-pane-in 0.24s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
+.servo-test-card {
+  display: grid;
+  gap: 7px;
+  padding: 8px;
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+}
+
+.servo-test-row {
+  display: grid;
+  grid-template-columns: 54px 1fr;
+  align-items: center;
+  gap: 8px;
+}
+
+.servo-test-row label {
+  color: var(--muted);
+  font-size: 10.5px;
+  font-weight: 850;
+}
+
+.servo-test-row select,
+.servo-test-row input {
+  min-height: 28px;
+  padding: 5px 8px;
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+}
+
 /* ── Command Status ───────────────────────── */
 
 .command-panel {

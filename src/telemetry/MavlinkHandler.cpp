@@ -214,7 +214,7 @@ void MavlinkHandler::_handleCommandLong(const mavlink_message_t& msg) {
         } else {
             strncpy(reason, "service command unavailable", sizeof(reason) - 1);
         }
-        sendCommandAck(command.command, result);
+        sendCommandAck(command.command, result, (int32_t)command.param1);
         if (reason[0] != '\0') {
             sendStatusText(reason, result == MAV_RESULT_ACCEPTED ? MAV_SEVERITY_INFO : MAV_SEVERITY_WARNING);
         }
@@ -460,14 +460,14 @@ void MavlinkHandler::sendMissionCountZero(uint8_t targetSystem, uint8_t targetCo
     _sendMessage(msg);
 }
 
-void MavlinkHandler::sendCommandAck(uint16_t command, uint8_t result) {
+void MavlinkHandler::sendCommandAck(uint16_t command, uint8_t result, int32_t resultParam2) {
     mavlink_message_t msg;
     mavlink_msg_command_ack_pack(
         MAV_SYSTEM_ID, MAV_COMPONENT_ID, &msg,
         command,
         result,
         0,
-        0,
+        resultParam2,
         0,
         0
     );

@@ -337,13 +337,33 @@
           <p class="hint">Komutlar MAVLink servis kapısından geçer; firmware güvenli değilse reddeder.</p>
         </div>
         <div class="side-tool-pane" data-tool-pane="bench">
-          <button data-command="SERVO_TEST">
-            <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-              stroke-linecap="round" stroke-linejoin="round">
-              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
-            </svg>
-            Servo Yön Testi
-          </button>
+          <div class="servo-test-card">
+            <div class="servo-test-row">
+              <label for="servoTestSurface">Yüzey</label>
+              <select id="servoTestSurface">
+                <option value="0">Kontrol yüzeyleri</option>
+                <option value="1">Aileron</option>
+                <option value="2">Elevator</option>
+                <option value="3">Rudder</option>
+                <option value="4">ESC</option>
+              </select>
+            </div>
+            <div class="servo-test-row">
+              <label for="servoTestPulse">Pulse</label>
+              <input id="servoTestPulse" type="number" min="1000" max="2000" step="10" value="1600">
+            </div>
+            <div class="servo-test-row">
+              <label for="servoTestDuration">Süre</label>
+              <input id="servoTestDuration" type="number" min="100" max="1500" step="50" value="700">
+            </div>
+            <button data-command="SERVO_TEST">
+              <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+              </svg>
+              Servo Testi Başlat
+            </button>
+          </div>
           <button data-command="RC_MONITOR">
             <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
               stroke-linecap="round" stroke-linejoin="round">
