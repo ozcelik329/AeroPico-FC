@@ -38,6 +38,14 @@ void SensorManager::_setFault(SensorFaultCode code) {
     }
 }
 
+void SensorManager::_clearRecoverableMpuFault() {
+    if (_faultCode == SensorFaultCode::I2cRawWriteFailed ||
+        _faultCode == SensorFaultCode::I2cRawReadFailed ||
+        _faultCode == SensorFaultCode::DmaTransferTimeout) {
+        _faultCode = SensorFaultCode::None;
+    }
+}
+
 void SensorManager::_mpu_write_reg(uint8_t reg, uint8_t val) {
     const ImuDeviceProfile& imu = *_imuProfile;
     if (!_bus().writeRegister(imu.address, reg, val)) {
@@ -348,6 +356,20 @@ void SensorManager::scanI2cBus() {
         return;
     }
 
+    const bool restartMpuDma = _dmaFastPath && _imuAvailable;
+    RP2350I2C* rpBus = _rpBus();
+    if (restartMpuDma) {
+        _dmaBus.abortMpu();
+    }
+#ifdef USE_GY87
+    if (rpBus) {
+        _auxBus.abortPending(_dmaBus);
+    }
+#endif
+    if (rpBus) {
+        rpBus->setDmaEnabled(false, false);
+    }
+
     _scanI2cAckBus();
     _scanI2cRegisterProbes();
 #ifdef USE_GY87
@@ -382,6 +404,9 @@ void SensorManager::scanI2cBus() {
 #endif
     _lastI2cScanMs = millis();
     _i2cScanValid = true;
+    if (restartMpuDma) {
+        _mpu_start_dma_read();
+    }
     mutex_exit(&_i2cScanMutex);
 }
 
@@ -510,6 +535,7 @@ void SensorManager::update() {
         uint8_t writeIdx = 1 - _writeIdx;
         SensorBuffer& buf = _buf[writeIdx];
         _gyroAccelDriver.parseRawSample(raw, _imuCalibration, buf, micros());
+        _clearRecoverableMpuFault();
         _observeCalibrationRawFrame(raw);
         buf.baroValid = false;
         buf.pressureHpa = 0.0f;
@@ -551,6 +577,7 @@ void SensorManager::update() {
 
     const uint8_t* raw = _dmaBus.mpuBuffer();
     _gyroAccelDriver.parseRawSample(raw, _imuCalibration, buf, micros());
+    _clearRecoverableMpuFault();
     _observeCalibrationRawFrame(raw);
     buf.baroValid = false;
     buf.pressureHpa = 0.0f;

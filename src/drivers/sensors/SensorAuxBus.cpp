@@ -52,6 +52,14 @@ bool SensorAuxBus::retryMag(RP2350I2C& bus) {
     return _hasMag;
 }
 
+void SensorAuxBus::abortPending(SensorDmaBus& dmaBus) {
+    if (_auxReadKind != AUX_NONE) {
+        dmaBus.abortAux();
+        _auxReadKind = AUX_NONE;
+    }
+    _bmpState = BMP_IDLE;
+}
+
 void SensorAuxBus::update(SensorDmaBus& dmaBus,
                           RP2350I2C& bus,
                           MagDriver& magDriver,
@@ -171,7 +179,7 @@ bool SensorAuxBus::processPendingRead(SensorDmaBus& dmaBus,
                 const int16_t my = (int16_t)(_hmcDmaBuf[4] << 8 | _hmcDmaBuf[5]);
                 const int16_t mz = (int16_t)(_hmcDmaBuf[2] << 8 | _hmcDmaBuf[3]);
                 magDriver.applySample(mx, my, mz, buffer);
-                noteMagReadOk();
+                noteMagReadOk(faultCode);
             } else {
                 buffer.mx = buffer.my = buffer.mz = 0.0f;
                 noteMagReadFail(faultCode);
@@ -189,7 +197,7 @@ bool SensorAuxBus::processPendingRead(SensorDmaBus& dmaBus,
                     if (!baroDriver.applyRawPressure(up, buffer)) {
                         noteBaroReadFail(faultCode);
                     } else {
-                        noteBaroReadOk();
+                        noteBaroReadOk(faultCode);
                     }
                     _bmpState = BMP_IDLE;
                 }
@@ -212,7 +220,7 @@ bool SensorAuxBus::processPendingRead(SensorDmaBus& dmaBus,
         const int16_t my = (int16_t)(_hmcDmaBuf[4] << 8 | _hmcDmaBuf[5]);
         const int16_t mz = (int16_t)(_hmcDmaBuf[2] << 8 | _hmcDmaBuf[3]);
         magDriver.applySample(mx, my, mz, buffer);
-        noteMagReadOk();
+        noteMagReadOk(faultCode);
     } else if (_auxReadKind == AUX_BARO_TEMP) {
         baroDriver.setRawTemperature((int32_t)(_bmpDmaBuf[0] << 8) | _bmpDmaBuf[1]);
         _bmpState = BMP_TEMP_READ;
@@ -222,7 +230,7 @@ bool SensorAuxBus::processPendingRead(SensorDmaBus& dmaBus,
         if (!baroDriver.applyRawPressure(up, buffer)) {
             noteBaroReadFail(faultCode);
         } else {
-            noteBaroReadOk();
+            noteBaroReadOk(faultCode);
         }
         _bmpState = BMP_IDLE;
     }
@@ -232,8 +240,14 @@ bool SensorAuxBus::processPendingRead(SensorDmaBus& dmaBus,
     return true;
 }
 
-void SensorAuxBus::noteMagReadOk() {
+void SensorAuxBus::noteMagReadOk(SensorFaultCode& faultCode) {
     _magFailCount = 0;
+    if (faultCode == SensorFaultCode::MagReadFailed ||
+        faultCode == SensorFaultCode::AuxDmaTransferTimeout ||
+        faultCode == SensorFaultCode::AuxPollingFallbackFailed ||
+        faultCode == SensorFaultCode::AuxI2cWriteFailed) {
+        faultCode = SensorFaultCode::None;
+    }
 }
 
 void SensorAuxBus::noteMagReadFail(SensorFaultCode& faultCode) {
@@ -248,8 +262,14 @@ void SensorAuxBus::noteMagReadFail(SensorFaultCode& faultCode) {
     }
 }
 
-void SensorAuxBus::noteBaroReadOk() {
+void SensorAuxBus::noteBaroReadOk(SensorFaultCode& faultCode) {
     _baroFailCount = 0;
+    if (faultCode == SensorFaultCode::BaroReadFailed ||
+        faultCode == SensorFaultCode::AuxDmaTransferTimeout ||
+        faultCode == SensorFaultCode::AuxPollingFallbackFailed ||
+        faultCode == SensorFaultCode::AuxI2cWriteFailed) {
+        faultCode = SensorFaultCode::None;
+    }
 }
 
 void SensorAuxBus::noteBaroReadFail(SensorFaultCode& faultCode) {
@@ -323,7 +343,7 @@ void SensorAuxBus::readMag(SensorDmaBus& dmaBus,
             const int16_t my = (int16_t)(_hmcDmaBuf[4] << 8 | _hmcDmaBuf[5]);
             const int16_t mz = (int16_t)(_hmcDmaBuf[2] << 8 | _hmcDmaBuf[3]);
             magDriver.applySample(mx, my, mz, buffer);
-            noteMagReadOk();
+            noteMagReadOk(faultCode);
         } else {
             buffer.mx = buffer.my = buffer.mz = 0.0f;
             noteMagReadFail(faultCode);
@@ -392,7 +412,7 @@ bool SensorAuxBus::readBaro(SensorDmaBus& dmaBus,
                 noteBaroReadFail(faultCode);
                 return false;
             }
-            noteBaroReadOk();
+            noteBaroReadOk(faultCode);
             return true;
         }
         return false;

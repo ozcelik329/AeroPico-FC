@@ -88,6 +88,36 @@ static uint16_t provideEnabledSensorCapabilities();
 static void applyRCOverride(uint16_t aileron, uint16_t elevator, uint16_t throttle, uint16_t rudder);
 static void clearRCOverride();
 
+static const char* sensorHealthToken(SensorHealth health) {
+    switch (health) {
+        case SensorHealth::Ok: return "OK";
+        case SensorHealth::WarmingUp: return "WARMUP";
+        case SensorHealth::Stale: return "STALE";
+        case SensorHealth::Timeout: return "TIMEOUT";
+        case SensorHealth::Invalid:
+        default: return "INVALID";
+    }
+}
+
+static const char* sensorFaultToken(SensorFaultCode fault) {
+    switch (fault) {
+        case SensorFaultCode::None: return "NONE";
+        case SensorFaultCode::I2cWhoamiWriteFailed: return "WHOAMI_WR";
+        case SensorFaultCode::I2cWhoamiReadFailed: return "WHOAMI_RD";
+        case SensorFaultCode::WhoamiMismatch: return "WHOAMI_BAD";
+        case SensorFaultCode::I2cRawWriteFailed: return "RAW_WR";
+        case SensorFaultCode::I2cRawReadFailed: return "RAW_RD";
+        case SensorFaultCode::DmaChannelClaimFailed: return "DMA_CLAIM";
+        case SensorFaultCode::DmaTransferTimeout: return "DMA_TIMEOUT";
+        case SensorFaultCode::AuxI2cWriteFailed: return "AUX_WR";
+        case SensorFaultCode::AuxDmaTransferTimeout: return "AUX_DMA_TIMEOUT";
+        case SensorFaultCode::AuxPollingFallbackFailed: return "AUX_POLL_FAIL";
+        case SensorFaultCode::MagReadFailed: return "MAG_READ";
+        case SensorFaultCode::BaroReadFailed: return "BARO_READ";
+        default: return "UNKNOWN";
+    }
+}
+
 static void sendI2cScanStatusText() {
     char line[50] = {};
     size_t used = snprintf(line, sizeof(line), "I2C_ACK");
@@ -139,6 +169,25 @@ static void sendI2cScanStatusText() {
     mavlink.sendStatusText(line, (mpuRegOk || baroRegOk) ? MAV_SEVERITY_INFO : MAV_SEVERITY_WARNING);
 }
 
+static void sendSensorCheckStatusText() {
+    const SensorCapabilityStatus caps = sensorManager.capabilities();
+    const SensorBuffer latest = sensorManager.getLatest();
+    const char* imuState = "MISS";
+    if (caps.imuAvailable) {
+        imuState = (latest.valid && latest.health == SensorHealth::Ok) ? "OK" : sensorHealthToken(latest.health);
+    }
+    const char* baroState = caps.baroAvailable ? (latest.baroValid ? "OK" : "ID") : "MISS";
+    const char* magState = caps.magAvailable ? "OK" : "MISS";
+
+    char line[50] = {};
+    snprintf(line, sizeof(line), "SENSOR_CHECK IMU_%s BARO_%s MAG_%s", imuState, baroState, magState);
+    mavlink.sendStatusText(line, latest.valid ? MAV_SEVERITY_INFO : MAV_SEVERITY_WARNING);
+    snprintf(line, sizeof(line), "SENSOR_HEALTH IMU=%s BARO=%s MAG=%s", imuState, baroState, magState);
+    mavlink.sendStatusText(line, latest.valid ? MAV_SEVERITY_INFO : MAV_SEVERITY_WARNING);
+    snprintf(line, sizeof(line), "SENSOR_FAULT %s", sensorFaultToken(sensorManager.getFaultCode()));
+    mavlink.sendStatusText(line, sensorManager.getFaultCode() == SensorFaultCode::None ? MAV_SEVERITY_INFO : MAV_SEVERITY_WARNING);
+}
+
 static WatchdogDecision evaluateWatchdogGate() {
     return WatchdogGate::evaluate(
         micros(),
@@ -165,6 +214,7 @@ static uint8_t handleMavlinkServiceCommand(uint16_t action, float p2, float p3, 
     const uint8_t result = mavlinkServiceCommands.handle(action, p2, p3, p4, reason, reasonLen);
     if (action == AEROPICO_CMD_SENSOR_CHECK) {
         sendI2cScanStatusText();
+        sendSensorCheckStatusText();
     }
     return result;
 }

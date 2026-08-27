@@ -230,7 +230,6 @@ uint8_t MavlinkServiceCommands::handle(uint16_t action,
             if (!caps.imuAvailable) {
                 char detail[50] = {};
                 snprintf(detail, sizeof(detail), "SENSOR_FAIL IMU");
-                appendI2cScan(detail, sizeof(detail));
                 copyReason(reason, reasonLen, detail);
                 return MAV_RESULT_DENIED;
             }
@@ -241,7 +240,6 @@ uint8_t MavlinkServiceCommands::handle(uint16_t action,
                      "SENSOR_CHECK IMU_OK BARO_%s MAG_%s",
                      caps.baroAvailable ? "OK" : "MISS",
                      caps.magAvailable ? "OK" : "MISS");
-            appendI2cScan(detail, sizeof(detail));
             copyReason(reason, reasonLen, detail);
 
             if (!caps.magAvailable || !caps.baroAvailable) {

@@ -134,6 +134,7 @@ class SensorManager : public IImuDriver, public IMagDriver, public IBaroDriver, 
     void _observeCalibrationRawFrame(const uint8_t raw[GyroAccelDriver::RAW_LEN]);
     void _finishAsyncImuCalibration();
     void _setFault(SensorFaultCode code);
+    void _clearRecoverableMpuFault();
     void _scanI2cRegisterProbes();
     void _scanI2cAckBus();
     void _seedI2cProbe(uint8_t address, uint8_t reg, uint8_t value);

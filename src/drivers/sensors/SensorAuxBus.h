@@ -30,6 +30,7 @@ class SensorAuxBus {
                 BaroDriver& baroDriver,
                 SensorBuffer& buffer,
                 SensorFaultCode& faultCode);
+    void abortPending(SensorDmaBus& dmaBus);
     bool hasMag() const { return _hasMag; }
     bool hasBaro() const { return _hasBaro; }
 
@@ -92,9 +93,9 @@ class SensorAuxBus {
                             SensorFaultCode& faultCode);
     bool initMag(RP2350I2C& bus, SensorFaultCode& faultCode);
     bool initBaro(SensorDmaBus& dmaBus, RP2350I2C& bus, BaroDriver& baroDriver, SensorFaultCode& faultCode);
-    void noteMagReadOk();
+    void noteMagReadOk(SensorFaultCode& faultCode);
     void noteMagReadFail(SensorFaultCode& faultCode);
-    void noteBaroReadOk();
+    void noteBaroReadOk(SensorFaultCode& faultCode);
     void noteBaroReadFail(SensorFaultCode& faultCode);
     void readMag(SensorDmaBus& dmaBus,
 	                 RP2350I2C& bus,

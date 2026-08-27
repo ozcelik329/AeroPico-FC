@@ -2153,7 +2153,7 @@
 	        }
 	      }
 	    }
-      const idMatch = text.match(/I2C_ID\s+MPU=(0X[0-9A-F]{2}|--[0-9A-F]{2}|--)\s+BARO=(0X[0-9A-F]{2}|--[0-9A-F]{2}|--)/);
+      const idMatch = text.match(/I2C_ID\s+MPU=(0X[0-9A-F]{2}|--[0-9A-F]{2}|--)\s+BARO=(0X[0-9A-F]{2}|--[0-9A-F]{2}|--)/i);
 	  if (idMatch) {
 	    result.hasI2c = true;
 	    result.idReportSeen = true;
@@ -2162,7 +2162,7 @@
 	    if (idMatch[2].startsWith("0X")) result.ids.baro = idMatch[2].replace("0X", "");
 	    else result.ids.baro = null;
 	  }
-	  const regValMatch = text.match(/I2C_REGVAL\s+68:75=(--[0-9A-F]{2}|[0-9A-F]{2})\s+77:D0=(--[0-9A-F]{2}|[0-9A-F]{2})/);
+	  const regValMatch = text.match(/I2C_REGVAL\s+68:75=(--[0-9A-F]{2}|[0-9A-F]{2})\s+77:D0=(--[0-9A-F]{2}|[0-9A-F]{2})/i);
 	  if (regValMatch) {
 	    result.hasI2c = true;
 	    result.regValReportSeen = true;
@@ -2175,12 +2175,7 @@
 	      result.reg.add("77");
 	    } else result.ids.baro = null;
 	  }
-      if (result.ids.mpu === "55" && result.ids.baro === "68") {
-        const baro = result.ids.mpu;
-        result.ids.mpu = result.ids.baro;
-        result.ids.baro = baro;
-      }
-	    result.hasUsefulScan = result.ack.size > 0 || result.reg.size > 0;
+	    result.hasUsefulScan = result.ack.size > 0 || result.reg.size > 0 || Boolean(result.ids.mpu || result.ids.baro);
 	    return result;
 	  }
 
@@ -2219,8 +2214,6 @@
         state.i2cDiagnostics.ids = { mpu: i2c.ids.mpu || undefined, baro: i2c.ids.baro || undefined };
       }
 
-      log(`I2C ACK scan: ${formatI2cAddressList(state.i2cDiagnostics.ack)}`);
-      log(`I2C register probe: ${formatI2cAddressList(state.i2cDiagnostics.reg)}`);
       renderI2cDiagnostics();
 
 	    if (i2c.ackNone) {
@@ -2244,15 +2237,67 @@
 	    return true;
 	  }
 
+  function moduleStateFromHealthToken(token, moduleId) {
+    if (token === "OK") return "ok";
+    if (token === "ID" || token === "WARMUP" || token === "STALE" || token === "TIMEOUT" || token === "INVALID") {
+      return hasI2cEvidence(moduleId) ? "detected" : "bad";
+    }
+    if (token === "MISS") {
+      return hasI2cEvidence(moduleId) ? "detected" : "bad";
+    }
+    return null;
+  }
+
   function applySensorCheckStatus(text) {
-    if (!text.includes("SENSOR_CHECK")) return false;
-    if (text.includes("IMU_OK")) setModuleState("imu", "ok");
-    if (text.includes("IMU_MISS") || text.includes("SENSOR_FAIL IMU")) setModuleState("imu", "bad");
-    if (text.includes("BARO_OK")) setModuleState("baro", "ok");
-    if (text.includes("BARO_MISS") && !hasI2cEvidence("baro")) setModuleState("baro", "bad");
-    if (text.includes("MAG_OK")) state.modules.mag = "ok";
-    if (text.includes("MAG_MISS")) state.modules.mag = hasI2cEvidence("mag") ? "detected" : "bad";
-    return true;
+    if (text.includes("SENSOR_FAIL IMU")) {
+      setModuleState("imu", "bad");
+      els.preflightText.textContent = "IMU okunamiyor: I2C kimligi ve backend init zinciri kontrol edilmeli.";
+      return true;
+    }
+
+    let handled = false;
+    const checkMatch = text.match(/SENSOR_CHECK\s+IMU_([A-Z]+)\s+BARO_([A-Z]+)\s+MAG_([A-Z]+)/i);
+    if (checkMatch) {
+      const imuState = moduleStateFromHealthToken(checkMatch[1].toUpperCase(), "imu");
+      const baroState = moduleStateFromHealthToken(checkMatch[2].toUpperCase(), "baro");
+      const magState = moduleStateFromHealthToken(checkMatch[3].toUpperCase(), "mag");
+      if (imuState) setModuleState("imu", imuState);
+      if (baroState) setModuleState("baro", baroState);
+      if (magState) state.modules.mag = magState;
+      els.preflightText.textContent = text.replace(/_/g, " ");
+      handled = true;
+    }
+
+    const healthMatch = text.match(/SENSOR_HEALTH\s+IMU=([A-Z]+)\s+BARO=([A-Z]+)\s+MAG=([A-Z]+)/i);
+    if (healthMatch) {
+      const imuState = moduleStateFromHealthToken(healthMatch[1].toUpperCase(), "imu");
+      const baroState = moduleStateFromHealthToken(healthMatch[2].toUpperCase(), "baro");
+      const magState = moduleStateFromHealthToken(healthMatch[3].toUpperCase(), "mag");
+      if (imuState) setModuleState("imu", imuState);
+      if (baroState) setModuleState("baro", baroState);
+      if (magState) state.modules.mag = magState;
+      handled = true;
+    }
+
+    const faultMatch = text.match(/SENSOR_FAULT\s+([A-Z0-9_]+)/i);
+    if (faultMatch) {
+      const fault = faultMatch[1].toUpperCase();
+      if (fault !== "NONE") {
+        els.preflightText.textContent = `Sensor fault: ${fault}`;
+      }
+      handled = true;
+    }
+
+    if (!handled && text.includes("SENSOR_CHECK")) {
+      if (text.includes("IMU_OK")) setModuleState("imu", "ok");
+      if (text.includes("IMU_MISS")) setModuleState("imu", "bad");
+      if (text.includes("BARO_OK")) setModuleState("baro", "ok");
+      if (text.includes("BARO_MISS")) setModuleState("baro", hasI2cEvidence("baro") ? "detected" : "bad");
+      if (text.includes("MAG_OK")) state.modules.mag = "ok";
+      if (text.includes("MAG_MISS")) state.modules.mag = hasI2cEvidence("mag") ? "detected" : "bad";
+      handled = true;
+    }
+    return handled;
   }
 
   function formatI2cId(value) {
