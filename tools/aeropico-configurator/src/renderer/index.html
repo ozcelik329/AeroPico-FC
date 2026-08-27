@@ -208,10 +208,6 @@
           <span class="status-tile-label">Heartbeat</span>
           <strong id="heartbeatSummary">Yok</strong>
         </div>
-        <div class="status-tile status-firmware">
-          <span class="status-tile-label">Firmware</span>
-          <strong id="firmwareSummary">Bilinmiyor</strong>
-        </div>
         <div class="status-tile status-arm">
           <span class="status-tile-label">Arm</span>
           <strong id="armSummary">Bilinmiyor</strong>
@@ -270,6 +266,18 @@
     </main>
 
     <aside class="rightbar">
+      <section class="panel firmware-panel">
+        <div class="panel-title">
+          <span>Firmware</span>
+          <span id="firmwareSummary" class="status-pill muted">Bilinmiyor</span>
+        </div>
+        <div class="firmware-card">
+          <span>Yüklü uçuş yazılımı</span>
+          <strong>AeroPico-FC</strong>
+          <small>Bağlantıda AUTOPILOT_VERSION okunur.</small>
+        </div>
+      </section>
+
       <section class="panel system-panel">
         <div class="panel-title">
           <span>Modüller</span>

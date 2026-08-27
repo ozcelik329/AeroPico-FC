@@ -507,6 +507,55 @@ body.app-ready .app-shell {
   gap: 8px;
 }
 
+.firmware-panel {
+  padding-bottom: 12px;
+}
+
+.firmware-card {
+  position: relative;
+  display: grid;
+  gap: 3px;
+  min-height: 68px;
+  padding: 12px 13px;
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--accent-dim) 70%, transparent), transparent 62%),
+    color-mix(in srgb, var(--surface-1) 88%, transparent);
+  overflow: hidden;
+}
+
+.firmware-card::after {
+  content: "";
+  position: absolute;
+  right: 12px;
+  top: 14px;
+  width: 8px;
+  height: 8px;
+  border-radius: 99px;
+  background: var(--muted);
+  opacity: 0.32;
+}
+
+.firmware-panel:has(#firmwareSummary[data-state="ok"]) .firmware-card::after {
+  background: var(--ok);
+  opacity: 1;
+  box-shadow: 0 0 10px var(--ok);
+  animation: led-blink 1.2s ease-in-out infinite;
+}
+
+.firmware-card span,
+.firmware-card small {
+  color: var(--muted);
+  font-size: 10.5px;
+}
+
+.firmware-card strong {
+  color: var(--text);
+  font-size: 15px;
+  line-height: 1.15;
+}
+
 /* ── Collapsible panels ───────────────────── */
 
 .collapsible .collapse-trigger {
@@ -1465,7 +1514,7 @@ body.app-ready .app-shell {
   top: 0;
   z-index: 20;
   display: grid;
-  grid-template-columns: repeat(6, minmax(104px, 1fr));
+  grid-template-columns: repeat(5, minmax(124px, 1fr));
   align-items: center;
   justify-content: center;
   gap: 8px;
