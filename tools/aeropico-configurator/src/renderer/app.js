@@ -109,6 +109,8 @@
   });
 
   const MAV_CMD_COMPONENT_ARM_DISARM = 400;
+  const COMMAND_BUSY_MS = 2500;
+  const COMMAND_ACK_TIMEOUT_MS = 5000;
   const MAV_SENSOR_BITS = Object.freeze({
     gyro: 1 << 0,
     accel: 1 << 1,
@@ -431,6 +433,7 @@
     mavlinkInspectorList: document.getElementById("mavlinkInspectorList"),
     servoTestSurface: document.getElementById("servoTestSurface"),
     servoTestPulse: document.getElementById("servoTestPulse"),
+    servoTestPulseVal: document.getElementById("servoTestPulseVal"),
     servoTestDuration: document.getElementById("servoTestDuration"),
     terminalPreflightBtn: document.getElementById("terminalPreflightBtn"),
     terminalArmChecklistBtn: document.getElementById("terminalArmChecklistBtn"),
@@ -1282,8 +1285,9 @@
   }
 
   function updateButtons() {
-    const commandBusy = state.pendingCommand && (Date.now() - state.pendingCommand.atMs) < 2500;
-    if (state.pendingCommand && !commandBusy) {
+    const pendingAge = state.pendingCommand ? Date.now() - state.pendingCommand.atMs : 0;
+    const commandBusy = state.pendingCommand && pendingAge < COMMAND_BUSY_MS;
+    if (state.pendingCommand && pendingAge > COMMAND_ACK_TIMEOUT_MS + 250) {
       state.pendingCommand = null;
       state.lastCommand = null;
     }
@@ -1299,6 +1303,7 @@
     document.querySelectorAll("[data-arm-command]").forEach((button) => {
       const command = button.dataset.armCommand;
       button.disabled = !state.connected ||
+        commandBusy ||
         ((command === "normal" || command === "force") && state.armed === true) ||
         (command === "disarm" && state.armed !== true);
     });
@@ -1857,6 +1862,7 @@
       const pulse = clampInteger(els.servoTestPulse?.value, 1000, 2000, 1600);
       const duration = clampInteger(els.servoTestDuration?.value, 100, 1500, 700);
       if (els.servoTestPulse) els.servoTestPulse.value = String(pulse);
+      if (els.servoTestPulseVal) els.servoTestPulseVal.textContent = String(pulse);
       if (els.servoTestDuration) els.servoTestDuration.value = String(duration);
       return [AEROPICO_SERVICE[command], surface, pulse, duration];
     }
@@ -1879,6 +1885,16 @@
       action,
       atMs: state.lastCommandAtMs
     };
+    window.setTimeout(() => markCommandTimeout(state.pendingCommand), COMMAND_ACK_TIMEOUT_MS);
+  }
+
+  function markCommandTimeout(pending) {
+    if (!pending || state.pendingCommand !== pending) return;
+    pushCommandHistory(pending.command, "timeout", "ACK gelmedi (5s)");
+    state.pendingCommand = null;
+    state.lastCommand = null;
+    renderArmChecklist();
+    updateButtons();
   }
 
   function sendServiceCommand(command) {
@@ -1947,7 +1963,7 @@
   function updateLastCommandFromAck(message, stateName, detail) {
     const pending = state.pendingCommand;
     if (!pending) return false;
-    if (Date.now() - pending.atMs > 5000) {
+    if (Date.now() - pending.atMs > COMMAND_ACK_TIMEOUT_MS) {
       state.pendingCommand = null;
       state.lastCommand = null;
       return false;
@@ -1977,7 +1993,7 @@
     const latest = state.commandHistory[0];
     if (latest) {
       const pillClass = latest.state === "accepted" ? "ok" : latest.state === "pending" ? "warn" : "bad";
-      els.commandSummary.textContent = latest.state === "pending" ? "Bekliyor" : latest.state === "accepted" ? "OK" : "Red";
+      els.commandSummary.textContent = latest.state === "pending" ? "Bekliyor" : latest.state === "accepted" ? "OK" : latest.state === "timeout" ? "Timeout" : "Red";
       els.commandSummary.className = `status-pill ${pillClass}`;
     } else {
       els.commandSummary.textContent = "Bekliyor";
@@ -2926,6 +2942,8 @@
     renderModules();
     log(`Pin varsayilanlari gonderildi; modul setup varsayilanlari beklemeye alindi (${staged}/${moduleDefaults.length}).`);
     toast("Pinler gönderildi; modül setup bekliyor. Değişenleri Uygula + Flash'a Kaydet.", "warn");
+    els.applyDirtyParamsBtn?.classList.add("attention-pulse");
+    window.setTimeout(() => els.applyDirtyParamsBtn?.classList.remove("attention-pulse"), 4000);
   }
 
   /* ── Bindings ──────────────────────────────── */
@@ -2996,6 +3014,11 @@
     }
     if (els.applyDefaultModuleSetupBtn) {
       els.applyDefaultModuleSetupBtn.addEventListener("click", applyDefaultModuleSetup);
+    }
+    if (els.servoTestPulse && els.servoTestPulseVal) {
+      els.servoTestPulse.addEventListener("input", () => {
+        els.servoTestPulseVal.textContent = String(clampInteger(els.servoTestPulse.value, 1000, 2000, 1600));
+      });
     }
     if (els.openPinsFromModuleSetupBtn) {
       els.openPinsFromModuleSetupBtn.addEventListener("click", () => openModal(els.pinMapperModal));

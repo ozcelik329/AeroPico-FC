@@ -1044,9 +1044,18 @@ body.app-ready .app-shell {
 }
 
 .servo-test-row label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
   color: var(--muted);
   font-size: 10.5px;
   font-weight: 850;
+}
+
+.servo-test-row label span {
+  color: var(--accent);
+  font-family: 'SF Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 }
 
 .servo-test-row select,
@@ -1055,6 +1064,11 @@ body.app-ready .app-shell {
   padding: 5px 8px;
   border-radius: var(--radius-sm);
   font-size: 11px;
+}
+
+.servo-test-row input[type="range"] {
+  accent-color: var(--accent);
+  padding: 0;
 }
 
 /* ── Command Status ───────────────────────── */
@@ -1116,6 +1130,24 @@ body.app-ready .app-shell {
 .command-status-row.rejected {
   border-color: rgba(239, 106, 112, 0.30);
   background: var(--danger-dim);
+}
+
+.command-status-row.timeout {
+  border-color: rgba(239, 106, 112, 0.30);
+  background: var(--danger-dim);
+}
+
+.attention-pulse {
+  animation: attention-pulse 1s ease-in-out 3;
+}
+
+@keyframes attention-pulse {
+  0%, 100% {
+    box-shadow: 0 6px 16px rgba(48, 113, 247, 0.12);
+  }
+  50% {
+    box-shadow: 0 0 0 5px color-mix(in srgb, var(--accent) 28%, transparent), 0 8px 20px rgba(48, 113, 247, 0.18);
+  }
 }
 
 /* ── MAVLink Inspector ───────────────────── */
