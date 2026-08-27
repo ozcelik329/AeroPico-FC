@@ -3,6 +3,7 @@
 #include "../utils/Logger.h"
 
 static RP2350I2C defaultI2cBus(i2c0);
+static constexpr uint8_t MPU_DMA_TIMEOUT_FALLBACK_LIMIT = 3;
 
 IHALI2C& SensorManager::_bus() {
     return _i2cBus ? *_i2cBus : defaultI2cBus;
@@ -108,7 +109,7 @@ bool SensorManager::_readRawFrame(uint8_t raw[GyroAccelDriver::RAW_LEN]) {
 }
 
 bool SensorManager::isImuAvailable() const { return _imuAvailable; }
-bool SensorManager::isDmaOk() const { return _dmaBus.hasMpuChannels(); }
+bool SensorManager::isDmaOk() const { return _dmaFastPath && _dmaBus.hasMpuChannels(); }
 
 bool SensorManager::getI2cRegisterProbeValue(uint8_t address, uint8_t reg, uint8_t& value) const {
     for (uint8_t i = 0; i < _i2cRegisterScanCount; ++i) {
@@ -558,6 +559,9 @@ void SensorManager::update() {
         if (_dmaBus.mpuTimedOut(nowUs, I2C_DMA_TIMEOUT_US)) {
             _dmaBus.abortMpu();
             _setFault(SensorFaultCode::DmaTransferTimeout);
+            if (_mpuDmaTimeouts < 255) {
+                _mpuDmaTimeouts++;
+            }
 
             uint8_t writeIdx = 1 - _writeIdx;
             _buf[writeIdx].valid = false;
@@ -566,6 +570,15 @@ void SensorManager::update() {
             mutex_enter_blocking(&_mutex);
             _writeIdx = writeIdx;
             mutex_exit(&_mutex);
+
+            if (_mpuDmaTimeouts >= MPU_DMA_TIMEOUT_FALLBACK_LIMIT) {
+                if (RP2350I2C* rpBus = _rpBus()) {
+                    rpBus->setDmaEnabled(false, false);
+                }
+                _dmaFastPath = false;
+                Logger::log("[SENSOR] MPU6050 DMA timeout limit; polling I2C fallback aktif.");
+                return;
+            }
 
             _mpu_start_dma_read();
         }
@@ -578,6 +591,7 @@ void SensorManager::update() {
     const uint8_t* raw = _dmaBus.mpuBuffer();
     _gyroAccelDriver.parseRawSample(raw, _imuCalibration, buf, micros());
     _dmaBus.finishMpu();
+    _mpuDmaTimeouts = 0;
     _clearRecoverableMpuFault();
     _observeCalibrationRawFrame(raw);
     buf.baroValid = false;

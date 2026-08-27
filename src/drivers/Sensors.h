@@ -109,6 +109,7 @@ class SensorManager : public IImuDriver, public IMagDriver, public IBaroDriver, 
     uint8_t _sdaPin = PIN_SDA;
     uint8_t _sclPin = PIN_SCL;
     bool _dmaFastPath = false;
+    uint8_t _mpuDmaTimeouts = 0;
     bool _i2cScanValid = false;
     uint32_t _lastI2cScanMs = 0;
     uint8_t _i2cRegisterScanCount = 0;
