@@ -311,10 +311,16 @@ void SensorManager::init() {
     Logger::log("[SENSOR] MPU6050 (ham I2C+DMA) hazir.");
 
     RP2350I2C* rpBus = _rpBus();
+#if AEROPICO_SENSOR_DMA_ENABLED
     _dmaFastPath = rpBus && _dmaBus.configureMpu(*rpBus);
+#else
+    _dmaFastPath = false;
+#endif
     if (!_dmaFastPath) {
+#if AEROPICO_SENSOR_DMA_ENABLED
         _setFault(SensorFaultCode::DmaChannelClaimFailed);
-        Logger::log("[SENSOR] MPU6050 DMA kullanilamiyor, HAL I2C fallback aktif.");
+#endif
+        Logger::log("[SENSOR] MPU6050 HAL I2C polling aktif.");
     }
 
     #ifdef USE_GY87
@@ -323,7 +329,11 @@ void SensorManager::init() {
             _hasMag = false;
             _hasBaro = false;
         } else {
+#if AEROPICO_SENSOR_DMA_ENABLED
             const bool auxDmaOk = _dmaFastPath && _dmaBus.configureAuxRx(*rpBus);
+#else
+            const bool auxDmaOk = false;
+#endif
             if (!auxDmaOk) {
                 Logger::log("[SENSOR] Yardimci I2C DMA yok, polling fallback aktif.");
             }
