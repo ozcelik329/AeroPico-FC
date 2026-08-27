@@ -2507,10 +2507,11 @@
       const versionMatch = message.text.match(/^FW_VERSION\s+(\S+)/i);
       if (versionMatch) {
         state.firmwareVersion = versionMatch[1];
+        renderSummary();
       }
       const handledSensorCheck = applySensorCheckStatus(text);
       const handledI2c = logI2cDiagnostics(text);
-      if (!handledI2c) {
+      if (!handledI2c && !handledSensorCheck) {
         if (text.includes("IMU CALIBRATION SAVED") || text.includes("SENSOR_CHECK_OK")) setModuleState("imu", "ok");
         if (text.includes("IMU MISSING") || text.includes("WHOAMI")) setModuleState("imu", "bad");
         if (text.includes("BMP") || text.includes("BARO")) setModuleState("baro", text.includes("HAZIR") || text.includes("OK") ? "ok" : "bad");

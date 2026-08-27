@@ -8,6 +8,25 @@
 #include "../telemetry/Blackbox.h"
 #include "../telemetry/MavlinkHandler.h"
 
+static const char* sensorFaultToken(SensorFaultCode fault) {
+    switch (fault) {
+        case SensorFaultCode::None: return "NONE";
+        case SensorFaultCode::I2cWhoamiWriteFailed: return "WHOAMI_WR";
+        case SensorFaultCode::I2cWhoamiReadFailed: return "WHOAMI_RD";
+        case SensorFaultCode::WhoamiMismatch: return "WHOAMI_BAD";
+        case SensorFaultCode::I2cRawWriteFailed: return "RAW_WR";
+        case SensorFaultCode::I2cRawReadFailed: return "RAW_RD";
+        case SensorFaultCode::DmaChannelClaimFailed: return "DMA_CLAIM";
+        case SensorFaultCode::DmaTransferTimeout: return "DMA_TIMEOUT";
+        case SensorFaultCode::AuxI2cWriteFailed: return "AUX_WR";
+        case SensorFaultCode::AuxDmaTransferTimeout: return "AUX_DMA_TIMEOUT";
+        case SensorFaultCode::AuxPollingFallbackFailed: return "AUX_POLL_FAIL";
+        case SensorFaultCode::MagReadFailed: return "MAG_READ";
+        case SensorFaultCode::BaroReadFailed: return "BARO_READ";
+        default: return "UNKNOWN";
+    }
+}
+
 void RuntimeHealthReporter::init(const RuntimeHealthReporterContext& context) {
     _context = context;
 }
@@ -49,8 +68,11 @@ bool RuntimeHealthReporter::run(const PreflightResult& preflight,
         _batteryWarningLatched = false;
     }
 
-    if (_context.sensors->getFaultCode() != SensorFaultCode::None) {
-        sendStatusTextThrottled(_context.sensors->getFaultText());
+    const SensorFaultCode sensorFault = _context.sensors->getFaultCode();
+    if (sensorFault != SensorFaultCode::None) {
+        char faultText[50] = {};
+        snprintf(faultText, sizeof(faultText), "SENSOR_FAULT %s", sensorFaultToken(sensorFault));
+        sendStatusTextThrottled(faultText);
     }
 
     if (!SystemTimer::checkTimingBudgets()) {

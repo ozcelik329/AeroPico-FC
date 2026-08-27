@@ -234,13 +234,7 @@ uint8_t MavlinkServiceCommands::handle(uint16_t action,
                 return MAV_RESULT_DENIED;
             }
 
-            char detail[50] = {};
-            snprintf(detail,
-                     sizeof(detail),
-                     "SENSOR_CHECK IMU_OK BARO_%s MAG_%s",
-                     caps.baroAvailable ? "OK" : "MISS",
-                     caps.magAvailable ? "OK" : "MISS");
-            copyReason(reason, reasonLen, detail);
+            copyReason(reason, reasonLen, "SENSOR_CHECK_SENT");
 
             if (!caps.magAvailable || !caps.baroAvailable) {
                 return MAV_RESULT_ACCEPTED;

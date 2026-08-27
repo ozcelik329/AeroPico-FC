@@ -2,6 +2,17 @@
 
 #include <stdio.h>
 
+static const char* sensorHealthReasonToken(SensorHealth health) {
+    switch (health) {
+        case SensorHealth::Ok: return "OK";
+        case SensorHealth::WarmingUp: return "WARMUP";
+        case SensorHealth::Stale: return "STALE";
+        case SensorHealth::Timeout: return "TIMEOUT";
+        case SensorHealth::Invalid:
+        default: return "INVALID";
+    }
+}
+
 SensorPreflightStatus SensorPreflightEvaluator::evaluate(bool imuAvailable,
                                                          const SensorBuffer& sample,
                                                          uint8_t minQuality) {
@@ -53,8 +64,8 @@ void SensorPreflightEvaluator::formatReason(const SensorPreflightStatus& status,
         case SensorPreflightReason::HealthNotOk:
             snprintf(destination,
                      destinationSize,
-                     "Sensor health %u age=%uus",
-                     (unsigned)status.health,
+                     "IMU_%s age=%uus",
+                     sensorHealthReasonToken(status.health),
                      status.sampleAgeUs);
             break;
         case SensorPreflightReason::QualityLow:
