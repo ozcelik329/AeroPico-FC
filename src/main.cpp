@@ -396,8 +396,13 @@ static void runBlackboxDrain() { blackbox.drain(2); }
 static void runHealthReport() {
     lastPreflightResult = evaluatePreflight();
     refreshModuleSetupFromParams();
-    latestBatteryCritical = moduleSetupRuntime.batteryRequired() &&
-        runtimeHealthReporter.run(lastPreflightResult, sensorTaskHandle, flightTaskHandle, telemetryTaskHandle);
+    const bool batteryCritical = runtimeHealthReporter.run(
+        lastPreflightResult,
+        sensorTaskHandle,
+        flightTaskHandle,
+        telemetryTaskHandle
+    );
+    latestBatteryCritical = moduleSetupRuntime.batteryRequired() && batteryCritical;
 }
 
 extern "C" void vApplicationStackOverflowHook(TaskHandle_t xTask, char* pcTaskName) {
