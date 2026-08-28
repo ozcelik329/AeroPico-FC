@@ -33,6 +33,17 @@ void test_failsafe_manager_blocks_rc_failsafe() {
     TEST_ASSERT_BITS(FailsafeRcLoss, FailsafeRcLoss, decision.reasons);
 }
 
+void test_failsafe_manager_ignores_rc_loss_when_rc_is_disabled() {
+    FailsafeManager manager;
+    FlightData data = healthyData();
+    data.failsafe = true;
+
+    FailsafeDecision decision = manager.evaluate(data, false);
+
+    TEST_ASSERT_FALSE(decision.active);
+    TEST_ASSERT_EQUAL_UINT16(FailsafeNone, decision.reasons);
+}
+
 void test_failsafe_manager_blocks_invalid_estimator() {
     FailsafeManager manager;
     FlightData data = healthyData();
@@ -101,6 +112,7 @@ int main() {
     UNITY_BEGIN();
     RUN_TEST(test_failsafe_manager_allows_healthy_data);
     RUN_TEST(test_failsafe_manager_blocks_rc_failsafe);
+    RUN_TEST(test_failsafe_manager_ignores_rc_loss_when_rc_is_disabled);
     RUN_TEST(test_failsafe_manager_blocks_sensor_timeout);
     RUN_TEST(test_failsafe_manager_blocks_sensor_stale);
     RUN_TEST(test_failsafe_manager_blocks_invalid_estimator);

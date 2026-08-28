@@ -66,7 +66,7 @@ void FlightManager::publishState() {
     provisional.timingExceeded = _timingExceeded;
     provisional.batteryCritical = _batteryCritical;
     provisional.actuatorFault = _actuatorFault;
-    FailsafeDecision failsafe = _failsafeManager.evaluate(provisional);
+    FailsafeDecision failsafe = _failsafeManager.evaluate(provisional, _rcRequired);
     if (_benchForceArmAllowed) {
         failsafe = {false, "bench admin override", 0};
     }

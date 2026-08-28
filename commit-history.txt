@@ -1,0 +1,334 @@
+9888a1e | 2026-06-18 | Proje başlangıcı: PlatformIO yapısı kuruldu
+3767de3 | 2026-06-18 | dosya yapısı kuruldu
+92cf312 | 2026-06-18 | kütüphaneler eklendi ve dosyalar config ile bağlandı
+957e3cc | 2026-06-18 | kütüphaneler eklendi ve config.h bağlandı
+c541c3b | 2026-06-18 | Initialize README with project details and instructions
+8f78e2c | 2026-06-18 | Rename project to PicoFlightController
+fe35aca | 2026-06-18 | Rename project title in README.md
+e9adda3 | 2026-06-18 | Revise sensor details and add roadmap section
+a9e4e57 | 2026-06-18 | Add sensor reading functions to Sensors.h
+f6e1efe | 2026-06-18 | sensörler güncellendi
+2dfb6e0 | 2026-06-18 | Çakışma çözüldü, sensörler birleştirildi
+55752b9 | 2026-06-18 | AeroPico FC temel kod iskeleti oluşturuldu ve derleme hataları giderildi
+cd20f45 | 2026-06-20 | Mimari Guncelleme: Dosya yapisi katmanli mimariye (Layered Architecture) gecirildi
+a0a29a6 | 2026-06-20 | Revise README for clarity and project updates
+11d37fa | 2026-06-20 | Revise README to enhance documentation clarity
+91c1933 | 2026-06-20 | feat: RX ve Sensor suruculeri eklendi, mimari duzenlendi
+adbb473 | 2026-06-20 | feat: RX ve Sensor suruculeri eklendi, mimari duzenlendi
+378da54 | 2026-06-20 | feat: Girdi katmani (Sensor+RX+IMU) kuruldu, Madgwick yarin eklenecek
+9d3d9ab | 2026-06-20 | Revise hardware requirements and add capabilities section
+eccaba7 | 2026-06-20 | Fix formatting of section header in README.md
+e716587 | 2026-06-20 | Add references section to README
+8df5e29 | 2026-06-20 | Revise acknowledgments and references section
+624b13d | 2026-06-20 | Add Apache License 2.0
+8c110da | 2026-06-20 | Add copyright notice to LICENSE file
+aaa72f0 | 2026-06-20 | Update README with author and copyright details
+fc93c3b | 2026-06-20 | Update README with licensing details
+c1ec889 | 2026-06-20 | Update LICENSE to include PicoFlight attribution
+c8d8666 | 2026-06-20 | Update licensing information in LICENSE file
+d4eb806 | 2026-06-20 | Revise copyright and licensing details in README
+8447565 | 2026-06-20 | Update fixed-wing FC architecture, sensor fusion, mixer and README
+8feb6a4 | 2026-06-20 | Finalize flight controller source update, remove macOS artifacts
+899081f | 2026-06-20 | Add Mixer module and remove macOS DS_Store tracking
+c64b7dd | 2026-06-20 | update
+f894dd7 | 2026-06-20 | Update Pico Arduino compatibility and PlatformIO configuration
+36c6e0a | 2026-06-20 | Use Earle Philhower supported Raspberry Pi Pico platform
+f55de4e | 2026-06-20 | fix
+fcf2d50 | 2026-06-22 | Add README for AeroPico FC project
+b3d99bd | 2026-06-22 | Translate README to English and improve content
+1afe63f | 2026-06-22 | Update README with project details and structure
+9c3439f | 2026-06-22 | Delete README_TR.md
+daf5030 | 2026-06-22 | Refactor README.md for better structure and readability
+aa3df97 | 2026-06-22 | Delete LICENSE
+cefb5bb | 2026-06-22 | Add MIT License to the project
+3501f53 | 2026-06-23 | concept ui added
+9dcd4ce | 2026-06-23 | GCS concept added.
+b6d6134 | 2026-06-23 | Alpha release: switch to src2-based source tree and update core control logic
+3fb906e | 2026-06-23 | Add Contributor Covenant Code of Conduct
+c385430 | 2026-06-23 | Delete CODE_OF_CONDUCT.md
+9167532 | 2026-06-23 | Revise README to remove Turkish section and enhance clarity
+96b69f4 | 2026-06-23 | Remove strategic advice from README
+273f904 | 2026-06-23 | Add image to README for aeropico flight controller
+80b2066 | 2026-06-23 | Fix image tag width in README.md
+c84c3ba | 2026-06-23 | Add system architecture diagram to README
+728c458 | 2026-06-23 | Revise flowchart titles and remove future features
+d567b14 | 2026-06-23 | Revise flowchart and clean up README
+b2a816e | 2026-06-23 | Add mermaid diagram to README for system overview
+a794260 | 2026-06-23 | Enhance diagram with Core 0 and Core 1 subgraphs
+b1accd4 | 2026-06-23 | Fix styling syntax in README.md
+0498ac8 | 2026-06-23 | Update README.md for consistency and styling
+b61378a | 2026-06-23 | Refactor diagram labels and improve clarity
+2c340e3 | 2026-06-23 | Fix badge formatting in README.md
+301aaf6 | 2026-06-23 | Change badge colors in README.md
+a9d7c9b | 2026-06-23 | Add C++ badge to README.md
+fd7197d | 2026-06-23 | Update badge links in README.md
+d5da00e | 2026-06-23 | Update badge styles in README.md
+970932f | 2026-06-23 | Update README.md to remove version badge
+b21b980 | 2026-06-23 | Update badges in README.md
+526e0a6 | 2026-06-23 | Update README by removing badges
+2494fbf | 2026-06-23 | Revise README for AeroPico FC with new features
+8bdaf1c | 2026-06-23 | Change title to 'AeroPico FC: High-Performance Fixed-Wing Flight Controller'
+f11a876 | 2026-06-23 | Revise README for AeroPico FC project
+4b42f7a | 2026-06-23 | Update project title format in README.md
+8002e82 | 2026-06-23 | Update system architecture diagram in README
+eefa898 | 2026-06-23 | Fix mermaid syntax in README for system architecture
+35954a6 | 2026-06-23 | Revise README for clarity and visual appeal
+4b735a6 | 2026-06-23 | Add badges to README for project information
+d7a78a6 | 2026-06-23 | Refactor config.h for sensor type and parameters
+f3cd394 | 2026-06-23 | Add hardware pinout information to README
+062324f | 2026-06-23 | feat: FreeRTOS task skeleton with dual-core affinity
+14cf1b4 | 2026-06-23 | feat: PIO-based hardware PWM for servo outputs, removes Servo library jitter
+8afc101 | 2026-06-23 | Remove duplicate src2 and old backup
+9225958 | 2026-06-23 | WIP: save changes before pushing to hardware branch
+9af9a4f | 2026-06-23 | Update badges in README.md
+3556278 | 2026-06-23 | Update Experimental badge in README.md
+d44f73e | 2026-06-23 | Document experimental RTOS branch in README
+dea504e | 2026-06-23 | Update README.md
+d31f78c | 2026-06-23 | Remove implementation challenges from README
+adc605d | 2026-06-23 | Delete Ground Control System directory
+f3e5a0d | 2026-06-23 | Delete LICENSE
+edc889e | 2026-06-23 | Revise experimental branch details and feature status
+afee60c | 2026-06-23 | Update README with branch check notes for features
+2d3b464 | 2026-06-23 | Sorun şablonlarını güncelleyin
+de95eea | 2026-06-23 | Add files via upload
+018b4b9 | 2026-06-23 | Add link to AeroPico logo in README
+2963f34 | 2026-06-23 | Fix logo display in README
+ac159c1 | 2026-06-23 | Update README.md
+2f07f83 | 2026-06-23 | Refactor image section in README.md
+3530a08 | 2026-06-23 | Update README with project description and image
+5b73493 | 2026-06-23 | Update image in README and add spacing
+40c6ad4 | 2026-06-23 | Update image and enhance project description in README
+5d8c2b7 | 2026-06-23 | Change image source in README
+839980d | 2026-06-23 | Add files via upload
+d7019fa | 2026-06-23 | Delete Ground Control System/CONCEPT GCS UI:UX.png
+84b8a2a | 2026-06-23 | feat: ping-pong sensor buffer, DMA-ready architecture for IMU reads
+5addd02 | 2026-06-24 | Fix typo in README.md for sensor reading status
+f365c22 | 2026-06-24 | feat: watchdog timer and RC failsafe with timeout detection
+add956d | 2026-06-24 | feat: MPU6050 raw I2C + DMA read, removes Adafruit MPU6050 dependency
+69fbdcf | 2026-06-24 | Update feature statuses in README
+390b689 | 2026-06-24 | feat: MAVLink parser with heartbeat, attitude, RC channels and sys_status
+fadbfeb | 2026-06-24 | feat: PIO UART pin routing - SBUS on Serial2, ESP32-CAM on Serial1, GPS ready on UART1
+4ea5c6e | 2026-06-24 | feat: PIO UART for ESP32-CAM communication on GP12/GP13
+fad593d | 2026-06-24 | feat: MAVLink now uses PIO UART for ESP32-CAM communication
+a067c21 | 2026-06-24 | feat: Blackbox logger via PIO UART to ESP32-CAM SD card
+a20d269 | 2026-06-24 | Revise README for FreeRTOS and hardware updates
+84ed63e | 2026-06-24 | Enhance README with optional features and modularity
+cdc3ad6 | 2026-06-24 | chore: main dalı experimental ile birleştirildi
+ef4f920 | 2026-06-24 | docs: update README with experimental feature status and architecture
+767f150 | 2026-06-24 | update file structure
+7e7035b | 2026-06-24 | Update README with project phase and usage note
+cf408d7 | 2026-06-24 | Revise project note in README
+9e48621 | 2026-06-24 | revise
+b291711 | 2026-06-24 | Delete Esp32cam/boş.png
+5bffc73 | 2026-06-24 | revise
+0afe33c | 2026-06-24 | feat: __not_in_flash_func for PID and Madgwick - critical functions moved to RAM
+a74cfd4 | 2026-06-24 | feat: IIR low-pass filter for accelerometer, temperature reading from MPU6050
+dc88923 | 2026-06-24 | feat: gyroscope temperature compensation using MPU6050 onboard temp sensor
+f2d83a7 | 2026-06-24 | feat: arm/disarm protocol - throttle down + rudder right/left combo with 1s hold
+db15723 | 2026-06-24 | feat: MAVLink stream prioritization - HEARTBEAT 1Hz, ATTITUDE 10Hz, RC 5Hz, SYS_STATUS 2Hz
+6d017a2 | 2026-06-24 | feat: lock-free SPSC ring buffer replaces mutex for cross-core flight data
+ac312b0 | 2026-06-24 | feat: MAVLink parameter protocol (disabled until ESP32-CAM, enable with MAVLINK_PARAMS_ENABLED)
+51628b4 | 2026-06-25 | Add Work In Progress badge to README
+13fee8c | 2026-06-25 | Update badge for Work In Progress in README
+71ad30a | 2026-06-25 | Remove Work In Progress badge
+8243063 | 2026-06-30 | Add proprietary license file
+8552eaf | 2026-06-30 | Add copyright notice to README
+0e911cf | 2026-06-30 | Revise copyright notice in README.md
+a7db582 | 2026-06-30 | Update header level in README.md
+90a6f3f | 2026-06-30 | Update README with copyright notice and project info
+d444c1a | 2026-06-30 | Change license to Proprietary and add copyright notice
+789398a | 2026-06-30 | Update Intellectual Property Notice formatting
+4e7367d | 2026-06-30 | Restore Intellectual Property Notice in README
+c4df3ae | 2026-06-30 | Update header format in README.md
+c22cba6 | 2026-06-30 | Add RP2350 badge to README
+8ac235d | 2026-06-30 | Update copyright year in README.md
+5addc83 | 2026-07-02 | DI: Inject drivers into FlightManager; add IRxDriver; fix build
+94efb8c | 2026-07-02 | Add files via upload
+0f90246 | 2026-07-02 | pico2-catalyi dalı için güncellemeler
+3c98e93 | 2026-07-02 | Merge remote-tracking branch 'origin/pico2-catalyi'
+caadb78 | 2026-07-07 | Improve AeroPico flight controller architecture
+bd75eb8 | 2026-07-07 | Split flight manager pipelines
+c3eabf6 | 2026-07-07 | Start professional FC infrastructure phase
+d9e2ac5 | 2026-07-07 | Fix RP2350 servo PIO clock divider
+b7af4a5 | 2026-07-07 | Gate watchdog on flight loop health
+672531d | 2026-07-07 | Add professional architecture review report
+edac457 | 2026-07-07 | Integrate scheduler and preflight arm gate
+5b385e9 | 2026-07-07 | Refine flight loop architecture and runtime params
+d4f7702 | 2026-07-07 | Close risk matrix gaps for RP2350 reliability
+bdfac0e | 2026-07-07 | Split flight orchestration and control task
+c962980 | 2026-07-07 | Prune stale documentation
+d02ab60 | 2026-07-08 | Split sensor roles into gyro mag and baro drivers
+b69e122 | 2026-07-08 | Complete software roadmap and define V1.0 backlog
+0a5f458 | 2026-07-11 | Complete V1 software hardening and hardware docs
+658ddb3 | 2026-07-11 | Improve vertical estimation and adaptive fusion
+93b8e88 | 2026-07-11 | Fix blackbox native CI include
+77b5202 | 2026-07-11 | Fix native link math includes
+13384a6 | 2026-07-11 | Add calibration module and user guides
+ecdbd2d | 2026-07-13 | Refine flight architecture and estimator stack
+2928a99 | 2026-07-13 | Add AeroPico configurator tool
+fca0283 | 2026-07-13 | Document innovation backlog and tighten architecture policy checks
+08dea85 | 2026-07-13 | Harden CI architecture policy targets
+50094e4 | 2026-07-13 | Integrate blackbox ring buffer queue
+af5e3c6 | 2026-07-13 | Harden MAVLink safety and bench artifacts
+81c9db0 | 2026-07-13 | Prepare v1.0 RCI GCS compatibility
+b93edd1 | 2026-07-13 | Connect configurator services and sensor backends
+dd64416 | 2026-07-13 | Productize configurator for v1 RCI
+c7d5d29 | 2026-07-13 | Finalize v1 RCI product documentation
+5162dc2 | 2026-07-13 | Promote v1.0.0-rc1 to main
+cf67cf3 | 2026-07-13 | Restore README architecture presentation
+36f136c | 2026-07-13 | Fix README Mermaid architecture diagram
+48163d9 | 2026-07-13 | Add configurable battery profile parameters
+4fa6134 | 2026-07-13 | Move board configuration under board module
+9da81bb | 2026-07-14 | Close v1.0 rc1 software hardening gaps
+76eb41b | 2026-07-14 | Harden service command safety gate
+6184448 | 2026-07-14 | Add Arduino IDE SBUS generator tools
+7abbf6e | 2026-07-25 | Add AeroPico-FC website
+ac121f5 | 2026-07-25 | Improve mobile website layout
+c7d03b3 | 2026-07-25 | Simplify mobile website header
+e542ee7 | 2026-07-25 | minor.
+e20409c | 2026-07-25 | Use build-time Tailwind for website
+63743f0 | 2026-07-25 | Optimize website assets and fonts
+15e6730 | 2026-07-25 | Refine website visual hierarchy
+f5f2da9 | 2026-07-25 | Add website content and navigation upgrades
+2354ef0 | 2026-07-25 | Restore floating website header
+de95389 | 2026-07-25 | Complete website English localization
+a019ebb | 2026-07-25 | Fix floating website header positioning
+13d0724 | 2026-07-25 | Fix header viewport sizing
+7df2580 | 2026-07-25 | Move hardware list to separate page
+3ab53ee | 2026-07-25 | Split website into fast standalone pages
+ffd2dd3 | 2026-07-25 | Add homepage overview hub
+e637e46 | 2026-07-25 | Add lightweight website transitions
+9653a54 | 2026-07-25 | Keep only releases and hardware as separate pages
+ad16e44 | 2026-07-25 | Restore specifications modal
+5b62efa | 2026-07-25 | Update specifications modal content
+8c172dd | 2026-07-25 | Group specifications modal content
+cbbd038 | 2026-07-25 | Fix home overview specs summary
+0ddb146 | 2026-07-25 | Add Google site verification meta tag
+bf13b36 | 2026-07-25 | Add website sitemap
+ba05ace | 2026-07-25 | Improve website search snippet metadata
+3ce50f9 | 2026-07-25 | Refine website visual style
+13141ef | 2026-07-25 | Tune header glass effect
+a36e2e6 | 2026-07-25 | Darken header glass effect
+f368463 | 2026-07-25 | Darken website background
+843dbbc | 2026-07-27 | Update website SEO and social preview
+272a468 | 2026-08-04 | Prepare bench admin arm and telemetry radio support
+e3a2994 | 2026-08-04 | Add configurator detail page
+0da9cbd | 2026-08-04 | Separate firmware and configurator downloads
+30d235c | 2026-08-04 | Revert "Separate firmware and configurator downloads"
+4334c30 | 2026-08-04 | Add configurator package downloads
+89ed821 | 2026-08-04 | Simplify header navigation and releases
+7b75807 | 2026-08-04 | Refine configurator download CTAs
+2f028e8 | 2026-08-04 | Fix Turkish quick start label
+6f9df44 | 2026-08-04 | Simplify configurator page copy
+4bbf895 | 2026-08-04 | Refine website product flow
+21c809c | 2026-08-04 | Improve configurator page copy
+0407fac | 2026-08-04 | Clean website copy
+f5b1542 | 2026-08-04 | Polish configurator website copy
+b2b883d | 2026-08-06 | Website animation revise
+4cde559 | 2026-08-06 | Animation revise
+d0bceeb | 2026-08-06 | Delete website kopyası directory
+6802cde | 2026-08-06 | Improve anchor smooth scrolling and fixed-header offset
+18c07f1 | 2026-08-06 | Enhance scroll reveal animations and hero telemetry interaction
+fe27f7e | 2026-08-06 | Smooth anchor and route transitions; remove Hero MAVLink dot
+23ab16c | 2026-08-06 | Remove all pulsing/animated dots from website UI
+70df243 | 2026-08-06 | website: update header nav order, move contact action to header actions, add project map anchor
+584960f | 2026-08-06 | website: add configurator to header nav and center header items
+e9d62fe | 2026-08-06 | website: dispatch hashchange for same-page quickstart clicks
+b92383b | 2026-08-06 | website: sync siteData navItems with header order
+223308b | 2026-08-06 | website: refine header layout and compact contact icon
+31c09a4 | 2026-08-06 | website: add contact modal wiring and translations
+405f64c | 2026-08-06 | website: use SVG contact icon in header
+bf5bd40 | 2026-08-06 | website: improve contact icon visibility and hover style
+ea06c20 | 2026-08-09 | Polish configurator setup and arm workflow
+bf242c4 | 2026-08-09 | Restore classic configurator layout
+63e2c3f | 2026-08-09 | Keep telemetry tab visible in sidebar
+d71f669 | 2026-08-09 | Fix configurator sidebar and right panel tabs
+d3b6bb3 | 2026-08-09 | Clean up configurator right panel workflow
+273ce9b | 2026-08-09 | Restore module setup card behavior
+e8eb262 | 2026-08-09 | Restore configurator UI from pre-today commit
+53bda0f | 2026-08-09 | Restore functional module setup in classic configurator
+5a1ff99 | 2026-08-09 | Move diagnostics to configurator bottom panel
+1f2b399 | 2026-08-09 | Make module setup editable as staged params
+56c988d | 2026-08-09 | Integrate diagnostics into terminal tabs
+8859085 | 2026-08-09 | Tighten configurator terminal spacing
+09c8ef7 | 2026-08-09 | Rename fourth servo role to ESC
+a6e0049 | 2026-08-09 | Adjust configurator sidebar and terminal layout
+49c2825 | 2026-08-09 | Make RC setup control real preflight behavior
+3c4880e | 2026-08-09 | Refactor firmware runtime orchestration
+a69af00 | 2026-08-09 | Add runtime pin mapper support for I2C and buzzer
+d000006 | 2026-08-24 | Add arm status LEDs and buzzer melodies
+54aa0bf | 2026-08-24 | Add configurator packaging dependency
+3b79d08 | 2026-08-24 | Prevent configurator 1200 baud reset
+fd308ba | 2026-08-24 | Revert "Add arm status LEDs and buzzer melodies"
+ba3af0c | 2026-08-24 | Defer configurator parameter request
+109b8e6 | 2026-08-24 | Keep watchdog alive on timing warnings
+acdafec | 2026-08-24 | Enable watchdog after boot tasks
+7c4a8c5 | 2026-08-24 | Disable hardware watchdog for bench diagnosis
+54c3282 | 2026-08-24 | Announce MAVLink boot telemetry
+529c2a2 | 2026-08-24 | Assert DTR for USB serial telemetry
+0ac798b | 2026-08-24 | Harden configurator param requests
+c88fc5b | 2026-08-24 | Prefer USB MAVLink RX during bench
+c219e34 | 2026-08-24 | Report detailed sensor check status
+a08fe34 | 2026-08-24 | Report boot I2C scan over MAVLink
+ec45f78 | 2026-08-24 | Include I2C scan in sensor check response
+e1d0781 | 2026-08-24 | Decode trimmed MAVLink statustext
+319d9bb | 2026-08-24 | Lower sensor I2C bus speed for bench
+9448d0b | 2026-08-24 | Accept param requests for any component
+d702b43 | 2026-08-25 | Add LICENSE file
+6cc4c67 | 2026-08-25 | Change license badge to GPLv3
+f077aab | 2026-08-25 | Fix C++ badge link in README.md
+3fbc328 | 2026-08-25 | Add licensing information to README
+d10e47c | 2026-08-25 | Clean up README formatting and remove duplicate image
+385830e | 2026-08-25 | Fix formatting issues in README.md
+b9a9667 | 2026-08-25 | Update license section in README.md
+9980bfc | 2026-08-25 | Change license to PolyForm Noncommercial License
+323f88e | 2026-08-25 | Update commercial use notice in LICENSE file
+0e312a1 | 2026-08-25 | Update README for noncommercial license
+cd0dbcf | 2026-08-25 | Update license badge color in README.md
+2995721 | 2026-08-25 | Remove license information from README
+cb2fe48 | 2026-08-25 | Update README.md
+c66503a | 2026-08-25 | Update badge for Türkiye AeroPico FC
+fa2574e | 2026-08-25 | Add AeroPico Türkiye badge
+91a14fb | 2026-08-25 | Refine Türkiye badge
+7282210 | 2026-08-25 | Fix PlatformIO badge formatting in README
+5156069 | 2026-08-25 | Fix C++ badge to remove version number
+6c08237 | 2026-08-25 | Consolidate badge display in README.md
+dad12bd | 2026-08-25 | Enhance README with project badges and details
+a89244f | 2026-08-25 | Update README.md to streamline badge display
+a655c80 | 2026-08-25 | Update README with new badges and release info
+febf688 | 2026-08-25 | Improve badge display and formatting in README
+8373b21 | 2026-08-25 | Add T3 Foundation and License badges to README
+0555592 | 2026-08-25 | Remove license badge from README
+e6b43df | 2026-08-25 | Update T3 Foundation badge in README.md
+23f42ef | 2026-08-25 | Remove T3 Foundation badge from README
+fe350bf | 2026-08-25 | Add I2C ACK diagnostic reporting
+41bf2fc | 2026-08-25 | Show I2C diagnostics in configurator
+e520cf0 | 2026-08-25 | Throttle repeated health status text
+7702b5f | 2026-08-25 | Add timeouts to RP2350 I2C transfers
+55105a0 | 2026-08-25 | Start MAVLink before sensor boot
+e887cb5 | 2026-08-26 | Show I2C-detected module state in configurator
+9586fdf | 2026-08-26 | Add I2C diagnostics and arm checklist
+2bf7f33 | 2026-08-26 | Harden configurator serial connect flow
+d5b0409 | 2026-08-26 | Preserve I2C-detected sensor state
+841f269 | 2026-08-26 | Fix I2C ID mapping diagnostics
+827189a | 2026-08-26 | Stabilize I2C diagnostics
+a54af5b | 2026-08-26 | Clarify I2C diagnostics without scan data
+56725d4 | 2026-08-26 | Keep I2C diagnostics consistent with healthy IMU
+07b3a16 | 2026-08-26 | Keep healthy IMU state during I2C diagnostics
+b287362 | 2026-08-26 | Retry barometer init after I2C diagnostics
+a5495f3 | 2026-08-26 | Report detected sensor health independently
+4f0db1f | 2026-08-26 | Use backend evidence for sensor module status
+9548bd0 | 2026-08-26 | Use polling for barometer calibration init
+d76675b | 2026-08-27 | Report live sensor health without stale I2C state
+37e2706 | 2026-08-27 | Match HMC5883L gain with backend scale
+2f2a73f | 2026-08-27 | Fix FIFO peek semantics in ring buffer
+b21a10e | 2026-08-27 | Clear stale GPS capability after fix timeout
+9398e14 | 2026-08-27 | Fix BMP085 pressure compensation math
+2ba3ee4 | 2026-08-27 | Keep runtime health reporting independent of battery setup
+109f2be | 2026-08-27 | Report firmware version to configurator
+8c6025f | 2026-08-27 | Move firmware version into side panel
+34910db | 2026-08-27 | Compact firmware side panel
+f1a7997 | 2026-08-27 | Shorten configurator sidebar title
+53571da | 2026-08-27 | Add watchdog-safe firmware build profiles
+a0be605 | 2026-08-27 | Improve configurator service command handling
+1dbcfb0 | 2026-08-27 | Polish configurator command feedback

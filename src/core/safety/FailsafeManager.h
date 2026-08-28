@@ -22,7 +22,7 @@ struct FailsafeDecision {
 class FailsafeManager {
   public:
     void init();
-    FailsafeDecision evaluate(const FlightData& data) const;
+    FailsafeDecision evaluate(const FlightData& data, bool rcRequired = true) const;
 };
 
 #endif

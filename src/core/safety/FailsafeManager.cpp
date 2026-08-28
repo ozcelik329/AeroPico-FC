@@ -3,9 +3,9 @@
 void FailsafeManager::init() {
 }
 
-FailsafeDecision FailsafeManager::evaluate(const FlightData& data) const {
+FailsafeDecision FailsafeManager::evaluate(const FlightData& data, bool rcRequired) const {
     uint16_t reasons = FailsafeNone;
-    if (data.failsafe) {
+    if (rcRequired && data.failsafe) {
         reasons |= FailsafeRcLoss;
     }
 
