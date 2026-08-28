@@ -18,6 +18,7 @@ class FlightManager {
     void init();
     // Initialize FlightManager with concrete drivers (dependency injection)
     void init(IImuDriver* imuDrv, IRxDriver* rxDrv);
+    void attachSensorDriver(IImuDriver* imuDrv);
     void update();
     void updateSensors();
     void updateRc();

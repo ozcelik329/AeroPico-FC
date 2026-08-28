@@ -2,7 +2,10 @@
 
 #include "hardware/gpio.h"
 
-static constexpr uint I2C_BLOCKING_TIMEOUT_US = 8000;
+// A complete 22-byte BMP calibration read takes about 2 ms at 100 kHz.
+// Keep a bounded margin without allowing a stuck sensor to monopolize core 0
+// long enough to starve USB telemetry.
+static constexpr uint I2C_BLOCKING_TIMEOUT_US = 4000;
 
 RP2350I2C::RP2350I2C(i2c_inst_t* instance)
     : _instance(instance) {}

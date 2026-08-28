@@ -111,10 +111,7 @@
   const MAV_CMD_COMPONENT_ARM_DISARM = 400;
   const COMMAND_BUSY_MS = 2500;
   const COMMAND_ACK_TIMEOUT_MS = 5000;
-  const SERIAL_REQUEST_TIMEOUT_MS = 9500;
-  const SERIAL_OPEN_TIMEOUT_MS = 4500;
-  const SERIAL_CLOSE_TIMEOUT_MS = 900;
-  const SERIAL_CONNECT_GUARD_MS = 11000;
+  const I2C_EVIDENCE_TTL_MS = 4000;
   const MAV_SENSOR_BITS = Object.freeze({
     gyro: 1 << 0,
     accel: 1 << 1,
@@ -350,6 +347,11 @@
       battery: "unknown",
       rc: "unknown"
     },
+    moduleFaults: {
+      imu: null,
+      mag: null,
+      baro: null
+    },
     armed: null,
     lastCommand: null,
     lastCommandAtMs: 0,
@@ -376,10 +378,7 @@
     pinMap: new Map(), // pinNumber -> role string
     dirtyParams: new Map(),
     txQueue: [],
-    txBusy: false,
-    connecting: false,
-    connectAttemptId: 0,
-    connectGuardTimer: null
+    txBusy: false
   };
 
   const encoder = new window.AeroPicoMavlink.Encoder();
@@ -949,7 +948,7 @@
     if (value === "disabled") return "Devre dışı";
     if (value === "ok") return "✓ Algılandı";
     if (value === "detected") return "• I2C'de görüldü";
-    if (value === "bad") return "✗ Yok / pasif";
+    if (value === "bad") return "✗ Bağlantı yok / sağlıksız";
     return "— Bilinmiyor";
   }
 
@@ -1300,7 +1299,7 @@
       state.pendingCommand = null;
       state.lastCommand = null;
     }
-    els.connectBtn.disabled = state.connected || state.connecting;
+    els.connectBtn.disabled = state.connected;
     els.disconnectBtn.disabled = !state.connected;
     els.readParamsBtn.disabled = !state.connected;
     els.saveParamsBtn.disabled = !state.connected;
@@ -1477,74 +1476,6 @@
     });
   }
 
-  async function releaseSerialLocks(timeoutMs = SERIAL_CLOSE_TIMEOUT_MS) {
-    if (state.reader) {
-      const reader = state.reader;
-      state.reader = null;
-      await withTimeout(reader.cancel().catch(() => {}), timeoutMs, "Serial reader kapatma zaman asimi.").catch(() => {});
-      try {
-        reader.releaseLock();
-      } catch (error) {
-        console.warn("Serial reader lock release failed", error);
-      }
-    }
-
-    if (state.writer) {
-      const writer = state.writer;
-      state.writer = null;
-      try {
-        writer.releaseLock();
-      } catch (error) {
-        console.warn("Serial writer lock release failed", error);
-      }
-    }
-  }
-
-  async function closeSerialPort(port, timeoutMs = SERIAL_CLOSE_TIMEOUT_MS) {
-    if (!port || typeof port.close !== "function") return;
-    await withTimeout(Promise.resolve().then(() => port.close()), timeoutMs, "Serial port kapatma zaman asimi.").catch((error) => {
-      console.warn(error.message);
-    });
-  }
-
-  function resetRuntimeConnectionState() {
-    state.connected = false;
-    state.connecting = false;
-    state.reader = null;
-    state.writer = null;
-    state.port = null;
-    state.activeBaud = null;
-    state.firmwareVersion = null;
-    state.txQueue = [];
-    state.txBusy = false;
-  }
-
-  function clearConnectGuard() {
-    if (state.connectGuardTimer) {
-      window.clearTimeout(state.connectGuardTimer);
-      state.connectGuardTimer = null;
-    }
-  }
-
-  function beginConnectGuard(attemptId) {
-    clearConnectGuard();
-    state.connectGuardTimer = window.setTimeout(() => {
-      if (state.connectAttemptId !== attemptId || state.connected) return;
-      state.connectAttemptId += 1;
-      if (window.aeropicoBridge && typeof window.aeropicoBridge.cancelSerialPort === "function") {
-        window.aeropicoBridge.cancelSerialPort();
-      }
-      closeModal(els.portPickerModal);
-      state.connecting = false;
-      setLinkStatus("Hata", "bad");
-      els.connectBtn.classList.remove("loading", "connected-ok");
-      els.connectBtn.disabled = false;
-      updateButtons();
-      log("Baglanti zaman asimi: port secimi/acma asamasi cevap vermedi.");
-      toast("Bağlantı zaman aşımına uğradı.", "bad");
-    }, SERIAL_CONNECT_GUARD_MS);
-  }
-
   function renderPortPicker(ports) {
     const recommended = chooseLikelyAeroPicoPort(ports);
     els.portPickerList.innerHTML = "";
@@ -1584,7 +1515,6 @@
   /* ── Connection ────────────────────────────── */
 
   async function connect() {
-    if (state.connecting) return;
     if (!("serial" in navigator)) {
       log("Web Serial API bulunamadi. Electron/Chromium surumunu kontrol et.");
       return;
@@ -1602,50 +1532,19 @@
       log("1200 bps RP2350 bootloader reset tetikler; baglanti 115200 bps ile aciliyor.");
     }
 
-    let openedPort = null;
-    const attemptId = state.connectAttemptId + 1;
-    state.connectAttemptId = attemptId;
     try {
-      state.connecting = true;
-      beginConnectGuard(attemptId);
       els.connectBtn.classList.add("loading");
       els.connectBtn.disabled = true;
-      log("Port secimi bekleniyor...");
-      const selectedPort = await withTimeout(
-        navigator.serial.requestPort(),
-        SERIAL_REQUEST_TIMEOUT_MS,
-        "Port secimi zaman asimina ugradi.",
-        () => {
-          if (window.aeropicoBridge && typeof window.aeropicoBridge.cancelSerialPort === "function") {
-            window.aeropicoBridge.cancelSerialPort();
-          }
-          closeModal(els.portPickerModal);
-        }
-      );
-      if (!selectedPort) {
-        throw new Error("Port secilmedi.");
-      }
-      state.port = selectedPort;
-      openedPort = state.port;
-      if (state.connectAttemptId !== attemptId) throw new Error("Baglanti denemesi iptal edildi.");
-      log("Port secildi, aciliyor...");
-      await withTimeout(
-        state.port.open({ baudRate }),
-        SERIAL_OPEN_TIMEOUT_MS,
-        `Port acma zaman asimi: ${state.portDisplay.name || "USB serial"}`
-      );
-      if (state.connectAttemptId !== attemptId) throw new Error("Baglanti denemesi iptal edildi.");
+      state.port = await navigator.serial.requestPort();
+      await state.port.open({ baudRate });
       if (typeof state.port.setSignals === "function") {
-        log("USB serial sinyalleri ayarlaniyor...");
         await state.port.setSignals({ dataTerminalReady: true, requestToSend: false }).catch(() => {});
       }
-      log("Reader/writer hazirlaniyor...");
       state.writer = state.port.writable.getWriter();
       state.reader = state.port.readable.getReader();
+      resetModuleRuntimeState();
       state.connected = true;
-      state.connecting = false;
       state.activeBaud = baudRate;
-      clearConnectGuard();
 
       if (typeof state.port.getInfo === "function") setPortDisplay(normalizeSerialInfo(state.port.getInfo()));
 
@@ -1657,20 +1556,20 @@
       readLoop();
       log("Cihaz dinleniyor. Parametre okumak icin 'Parametreleri Oku'ya bas.");
     } catch (error) {
-      if (state.connectAttemptId !== attemptId) return;
       log(`Baglanti hatasi: ${error.message}`);
       toast("Bağlantı kurulamadı.", "bad");
       setLinkStatus("Hata", "bad");
-      await releaseSerialLocks();
-      await closeSerialPort(openedPort);
-      resetRuntimeConnectionState();
+      state.connected = false;
+      state.reader = null;
+      state.writer = null;
+      state.port = null;
+      state.activeBaud = null;
+      state.firmwareVersion = null;
+      state.txQueue = [];
+      state.txBusy = false;
       updatePortInfoDisplay();
       updateButtons();
     } finally {
-      if (state.connectAttemptId === attemptId) {
-        state.connecting = false;
-        clearConnectGuard();
-      }
       els.connectBtn.classList.remove("loading");
       els.connectBtn.classList.toggle("connected-ok", state.connected);
       if (!state.connected) els.connectBtn.disabled = false;
@@ -1679,17 +1578,23 @@
 
   async function disconnect() {
     try {
-      state.connectAttemptId += 1;
-      clearConnectGuard();
       state.connected = false;
-      state.connecting = false;
-      const port = state.port;
-      await releaseSerialLocks();
-      await closeSerialPort(port);
+      if (state.reader) {
+        await state.reader.cancel().catch(() => { });
+        state.reader.releaseLock();
+      }
+      if (state.writer) state.writer.releaseLock();
+      if (state.port) await state.port.close();
     } catch (error) {
       log(`Baglanti kapatma hatasi: ${error.message}`);
     } finally {
-      resetRuntimeConnectionState();
+      state.reader = null;
+      state.writer = null;
+      state.port = null;
+      state.activeBaud = null;
+      state.firmwareVersion = null;
+      state.txQueue = [];
+      state.txBusy = false;
       setLinkStatus("Kapali", "muted");
       updateButtons();
       updatePortInfoDisplay();
@@ -1711,11 +1616,12 @@
       }
     }
     if (state.connected) {
-      const port = state.port;
       state.connected = false;
-      await releaseSerialLocks();
-      await closeSerialPort(port);
-      resetRuntimeConnectionState();
+      state.reader = null;
+      state.writer = null;
+      state.port = null;
+      state.activeBaud = null;
+      state.firmwareVersion = null;
       setLinkStatus("Kapali", "muted");
       updatePortInfoDisplay();
       updateButtons();
@@ -2319,19 +2225,29 @@
       renderI2cDiagnostics();
 
 	    if (i2c.ackNone) {
+	      setModuleFault("imu", "I2C_ACK_NONE");
+	      setModuleFault("baro", "I2C_ACK_NONE");
+	      setModuleFault("mag", "I2C_ACK_NONE");
 	      els.preflightText.textContent = "I2C ACK yok: Pico bus seviyesinde sensor gormuyor.";
+	      renderModules();
+	      renderArmChecklist();
 	      return true;
 	    }
     const ack = state.i2cDiagnostics.ack;
     const reg = state.i2cDiagnostics.reg;
-    if (ack.has("68") && state.modules.imu !== "ok") {
+    if (i2c.ackReportSeen) {
+      if (!ack.has("68")) setModuleFault("imu", "I2C_ACK_MISSING");
+      if (!ack.has("77")) setModuleFault("baro", "I2C_ACK_MISSING");
+    }
+    const runtimeStatusAvailable = Boolean(state.lastSysStatus);
+    if (!runtimeStatusAvailable && ack.has("68") && state.modules.imu !== "ok") {
       setModuleState("imu", "detected");
     }
-    if (state.i2cDiagnostics.ids.mpu === "68" && state.modules.imu !== "ok") setModuleState("imu", "detected");
-    if (ack.has("77") && state.modules.baro !== "ok") {
+    if (!runtimeStatusAvailable && state.i2cDiagnostics.ids.mpu === "68" && state.modules.imu !== "ok") setModuleState("imu", "detected");
+    if (!runtimeStatusAvailable && ack.has("77") && state.modules.baro !== "ok") {
       setModuleState("baro", "detected");
     }
-    if (state.i2cDiagnostics.ids.baro === "55" && state.modules.baro !== "ok") setModuleState("baro", "detected");
+    if (!runtimeStatusAvailable && state.i2cDiagnostics.ids.baro === "55" && state.modules.baro !== "ok") setModuleState("baro", "detected");
 
 	    const summary = `I2C ACK ${formatI2cAddressList(ack)} | REG ${formatI2cAddressList(reg)} | MPU ${formatI2cId(state.i2cDiagnostics.ids.mpu)} | BARO ${formatI2cId(state.i2cDiagnostics.ids.baro)}`;
 	    els.preflightText.textContent = summary;
@@ -2340,19 +2256,24 @@
 	  }
 
   function moduleStateFromHealthToken(token, moduleId) {
-    if (token === "OK") return "ok";
-    if (token === "ID" || token === "WARMUP" || token === "STALE" || token === "TIMEOUT" || token === "INVALID") {
+    if (token === "OK") {
+      clearModuleFault(moduleId);
+      return "ok";
+    }
+    if (token === "ID" || token === "WARMUP") {
+      if (state.moduleFaults[moduleId]) return "bad";
       return hasI2cEvidence(moduleId) ? "detected" : "bad";
     }
-    if (token === "MISS") {
-      return hasI2cEvidence(moduleId) ? "detected" : "bad";
+    if (token === "STALE" || token === "TIMEOUT" || token === "INVALID" || token === "MISS") {
+      setModuleFault(moduleId, token);
+      return "bad";
     }
     return null;
   }
 
   function applySensorCheckStatus(text) {
     if (text.includes("SENSOR_FAIL IMU")) {
-      setModuleState("imu", "bad");
+      setModuleFault("imu", "SENSOR_FAIL");
       els.preflightText.textContent = "IMU okunamiyor: I2C kimligi ve backend init zinciri kontrol edilmeli.";
       return true;
     }
@@ -2385,8 +2306,16 @@
     if (faultMatch) {
       const fault = faultMatch[1].toUpperCase();
       if (fault !== "NONE") {
+        applySensorFault(fault);
         els.preflightText.textContent = `Sensor fault: ${fault}`;
       }
+      handled = true;
+    }
+
+    const imuRuntimeMatch = text.match(/\bIMU_(OK|WARMUP|STALE|TIMEOUT|INVALID|MISS)\b/i);
+    if (imuRuntimeMatch) {
+      const imuState = moduleStateFromHealthToken(imuRuntimeMatch[1].toUpperCase(), "imu");
+      if (imuState) setModuleState("imu", imuState);
       handled = true;
     }
 
@@ -2394,9 +2323,9 @@
       if (text.includes("IMU_OK")) setModuleState("imu", "ok");
       if (text.includes("IMU_MISS")) setModuleState("imu", "bad");
       if (text.includes("BARO_OK")) setModuleState("baro", "ok");
-      if (text.includes("BARO_MISS")) setModuleState("baro", hasI2cEvidence("baro") ? "detected" : "bad");
+      if (text.includes("BARO_MISS")) setModuleState("baro", "bad");
       if (text.includes("MAG_OK")) state.modules.mag = "ok";
-      if (text.includes("MAG_MISS")) state.modules.mag = hasI2cEvidence("mag") ? "detected" : "bad";
+      if (text.includes("MAG_MISS")) state.modules.mag = "bad";
       handled = true;
     }
     return handled;
@@ -2411,6 +2340,7 @@
     const diag = state.i2cDiagnostics;
     const nowMs = Date.now();
     const hasDiagnostic = diag.lastSeenMs > 0;
+    const evidenceFresh = isI2cEvidenceFresh(nowMs);
     const goodAge = diag.lastGoodMs ? `${Math.max(0, ((nowMs - diag.lastGoodMs) / 1000)).toFixed(1)} sn önce` : "yok";
     const badAge = diag.lastBadMs ? `${Math.max(0, ((nowMs - diag.lastBadMs) / 1000)).toFixed(1)} sn önce` : "yok";
     const imuIdentityOk = diag.ids.mpu === "68";
@@ -2419,21 +2349,25 @@
     const baroBusOk = diag.ack.has("77");
     const imuRegOk = diag.reg.has("68") || imuIdentityOk;
     const baroRegOk = diag.reg.has("77") || baroIdentityOk;
-    const imuRuntime = state.modules.imu === "ok" ? "healthy" : hasI2cEvidence("imu") ? "identity-only" : "missing";
-    const baroRuntime = state.modules.baro === "ok" ? "healthy" : hasI2cEvidence("baro") ? "identity-only" : "missing";
+    const imuRuntime = state.moduleFaults.imu
+      ? `fault: ${state.moduleFaults.imu}`
+      : state.modules.imu === "ok" ? "healthy" : hasI2cEvidence("imu") ? "identity-only" : "missing";
+    const baroRuntime = state.moduleFaults.baro
+      ? `fault: ${state.moduleFaults.baro}`
+      : state.modules.baro === "ok" ? "healthy" : hasI2cEvidence("baro") ? "identity-only" : "missing";
     const rows = [
-      i2cDiagnosticRow("Bus ACK", formatI2cAddressEvidence(diag.ack, hasDiagnostic), imuBusOk && baroBusOk ? "ok" : diag.ack.size > 0 ? "warn" : hasDiagnostic ? "bad" : "muted", "I2C hattında cevap veren adresler. GY-87 için 0x68 ve 0x77 beklenir."),
-      i2cDiagnosticRow("MPU register", `0x68 / 0x75 -> ${hasDiagnostic || diag.ids.mpu ? formatI2cId(diag.ids.mpu) : "teşhis bekleniyor"}`, imuIdentityOk ? "ok" : imuRegOk ? "warn" : imuBusOk ? "warn" : hasDiagnostic ? "bad" : state.modules.imu === "ok" ? "warn" : "muted", "MPU6050 WHOAMI registerı. Doğru kimlik 0x68 olmalı."),
-      i2cDiagnosticRow("BARO register", `0x77 / 0xD0 -> ${hasDiagnostic || diag.ids.baro ? formatI2cId(diag.ids.baro) : "teşhis bekleniyor"}`, baroIdentityOk ? "ok" : baroRegOk ? "warn" : baroBusOk ? "warn" : hasDiagnostic ? "bad" : "muted", "BMP180/BMP085 chip ID registerı. Doğru kimlik 0x55 olmalı."),
+      i2cDiagnosticRow("Bus ACK", formatI2cAddressEvidence(diag.ack, hasDiagnostic), !evidenceFresh ? "muted" : imuBusOk && baroBusOk ? "ok" : diag.ack.size > 0 ? "warn" : hasDiagnostic ? "bad" : "muted", "I2C hattında cevap veren adresler. GY-87 için 0x68 ve 0x77 beklenir."),
+      i2cDiagnosticRow("MPU register", `0x68 / 0x75 -> ${hasDiagnostic || diag.ids.mpu ? formatI2cId(diag.ids.mpu) : "teşhis bekleniyor"}`, !evidenceFresh ? "muted" : imuIdentityOk ? "ok" : imuRegOk ? "warn" : imuBusOk ? "warn" : hasDiagnostic ? "bad" : state.modules.imu === "ok" ? "warn" : "muted", "MPU6050 WHOAMI registerı. Doğru kimlik 0x68 olmalı."),
+      i2cDiagnosticRow("BARO register", `0x77 / 0xD0 -> ${hasDiagnostic || diag.ids.baro ? formatI2cId(diag.ids.baro) : "teşhis bekleniyor"}`, !evidenceFresh ? "muted" : baroIdentityOk ? "ok" : baroRegOk ? "warn" : baroBusOk ? "warn" : hasDiagnostic ? "bad" : "muted", "BMP180/BMP085 chip ID registerı. Doğru kimlik 0x55 olmalı."),
       i2cDiagnosticRow("Runtime IMU", imuRuntime, state.modules.imu === "ok" ? "ok" : hasI2cEvidence("imu") ? "warn" : "bad", "Firmware SYS_STATUS içinde gerçek IMU health durumu."),
       i2cDiagnosticRow("Runtime BARO", baroRuntime, state.modules.baro === "ok" ? "ok" : hasI2cEvidence("baro") ? "warn" : "bad", "Firmware SYS_STATUS içinde gerçek barometre health durumu."),
       i2cDiagnosticRow("Son iyi teşhis", goodAge, diag.lastGoodMs ? "ok" : "muted", "ACK/REG/ID içeren son geçerli teşhis zamanı."),
       i2cDiagnosticRow("Son kötü teşhis", badAge, diag.lastBadMs ? "warn" : "muted", diag.lastBadText || "Henüz boş/kötü scan yok.")
     ];
     els.i2cDiagnosticList.innerHTML = rows.join("");
-    const ok = imuIdentityOk && baroIdentityOk;
+    const ok = evidenceFresh && imuIdentityOk && baroIdentityOk;
     const partial = diag.ack.size > 0 || diag.reg.size > 0 || diag.ids.mpu || diag.ids.baro;
-    els.i2cSummary.textContent = ok ? "OK" : partial ? "Kısmi" : "Bekliyor";
+    els.i2cSummary.textContent = ok ? "OK" : partial ? (evidenceFresh ? "Kısmi" : "Eski") : "Bekliyor";
     els.i2cSummary.className = `status-pill ${ok ? "ok" : partial ? "warn" : "muted"}`;
   }
 
@@ -2502,8 +2436,14 @@
     }
   }
 
+  function isI2cEvidenceFresh(nowMs = Date.now()) {
+    const lastGoodMs = state.i2cDiagnostics.lastGoodMs;
+    return lastGoodMs > 0 && (nowMs - lastGoodMs) <= I2C_EVIDENCE_TTL_MS;
+  }
+
   function hasI2cEvidence(moduleId) {
     const diag = state.i2cDiagnostics;
+    if (!isI2cEvidenceFresh()) return false;
     if (moduleId === "imu") {
       return diag.ack.has("68") || diag.reg.has("68") || diag.ids.mpu === "68";
     }
@@ -2517,8 +2457,80 @@
     return false;
   }
 
+  function setModuleFault(moduleId, reason) {
+    if (!(moduleId in state.moduleFaults)) return;
+    state.moduleFaults[moduleId] = reason || "FAULT";
+    state.modules[moduleId] = "bad";
+  }
+
+  function resetModuleRuntimeState() {
+    for (const moduleId of Object.keys(state.modules)) state.modules[moduleId] = "unknown";
+    for (const moduleId of Object.keys(state.moduleFaults)) state.moduleFaults[moduleId] = null;
+    state.lastSysStatus = null;
+    state.lastHeartbeatMs = 0;
+    state.i2cDiagnostics = {
+      ack: new Set(),
+      reg: new Set(),
+      ids: {},
+      lastText: "",
+      lastSeenMs: 0,
+      lastGoodMs: 0,
+      lastBadMs: 0,
+      lastBadText: ""
+    };
+  }
+
+  function clearModuleFault(moduleId) {
+    if (moduleId in state.moduleFaults) state.moduleFaults[moduleId] = null;
+  }
+
+  function applySensorFault(fault) {
+    if (["WHOAMI_WR", "WHOAMI_RD", "WHOAMI_BAD", "RAW_WR", "RAW_RD"].includes(fault)) {
+      setModuleFault("imu", fault);
+      setModuleFault("baro", "I2C_BUS_UNVERIFIED");
+      setModuleFault("mag", "I2C_BUS_UNVERIFIED");
+      return;
+    }
+    if (["DMA_CLAIM", "DMA_TIMEOUT"].includes(fault)) {
+      setModuleFault("imu", fault);
+      return;
+    }
+    if (fault === "BARO_READ") {
+      setModuleFault("baro", fault);
+      return;
+    }
+    if (fault === "MAG_READ") {
+      setModuleFault("mag", fault);
+      return;
+    }
+    if (["AUX_WR", "AUX_DMA_TIMEOUT", "AUX_POLL_FAIL"].includes(fault)) {
+      setModuleFault("baro", fault);
+      setModuleFault("mag", fault);
+    }
+  }
+
   function setModuleState(moduleId, value) {
+    if (state.moduleFaults[moduleId] && (value === "ok" || value === "detected")) {
+      state.modules[moduleId] = "bad";
+      return;
+    }
     state.modules[moduleId] = value;
+  }
+
+  function expireStaleModuleEvidence() {
+    let changed = false;
+    for (const moduleId of ["imu", "baro", "mag"]) {
+      if (state.modules[moduleId] === "detected" && !hasI2cEvidence(moduleId)) {
+        state.modules[moduleId] = "bad";
+        changed = true;
+      }
+    }
+    renderI2cDiagnostics();
+    if (changed) {
+      renderModules();
+      renderConfigAudit();
+      renderArmChecklist();
+    }
   }
 
   function updateModulesFromSysStatus(message) {
@@ -2527,17 +2539,15 @@
     const healthy = message.onboardControlSensorsHealth || 0;
     const hasImu = (present & MAV_SENSOR_BITS.gyro) && (present & MAV_SENSOR_BITS.accel);
     const imuHealthy = (healthy & MAV_SENSOR_BITS.gyro) && (healthy & MAV_SENSOR_BITS.accel);
-    setModuleState("imu", hasImu
-      ? (imuHealthy ? "ok" : hasI2cEvidence("imu") ? "detected" : "bad")
-      : hasI2cEvidence("imu") ? "detected" : "bad");
+    setModuleState("imu", hasImu && imuHealthy ? "ok" : "bad");
     setModuleState("baro", present & MAV_SENSOR_BITS.pressure
       ? ((enabled & MAV_SENSOR_BITS.pressure) && (healthy & MAV_SENSOR_BITS.pressure)
         ? "ok"
-        : hasI2cEvidence("baro") ? "detected" : "bad")
-      : hasI2cEvidence("baro") ? "detected" : "bad");
-    state.modules.mag = present & MAV_SENSOR_BITS.mag
+        : "bad")
+      : "bad");
+    setModuleState("mag", present & MAV_SENSOR_BITS.mag
       ? ((enabled & MAV_SENSOR_BITS.mag) && (healthy & MAV_SENSOR_BITS.mag) ? "ok" : "bad")
-      : "bad";
+      : "bad");
     state.modules.gps = present & MAV_SENSOR_BITS.gps
       ? ((enabled & MAV_SENSOR_BITS.gps) && (healthy & MAV_SENSOR_BITS.gps) ? "ok" : "bad")
       : "bad";
@@ -3195,7 +3205,10 @@
       updateButtons();
       updatePortInfoDisplay();
       initPinMapper();
-      setInterval(renderSummary, 1000);
+      setInterval(() => {
+        renderSummary();
+        expireStaleModuleEvidence();
+      }, 1000);
       log("AeroPico Configurator hazir.");
     } catch (error) {
       showInitError(error);

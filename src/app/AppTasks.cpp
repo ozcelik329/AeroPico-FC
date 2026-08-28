@@ -27,7 +27,7 @@ AppTaskHandles AppTasks::create(TaskEntry sensorTask,
 
     handles.telemetry = xTaskCreateStaticAffinitySet(
         telemetryTask, "TelemetryTask",
-        TELEMETRY_STACK_WORDS, NULL, 1,
+        TELEMETRY_STACK_WORDS, NULL, 3,
         telemetryTaskStack, &telemetryTaskTcb,
         (1 << 0)
     );

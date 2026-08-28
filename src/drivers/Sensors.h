@@ -110,6 +110,8 @@ class SensorManager : public IImuDriver, public IMagDriver, public IBaroDriver, 
     uint8_t _sclPin = PIN_SCL;
     bool _dmaFastPath = false;
     uint8_t _mpuDmaTimeouts = 0;
+    uint8_t _mpuPollingFailures = 0;
+    uint32_t _mpuPollingRetryNotBeforeUs = 0;
     bool _i2cScanValid = false;
     uint32_t _lastI2cScanMs = 0;
     uint8_t _i2cRegisterScanCount = 0;
@@ -134,6 +136,7 @@ class SensorManager : public IImuDriver, public IMagDriver, public IBaroDriver, 
     bool _mpu_dma_ready();
     bool _readRawFrame(uint8_t raw[GyroAccelDriver::RAW_LEN]);
     void _observeCalibrationRawFrame(const uint8_t raw[GyroAccelDriver::RAW_LEN]);
+    void _serviceAuxSensors(SensorBuffer& buffer);
     void _finishAsyncImuCalibration();
     void _setFault(SensorFaultCode code);
     void _clearRecoverableMpuFault();

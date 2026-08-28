@@ -20,6 +20,11 @@ void FlightManager::init(IImuDriver* imuDrv, IRxDriver* rxDrv) {
     __atomic_store_n(&_armedShared, 0, __ATOMIC_RELEASE);
 }
 
+void FlightManager::attachSensorDriver(IImuDriver* imuDrv) {
+    _sensorPipeline.attachImu(imuDrv);
+    _vehicleState = _sensorPipeline.getState();
+}
+
 void FlightManager::update() {
     updateSensors();
     updateRc();

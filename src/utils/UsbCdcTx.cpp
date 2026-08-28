@@ -40,7 +40,11 @@ bool UsbCdcTx::enqueueLocked(const uint8_t* data, size_t len) {
 }
 
 bool UsbCdcTx::enqueue(const uint8_t* data, size_t len) {
-    if (!data || len == 0 || len > QUEUE_CAPACITY || !Serial) {
+    // Do not query the USB CDC object from the boot path. Arduino-Pico brings
+    // TinyUSB up asynchronously, so producers only touch RAM here; service()
+    // is the sole owner of the actual USB device access after the scheduler
+    // has started.
+    if (!data || len == 0 || len > QUEUE_CAPACITY) {
         recordDrop();
         return false;
     }

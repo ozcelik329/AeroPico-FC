@@ -16,6 +16,13 @@ void SensorPipeline::init(IImuDriver* imuDriver, float fusionBeta) {
     _state.estimatorValid = false;
 }
 
+void SensorPipeline::attachImu(IImuDriver* imuDriver) {
+    _imu = imuDriver;
+    if (_imu) {
+        _imu->init();
+    }
+}
+
 VehicleState SensorPipeline::update() {
     if (_imu) {
         _imu->update();

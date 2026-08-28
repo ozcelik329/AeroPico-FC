@@ -4,6 +4,8 @@
 
 static RP2350I2C defaultI2cBus(i2c0);
 static constexpr uint8_t MPU_DMA_TIMEOUT_FALLBACK_LIMIT = 3;
+static constexpr uint32_t MPU_POLL_RETRY_STEP_US = 5000;
+static constexpr uint32_t MPU_POLL_RETRY_MAX_US = 50000;
 
 IHALI2C& SensorManager::_bus() {
     return _i2cBus ? *_i2cBus : defaultI2cBus;
@@ -533,16 +535,48 @@ bool SensorManager::_mpu_dma_ready() {
     return _dmaFastPath && _dmaBus.isMpuReady();
 }
 
+void SensorManager::_serviceAuxSensors(SensorBuffer& buffer) {
+#ifdef USE_GY87
+    if (RP2350I2C* rpBus = _rpBus()) {
+        _auxBus.update(_dmaBus, *rpBus, _magDriver, _baroDriver, buffer, _faultCode);
+        _hasMag = _auxBus.hasMag();
+        _hasBaro = _auxBus.hasBaro();
+    }
+#else
+    (void)buffer;
+#endif
+}
+
 void SensorManager::update() {
     if (!_imuAvailable) {
         return;
     }
 
     if (!_dmaFastPath) {
-        uint8_t raw[GyroAccelDriver::RAW_LEN];
-        if (!_readRawFrame(raw)) {
+        const uint32_t nowUs = micros();
+        if ((int32_t)(nowUs - _mpuPollingRetryNotBeforeUs) < 0) {
             return;
         }
+
+        uint8_t raw[GyroAccelDriver::RAW_LEN];
+        if (!_readRawFrame(raw)) {
+            // Auxiliary liveness must not depend on receiving a valid IMU frame.
+            // A combined board removal makes the IMU path return early; servicing
+            // the auxiliary bus here lets BARO/MAG failure counters expire too.
+            SensorBuffer auxScratch = {};
+            _serviceAuxSensors(auxScratch);
+            if (_mpuPollingFailures < 10) {
+                _mpuPollingFailures++;
+            }
+            const uint32_t retryDelayUs = min(
+                MPU_POLL_RETRY_MAX_US,
+                MPU_POLL_RETRY_STEP_US * (uint32_t)_mpuPollingFailures
+            );
+            _mpuPollingRetryNotBeforeUs = nowUs + retryDelayUs;
+            return;
+        }
+        _mpuPollingFailures = 0;
+        _mpuPollingRetryNotBeforeUs = 0;
         uint8_t writeIdx = 1 - _writeIdx;
         SensorBuffer& buf = _buf[writeIdx];
         _gyroAccelDriver.parseRawSample(raw, _imuCalibration, buf, micros());
@@ -550,13 +584,7 @@ void SensorManager::update() {
         _observeCalibrationRawFrame(raw);
         buf.baroValid = false;
         buf.pressureHpa = 0.0f;
-#ifdef USE_GY87
-        if (RP2350I2C* rpBus = _rpBus()) {
-            _auxBus.update(_dmaBus, *rpBus, _magDriver, _baroDriver, buf, _faultCode);
-            _hasMag = _auxBus.hasMag();
-            _hasBaro = _auxBus.hasBaro();
-        }
-#endif
+        _serviceAuxSensors(buf);
         mutex_enter_blocking(&_mutex);
         _writeIdx = writeIdx;
         mutex_exit(&_mutex);
@@ -607,13 +635,7 @@ void SensorManager::update() {
     buf.baroValid = false;
     buf.pressureHpa = 0.0f;
 
-    #ifdef USE_GY87
-        if (RP2350I2C* rpBus = _rpBus()) {
-            _auxBus.update(_dmaBus, *rpBus, _magDriver, _baroDriver, buf, _faultCode);
-            _hasMag = _auxBus.hasMag();
-            _hasBaro = _auxBus.hasBaro();
-        }
-    #endif
+    _serviceAuxSensors(buf);
 
     mutex_enter_blocking(&_mutex);
     _writeIdx = writeIdx;

@@ -77,6 +77,8 @@ static bool magCalibrationActive = false;
 static uint8_t batteryAdcChannel = BATTERY_ADC_CHANNEL;
 static bool bootServoPinConfigValid = true;
 static bool mavlinkRuntimeConfigured = false;
+static bool sensorBootComplete = false;
+static bool bootImuOk = false;
 static BuzzerFeedback buzzerFeedback;
 static MavlinkServiceCommands mavlinkServiceCommands;
 static ServiceCommandMailbox serviceCommandMailbox;
@@ -468,7 +470,46 @@ extern "C" void vApplicationMallocFailedHook() {
     while (true) {}
 }
 
+static void runDeferredSensorBoot() {
+    if (sensorBootComplete) {
+        return;
+    }
+
+    mavlink.sendStatusText("BOOT_STAGE sensors init start", MAV_SEVERITY_INFO);
+    flightManager.attachSensorDriver(&sensorManager);
+    mavlink.sendStatusText("BOOT_STAGE sensors init done", MAV_SEVERITY_INFO);
+
+    bootImuOk = SensorBootSequence::run(sensorManager, calibrationStorage);
+    sendI2cScanStatusText();
+    sendSensorCheckStatusText();
+
+    const SensorCapabilityStatus sensorCapabilities = sensorManager.capabilities();
+    const SensorCapabilityStatus gpsCapabilities = gpsManager.capabilities();
+    const uint16_t functionMask = enabledSensorMask(
+        sensorCapabilities.functionMask | gpsCapabilities.functionMask
+    );
+    BootLogger::printHealthReport(
+        CONTROL_LOOP_HZ,
+        bootImuOk,
+        hasSensorCapability(functionMask, SENSOR_CAP_BARO),
+        hasSensorCapability(functionMask, SENSOR_CAP_MAG),
+        true,
+        sensorManager.isDmaOk(),
+        false,
+        false,
+        rp2040.getFreeHeap()
+    );
+    BootLogger::printReadyMessage();
+    sensorBootComplete = true;
+}
+
 void taskSensor(void* pvParameters) {
+    // Let the host finish CDC enumeration before any sensor or calibration
+    // transaction can occupy core 0. Telemetry has higher priority and keeps
+    // servicing USB even if an I2C device stretches or times out.
+    vTaskDelay(pdMS_TO_TICKS(750));
+    runDeferredSensorBoot();
+
     core0Scheduler.reset();
     core0Scheduler.addTask("sensor", 200, runSensorUpdate);
     core0Scheduler.addTask("service", 50, runServiceCommandMailbox);
@@ -493,6 +534,10 @@ void taskTelemetry(void* pvParameters) {
     telemetryScheduler.addTask("health", 1, runHealthReport);
 
     for (;;) {
+        // Drain USB independently from MAVLink message generation. A valid
+        // IMU enables the higher-rate telemetry streams; servicing CDC every
+        // task iteration keeps that traffic from filling the bounded queue.
+        mavlinkTransport.serviceUsbTx();
         telemetryScheduler.tick(micros());
         vTaskDelay(pdMS_TO_TICKS(5));
     }
@@ -552,9 +597,7 @@ void setup() {
 #else
     batteryMonitor.init();
 #endif
-    mavlink.sendStatusText("BOOT_STAGE sensors init start", MAV_SEVERITY_INFO);
-    flightManager.init(&sensorManager, &rxManager);
-    mavlink.sendStatusText("BOOT_STAGE sensors init done", MAV_SEVERITY_INFO);
+    flightManager.init(nullptr, &rxManager);
     preflightRuntime.init({
         &sensorManager,
         &gpsManager,
@@ -563,9 +606,6 @@ void setup() {
         &moduleSetupRuntime,
         &preflightHealth
     });
-
-    const bool imuOk = SensorBootSequence::run(sensorManager, calibrationStorage);
-
     refreshModuleSetupFromParams();
     const bool gpsEnabled = moduleSetupRuntime.snapshot().gpsEnabled;
     gpsManager.init(nullptr, gpsEnabled, GPS_UART_BAUD);
@@ -598,7 +638,6 @@ void setup() {
 
     mavlink.sendHeartbeat();
     mavlink.sendStatusText("Boot complete; scheduler starting", MAV_SEVERITY_INFO);
-    sendI2cScanStatusText();
 #if BLACKBOX_SD_ENABLED
     blackboxSpi.begin(PIN_BLACKBOX_SPI_SCK, PIN_BLACKBOX_SPI_MISO, PIN_BLACKBOX_SPI_MOSI);
     blackbox.setSink(&blackboxSdSink);
@@ -623,28 +662,6 @@ void setup() {
                                            applyBatteryProfile);
     refreshModuleSetupFromParams();
 #endif
-
-    SensorCapabilityStatus sensorCapabilities = sensorManager.capabilities();
-    SensorCapabilityStatus gpsCapabilities = gpsManager.capabilities();
-    const uint16_t functionMask = enabledSensorMask(sensorCapabilities.functionMask | gpsCapabilities.functionMask);
-    bool baroOk = hasSensorCapability(functionMask, SENSOR_CAP_BARO);
-    bool magOk  = hasSensorCapability(functionMask, SENSOR_CAP_MAG);
-    bool dmaOk  = sensorManager.isDmaOk();
-    bool rxOk   = true;
-
-    BootLogger::printHealthReport(
-        CONTROL_LOOP_HZ,
-        imuOk,
-        baroOk,
-        magOk,
-        rxOk,
-        dmaOk,
-        false,
-        false,
-        rp2040.getFreeHeap()
-    );
-    BootLogger::printReadyMessage();
-
     const AppTaskHandles taskHandles = AppTasks::create(taskSensor, taskFlight, taskTelemetry);
     sensorTaskHandle = taskHandles.sensor; flightTaskHandle = taskHandles.flight; telemetryTaskHandle = taskHandles.telemetry;
 

@@ -12,6 +12,7 @@
 class SensorPipeline {
   public:
     void init(IImuDriver* imuDriver, float fusionBeta = 0.08f);
+    void attachImu(IImuDriver* imuDriver);
     VehicleState update();
     VehicleState getState() const;
 
