@@ -1,4 +1,5 @@
 #include "PioUart.h"
+#include "../utils/UsbCdcTx.h"
 
 PioUart telemetryUart;
 
@@ -52,7 +53,7 @@ void PioUart::begin(uint32_t baud) {
     enableTxIrq(false);
     irq_set_enabled(PIO1_IRQ_0, true);
 
-    Serial.println("[PIO UART] MAVLink telemetry port hazir.");
+    UsbCdcTx::enqueueLine("[PIO UART] MAVLink telemetry port hazir.");
 }
 
 size_t PioUart::write(const uint8_t* buf, size_t len) {

@@ -11,13 +11,22 @@ void MavlinkTransport::init(uint32_t baud) {
 }
 
 size_t MavlinkTransport::writePacket(const uint8_t* bytes, size_t len) {
+    if (!bytes || len == 0) {
+        return 0;
+    }
 #if TELEMETRY_UART_ENABLED
     const size_t pioWritten = telemetryUart.write(bytes, len);
 #else
     const size_t pioWritten = 0;
 #endif
 #if MAVLINK_USB_ENABLED
-    Serial.write(bytes, len);
+    const bool usbQueued = UsbCdcTx::enqueue(bytes, len);
+    const size_t usbWritten = usbQueued ? len : 0;
+    if (!usbQueued) {
+        _usbDroppedPackets++;
+    }
+#else
+    const size_t usbWritten = 0;
 #endif
 #ifdef UNIT_TEST
     const size_t room = CAPTURE_CAPACITY - _captureSize;
@@ -27,7 +36,13 @@ size_t MavlinkTransport::writePacket(const uint8_t* bytes, size_t len) {
     }
     _captureSize += copyLen;
 #endif
-    return pioWritten;
+    return pioWritten > usbWritten ? pioWritten : usbWritten;
+}
+
+void MavlinkTransport::serviceUsbTx() {
+#if MAVLINK_USB_ENABLED
+    UsbCdcTx::service();
+#endif
 }
 
 int MavlinkTransport::available() {

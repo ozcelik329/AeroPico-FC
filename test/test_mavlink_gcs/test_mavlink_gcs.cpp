@@ -6,6 +6,7 @@
 
 #include "telemetry/MavlinkHandler.h"
 
+#include "../../src/utils/UsbCdcTx.cpp"
 #include "../../src/telemetry/MavlinkTransport.cpp"
 #include "../../src/telemetry/MavlinkHandler.cpp"
 
@@ -72,6 +73,10 @@ static bool decodeMessageById(uint32_t msgid, mavlink_message_t& out) {
 
 void setUp() {
     mavlinkTransport.resetCapture();
+    UsbCdcTx::resetForTest();
+    Serial.connected = true;
+    Serial.writeCapacity = 4096;
+    Serial.bytesWritten = 0;
     armedState = false;
     armAccepted = true;
     armCommandCalled = false;
@@ -79,6 +84,48 @@ void setUp() {
     armCommandForce = false;
     serviceCommandCalled = false;
     serviceAction = 0;
+}
+
+void test_usb_transport_queues_packet_without_blocking_when_cdc_buffer_is_full() {
+    MavlinkHandler handler;
+    Serial.writeCapacity = 0;
+    const uint32_t dropsBefore = mavlinkTransport.usbDroppedPackets();
+
+    handler.sendHeartbeat();
+
+    TEST_ASSERT_EQUAL_UINT32(dropsBefore, mavlinkTransport.usbDroppedPackets());
+    TEST_ASSERT_EQUAL_UINT32(0, Serial.bytesWritten);
+    TEST_ASSERT_GREATER_THAN_UINT32(0, UsbCdcTx::queuedBytes());
+    mavlink_message_t message;
+    TEST_ASSERT_TRUE(decodeFirstMessage(message));
+    TEST_ASSERT_EQUAL_UINT32(MAVLINK_MSG_ID_HEARTBEAT, message.msgid);
+
+    Serial.writeCapacity = 64;
+    mavlinkTransport.serviceUsbTx();
+    TEST_ASSERT_GREATER_THAN_UINT32(0, Serial.bytesWritten);
+}
+
+void test_usb_transport_drains_long_mavlink_frame_across_cdc_chunks() {
+    Serial.writeCapacity = 0;
+    uint8_t frame[130];
+    memset(frame, 0xA5, sizeof(frame));
+    TEST_ASSERT_EQUAL_UINT32(sizeof(frame), mavlinkTransport.writePacket(frame, sizeof(frame)));
+
+    const size_t frameSize = UsbCdcTx::queuedBytes();
+    TEST_ASSERT_GREATER_THAN_UINT32(64, frameSize);
+    Serial.writeCapacity = 64;
+
+    mavlinkTransport.serviceUsbTx();
+    TEST_ASSERT_EQUAL_UINT32(64, Serial.bytesWritten);
+    TEST_ASSERT_EQUAL_UINT32(frameSize - 64, UsbCdcTx::queuedBytes());
+
+    mavlinkTransport.serviceUsbTx();
+    TEST_ASSERT_EQUAL_UINT32(128, Serial.bytesWritten);
+    TEST_ASSERT_EQUAL_UINT32(frameSize - 128, UsbCdcTx::queuedBytes());
+
+    mavlinkTransport.serviceUsbTx();
+    TEST_ASSERT_EQUAL_UINT32(frameSize, Serial.bytesWritten);
+    TEST_ASSERT_EQUAL_UINT32(0, UsbCdcTx::queuedBytes());
 }
 
 void test_heartbeat_reports_safety_armed_bit() {
@@ -281,6 +328,8 @@ void test_mission_request_list_returns_zero_count() {
 
 int main() {
     UNITY_BEGIN();
+    RUN_TEST(test_usb_transport_queues_packet_without_blocking_when_cdc_buffer_is_full);
+    RUN_TEST(test_usb_transport_drains_long_mavlink_frame_across_cdc_chunks);
     RUN_TEST(test_heartbeat_reports_safety_armed_bit);
     RUN_TEST(test_autopilot_version_reports_firmware_version);
     RUN_TEST(test_command_long_arm_sends_ack_and_invokes_handler);

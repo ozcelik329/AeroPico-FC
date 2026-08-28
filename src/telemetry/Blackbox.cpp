@@ -1,4 +1,5 @@
 #include "Blackbox.h"
+#include "../utils/UsbCdcTx.h"
 
 #include <string.h>
 
@@ -12,18 +13,18 @@ void Blackbox::init() {
     _queue.reset();
     if (_sink && !_sink->begin()) {
         _sink = nullptr;
-        Serial.println("[BLACKBOX] SD sink baslatilamadi.");
+        UsbCdcTx::enqueueLine("[BLACKBOX] SD sink baslatilamadi.");
     } else if (_sink) {
-        Serial.println("[BLACKBOX] SPI sink aktif.");
+        UsbCdcTx::enqueueLine("[BLACKBOX] SPI sink aktif.");
     }
 #if BLACKBOX_OUTPUT_MODE == BLACKBOX_OUTPUT_TELEMETRY
-    Serial.println("[BLACKBOX] Cikis: telemetri.");
+    UsbCdcTx::enqueueLine("[BLACKBOX] Cikis: telemetri.");
 #elif BLACKBOX_OUTPUT_MODE == BLACKBOX_OUTPUT_SD
-    Serial.println("[BLACKBOX] Cikis: SD kart.");
+    UsbCdcTx::enqueueLine("[BLACKBOX] Cikis: SD kart.");
 #elif BLACKBOX_OUTPUT_MODE == BLACKBOX_OUTPUT_BOTH
-    Serial.println("[BLACKBOX] Cikis: SD kart + telemetri.");
+    UsbCdcTx::enqueueLine("[BLACKBOX] Cikis: SD kart + telemetri.");
 #else
-    Serial.println("[BLACKBOX] Cikis modu gecersiz, kayit tutulmayacak.");
+    UsbCdcTx::enqueueLine("[BLACKBOX] Cikis modu gecersiz, kayit tutulmayacak.");
 #endif
 }
 

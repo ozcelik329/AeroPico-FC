@@ -1,16 +1,15 @@
 #include "Logger.h"
-#include <Arduino.h>
+#include "UsbCdcTx.h"
 
 void Logger::init() {
     // Serial.begin main.cpp'de zaten açılıyor; burada tekrar çağırmıyoruz.
-    Serial.println("[Logger] Baslatildi.");
+    UsbCdcTx::enqueueLine("[Logger] Baslatildi.");
 }
 
 void Logger::log(const char* message) {
-    Serial.println(message);
+    UsbCdcTx::enqueueLine(message);
 }
 
 void Logger::logError(const char* error) {
-    Serial.print("[HATA] ");
-    Serial.println(error);
+    UsbCdcTx::enqueueFormat("[HATA] %s\n", error ? error : "(null)");
 }

@@ -1,5 +1,6 @@
 #include "MavlinkHandler.h"
 #include "../BuildInfo.h"
+#include "../utils/UsbCdcTx.h"
 #ifdef MAVLINK_PARAMS_ENABLED
 #include "ParamManager.h"
 #endif
@@ -8,7 +9,7 @@ MavlinkHandler mavlink;
 
 void MavlinkHandler::init(uint32_t baud) {
     mavlinkTransport.init(baud);
-    Serial.println("[MAVLINK] Baslatildi.");
+    UsbCdcTx::enqueueLine("[MAVLINK] Baslatildi.");
 }
 
 void MavlinkHandler::setFlightDataProvider(FlightDataProvider provider) {
@@ -60,6 +61,7 @@ void MavlinkHandler::setStreamRates(uint8_t attitudeHz, uint8_t rcHz, uint8_t sy
 }
 
 void MavlinkHandler::update() {
+    mavlinkTransport.serviceUsbTx();
     while (mavlinkTransport.available()) {
         int value = mavlinkTransport.read();
         if (value < 0) {
@@ -75,7 +77,7 @@ void MavlinkHandler::update() {
     if (_groundStationAlive && (now - _lastGroundStationHeartbeat > 3000)) {
         _groundStationAlive = false;
         _sentVersionToGcs = false;
-        Serial.println("[MAVLINK] GCS heartbeat kayboldu.");
+        UsbCdcTx::enqueueLine("[MAVLINK] GCS heartbeat kayboldu.");
     }
 
     // Heartbeat — 1 Hz
@@ -116,6 +118,8 @@ void MavlinkHandler::update() {
         );
         sendGpsRawIntNoGps();
     }
+
+    mavlinkTransport.serviceUsbTx();
 }
 
 void MavlinkHandler::_parse(uint8_t byte) {
@@ -130,7 +134,7 @@ void MavlinkHandler::_handleMessage(mavlink_message_t& msg) {
             _lastGroundStationHeartbeat = millis();
             if (!_groundStationAlive) {
                 _groundStationAlive = true;
-                Serial.println("[MAVLINK] GCS heartbeat alindi.");
+                UsbCdcTx::enqueueLine("[MAVLINK] GCS heartbeat alindi.");
             }
             if (!_sentVersionToGcs) {
                 sendAutopilotVersion();

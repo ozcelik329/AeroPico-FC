@@ -37,8 +37,12 @@ struct {
     void printf(const char*, ...) {}
     size_t write(const uint8_t*, size_t len) { bytesWritten += len; return len; }
     size_t write(uint8_t) { bytesWritten++; return 1; }
+    int availableForWrite() { return connected ? writeCapacity : 0; }
     int available() { return 0; }
     int read() { return -1; }
+    operator bool() const { return connected; }
+    bool connected = true;
+    int writeCapacity = 4096;
     size_t bytesWritten = 0;
 } Serial;
 

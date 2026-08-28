@@ -2,6 +2,7 @@
 
 #include "telemetry/Blackbox.h"
 
+#include "../../src/utils/UsbCdcTx.cpp"
 #include "../../src/telemetry/Blackbox.cpp"
 
 PioUart telemetryUart;

@@ -19,6 +19,7 @@
 #include "storage/ParamStorage.h"
 #include "utils/Logger.h"
 #include "utils/BootLogger.h"
+#include "utils/UsbCdcTx.h"
 #include "app/MavlinkServiceCommands.h"
 #include "app/ServiceCommandMailbox.h"
 #include "app/ServiceCommandProcessor.h"
@@ -391,9 +392,9 @@ static void runWatchdogGate() {
     uint32_t nowMs = millis();
     if (nowMs - lastWatchdogBlockLogMs >= WATCHDOG_BLOCK_LOG_PERIOD_MS) {
         lastWatchdogBlockLogMs = nowMs;
-        Serial.printf("[WATCHDOG] Besleme durduruldu: %s age=%uus\n",
-                      watchdogDecision.reason,
-                      watchdogDecision.heartbeatAgeUs);
+        UsbCdcTx::enqueueFormat("[WATCHDOG] Besleme durduruldu: %s age=%uus\n",
+                                watchdogDecision.reason,
+                                watchdogDecision.heartbeatAgeUs);
     }
 #endif
 }
@@ -456,13 +457,13 @@ static void runHealthReport() {
 }
 
 extern "C" void vApplicationStackOverflowHook(TaskHandle_t xTask, char* pcTaskName) {
-    Serial.printf("[FREERTOS] Stack overflow in %s\n", pcTaskName);
+    UsbCdcTx::enqueueFormat("[FREERTOS] Stack overflow in %s\n", pcTaskName);
     taskDISABLE_INTERRUPTS();
     while (true) {}
 }
 
 extern "C" void vApplicationMallocFailedHook() {
-    Serial.println("[FREERTOS] Malloc failed!");
+    UsbCdcTx::enqueueLine("[FREERTOS] Malloc failed!");
     taskDISABLE_INTERRUPTS();
     while (true) {}
 }

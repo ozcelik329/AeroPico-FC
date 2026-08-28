@@ -4,13 +4,16 @@
 #include <Arduino.h>
 #include "board/Config.h"
 #include "../drivers/PioUart.h"
+#include "../utils/UsbCdcTx.h"
 
 class MavlinkTransport {
   public:
     void init(uint32_t baud);
     size_t writePacket(const uint8_t* bytes, size_t len);
+    void serviceUsbTx();
     int available();
     int read();
+    uint32_t usbDroppedPackets() const { return _usbDroppedPackets; }
 
 #ifdef UNIT_TEST
     void resetCapture();
@@ -25,6 +28,7 @@ class MavlinkTransport {
     size_t _captureSize = 0;
 #endif
     bool _readUsbNext = false;
+    uint32_t _usbDroppedPackets = 0;
 };
 
 extern MavlinkTransport mavlinkTransport;

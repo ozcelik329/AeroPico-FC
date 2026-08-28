@@ -1,6 +1,7 @@
 #include "ParamManager.h"
 #include "MavlinkHandler.h"
 #include "MavlinkTransport.h"
+#include "../utils/UsbCdcTx.h"
 
 #ifdef MAVLINK_PARAMS_ENABLED
 
@@ -8,8 +9,8 @@ ParamManager paramManager;
 
 void ParamManager::init() {
     loadPersistent();
-    Serial.println("[PARAMS] Parametre yoneticisi baslatildi.");
-    Serial.printf("[PARAMS] %d parametre yuklu.\n", PARAM_COUNT);
+    UsbCdcTx::enqueueLine("[PARAMS] Parametre yoneticisi baslatildi.");
+    UsbCdcTx::enqueueFormat("[PARAMS] %d parametre yuklu.\n", PARAM_COUNT);
 }
 
 void ParamManager::setPidGainsApplyHandler(PidGainsApplyHandler handler) {
@@ -147,7 +148,7 @@ bool ParamManager::loadPersistent() {
     }
     _dirty = blob.count != PARAM_PERSISTED_COUNT;
     _params[PARAM_IDX_SAVE].value = 0.0f;
-    Serial.println("[PARAMS] Kalici parametreler yuklendi.");
+    UsbCdcTx::enqueueLine("[PARAMS] Kalici parametreler yuklendi.");
     return true;
 }
 
@@ -175,7 +176,7 @@ bool ParamManager::savePersistent() {
 
     _dirty = false;
     _params[PARAM_IDX_SAVE].value = 0.0f;
-    Serial.println("[PARAMS] Parametreler flash'a kaydedildi.");
+    UsbCdcTx::enqueueLine("[PARAMS] Parametreler flash'a kaydedildi.");
     return true;
 }
 
@@ -273,7 +274,7 @@ void ParamManager::_handleParamRequestList(const mavlink_message_t& msg) {
     mavlink_param_request_list_t request;
     mavlink_msg_param_request_list_decode(&msg, &request);
     if (request.target_system != 0 && request.target_system != MAV_SYSTEM_ID) return;
-    Serial.println("[PARAMS] GCS parametre listesi istedi.");
+    UsbCdcTx::enqueueLine("[PARAMS] GCS parametre listesi istedi.");
     sendAll();
 }
 
@@ -286,12 +287,12 @@ void ParamManager::_handleParamSet(const mavlink_message_t& msg) {
     int index = _findParamIndex(set.param_id);
     if (index >= 0) {
         setParamByName(_params[index].name, set.param_value);
-        Serial.printf("[PARAMS] %s = %.4f\n", _params[index].name, _params[index].value);
+        UsbCdcTx::enqueueFormat("[PARAMS] %s = %.4f\n", _params[index].name, _params[index].value);
         sendParam(index);
         return;
     }
 
-    Serial.println("[PARAMS] Bilinmeyen parametre!");
+    UsbCdcTx::enqueueLine("[PARAMS] Bilinmeyen parametre!");
 }
 
 void ParamManager::_sendPacket(mavlink_message_t& msg) {
