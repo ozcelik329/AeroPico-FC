@@ -1,8 +1,8 @@
 #include "CalibrationStorage.h"
+#include "RPFlashWriter.h"
 
 #if !defined(UNIT_TEST)
 #include "hardware/flash.h"
-#include "pico/flash.h"
 #include "pico/platform.h"
 
 namespace {
@@ -191,39 +191,14 @@ bool RPFlashCalibrationStorage::save(const CalibrationBlob& blob) {
         CALIBRATION_FLASH_BASE_OFFSET + ((uint32_t)slot * FLASH_SECTOR_SIZE),
         page
     };
-    constexpr uint32_t FLASH_SAFE_TIMEOUT_MS = 2500;
     constexpr uint8_t FLASH_WRITE_ATTEMPTS = 3;
     for (uint8_t attempt = 0; attempt < FLASH_WRITE_ATTEMPTS; ++attempt) {
-        const int result = flash_safe_execute(
-            programCalibrationFlash,
-            &context,
-            FLASH_SAFE_TIMEOUT_MS
-        );
-
-        // The callback may have completed even when the SDK reports an exit
-        // timeout, so verified flash contents are the authoritative result.
+        const bool executed = RPFlashWriter::execute(programCalibrationFlash, &context);
         if (calibrationSlotMatches(context.offset, journalBlob)) {
             _lastError = Error::None;
             return true;
         }
-
-        switch (result) {
-            case PICO_ERROR_TIMEOUT:
-                _lastError = Error::FlashTimeout;
-                break;
-            case PICO_ERROR_NOT_PERMITTED:
-                _lastError = Error::FlashNotPermitted;
-                break;
-            case PICO_ERROR_INSUFFICIENT_RESOURCES:
-                _lastError = Error::FlashResources;
-                break;
-            case PICO_OK:
-                _lastError = Error::VerifyFailed;
-                break;
-            default:
-                _lastError = Error::FlashError;
-                break;
-        }
+        _lastError = executed ? Error::VerifyFailed : Error::FlashNotPermitted;
         delay(5);
     }
     return false;
