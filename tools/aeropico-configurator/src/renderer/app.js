@@ -1466,6 +1466,15 @@
       closeModal(els.portPickerModal);
       window.aeropicoBridge.chooseSerialPort("");
     });
+    window.aeropicoBridge.onPortAutoSelected?.((port) => {
+      setPortDisplay(port);
+      log(`AeroPico portu otomatik secildi: ${port.portName || port.displayName || "USB Serial"}`);
+    });
+    window.aeropicoBridge.onPortSelectionError?.((message) => {
+      closeModal(els.portPickerModal);
+      log(message || "Secilen serial port artik mevcut degil.");
+      toast("Seçilen port artık mevcut değil.", "bad");
+    });
   }
 
   function finishSplash() {
@@ -1634,11 +1643,14 @@
       log("Cihaz dinleniyor. Parametre okumak icin 'Parametreleri Oku'ya bas.");
     } catch (error) {
       log(`Baglanti hatasi: ${error.message}`);
-      const portBusy = /access denied|permission denied|failed to open serial port/i.test(error.message || "");
+      const portMissing = /file_error_not_found|notfounderror|not found/i.test(error.message || "");
+      const portBusy = /access denied|permission denied|file_error_access_denied/i.test(error.message || "");
       if (portBusy) {
         log("Seri port baska bir uygulama tarafindan kullaniliyor. Diger Configurator/Serial Monitor pencerelerini kapatip yeniden deneyin.");
+      } else if (portMissing) {
+        log("Secilen seri port Windows'tan kayboldu. Pico'yu yeniden takarak guncel portla tekrar deneyin.");
       }
-      toast(portBusy ? "Seri port kullanımda." : "Bağlantı kurulamadı.", "bad");
+      toast(portBusy ? "Seri port kullanımda." : portMissing ? "Seri port artık mevcut değil." : "Bağlantı kurulamadı.", "bad");
       setLinkStatus("Hata", "bad");
       state.connected = false;
       await releaseSerialResources(state.port, state.reader, state.writer);
