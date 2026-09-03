@@ -1563,6 +1563,34 @@
 
   /* ── Connection ────────────────────────────── */
 
+  async function releaseSerialResources(port, reader, writer) {
+    if (reader) {
+      await reader.cancel().catch(() => {});
+      try {
+        reader.releaseLock();
+      } catch (_) {}
+    }
+    if (writer) {
+      await writer.close().catch(() => {});
+      try {
+        writer.releaseLock();
+      } catch (_) {}
+    }
+    if (port) {
+      await port.close().catch(() => {});
+    }
+  }
+
+  function clearSerialState() {
+    state.reader = null;
+    state.writer = null;
+    state.port = null;
+    state.activeBaud = null;
+    state.firmwareVersion = null;
+    state.txQueue = [];
+    state.txBusy = false;
+  }
+
   async function connect() {
     if (!("serial" in navigator)) {
       log("Web Serial API bulunamadi. Electron/Chromium surumunu kontrol et.");
@@ -1606,16 +1634,15 @@
       log("Cihaz dinleniyor. Parametre okumak icin 'Parametreleri Oku'ya bas.");
     } catch (error) {
       log(`Baglanti hatasi: ${error.message}`);
-      toast("Bağlantı kurulamadı.", "bad");
+      const portBusy = /access denied|permission denied|failed to open serial port/i.test(error.message || "");
+      if (portBusy) {
+        log("Seri port baska bir uygulama tarafindan kullaniliyor. Diger Configurator/Serial Monitor pencerelerini kapatip yeniden deneyin.");
+      }
+      toast(portBusy ? "Seri port kullanımda." : "Bağlantı kurulamadı.", "bad");
       setLinkStatus("Hata", "bad");
       state.connected = false;
-      state.reader = null;
-      state.writer = null;
-      state.port = null;
-      state.activeBaud = null;
-      state.firmwareVersion = null;
-      state.txQueue = [];
-      state.txBusy = false;
+      await releaseSerialResources(state.port, state.reader, state.writer);
+      clearSerialState();
       updatePortInfoDisplay();
       updateButtons();
     } finally {
@@ -1626,24 +1653,16 @@
   }
 
   async function disconnect() {
+    const port = state.port;
+    const reader = state.reader;
+    const writer = state.writer;
     try {
       state.connected = false;
-      if (state.reader) {
-        await state.reader.cancel().catch(() => { });
-        state.reader.releaseLock();
-      }
-      if (state.writer) state.writer.releaseLock();
-      if (state.port) await state.port.close();
+      await releaseSerialResources(port, reader, writer);
     } catch (error) {
       log(`Baglanti kapatma hatasi: ${error.message}`);
     } finally {
-      state.reader = null;
-      state.writer = null;
-      state.port = null;
-      state.activeBaud = null;
-      state.firmwareVersion = null;
-      state.txQueue = [];
-      state.txBusy = false;
+      clearSerialState();
       setLinkStatus("Kapali", "muted");
       updateButtons();
       updatePortInfoDisplay();
@@ -1654,9 +1673,12 @@
   }
 
   async function readLoop() {
-    while (state.connected && state.reader) {
+    const port = state.port;
+    const reader = state.reader;
+    const writer = state.writer;
+    while (state.connected && state.reader === reader) {
       try {
-        const { value, done } = await state.reader.read();
+        const { value, done } = await reader.read();
         if (done) break;
         if (value) parser.pushBytes(value);
       } catch (error) {
@@ -1664,13 +1686,10 @@
         break;
       }
     }
-    if (state.connected) {
+    if (state.connected && state.reader === reader) {
       state.connected = false;
-      state.reader = null;
-      state.writer = null;
-      state.port = null;
-      state.activeBaud = null;
-      state.firmwareVersion = null;
+      await releaseSerialResources(port, reader, writer);
+      clearSerialState();
       setLinkStatus("Kapali", "muted");
       updatePortInfoDisplay();
       updateButtons();
