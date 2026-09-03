@@ -23,6 +23,7 @@ class ICalibrationStorage {
     virtual ~ICalibrationStorage() {}
     virtual bool load(CalibrationBlob& blob) = 0;
     virtual bool save(const CalibrationBlob& blob) = 0;
+    virtual const char* lastError() const { return "NONE"; }
 };
 
 class CalibrationStorage {
@@ -48,6 +49,20 @@ class RPFlashCalibrationStorage : public ICalibrationStorage {
   public:
     bool load(CalibrationBlob& blob) override;
     bool save(const CalibrationBlob& blob) override;
+    const char* lastError() const override;
+
+  private:
+    enum class Error : uint8_t {
+        None = 0,
+        InvalidBlob,
+        FlashTimeout,
+        FlashNotPermitted,
+        FlashResources,
+        FlashError,
+        VerifyFailed
+    };
+
+    Error _lastError = Error::None;
 };
 
 #endif

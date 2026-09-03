@@ -126,7 +126,8 @@ uint8_t MavlinkServiceCommands::handle(uint16_t action,
                 _context.sensors->getMagCalibration()
             );
             if (_context.calibrationStorage && !_context.calibrationStorage->save(blob)) {
-                copyReason(reason, reasonLen, "IMU calibration save failed");
+                snprintf(reason, reasonLen, "IMU calibration save failed: %s",
+                         _context.calibrationStorage->lastError());
                 return MAV_RESULT_FAILED;
             }
             copyReason(reason, reasonLen, "IMU calibration saved");
@@ -160,7 +161,8 @@ uint8_t MavlinkServiceCommands::handle(uint16_t action,
             }
             CalibrationBlob blob = CalibrationStorage::makeBlob(_context.sensors->getImuCalibration(), mag);
             if (_context.calibrationStorage && !_context.calibrationStorage->save(blob)) {
-                copyReason(reason, reasonLen, "MAG_CAL_SAVE_FAILED");
+                snprintf(reason, reasonLen, "MAG_CAL_SAVE_FAILED: %s",
+                         _context.calibrationStorage->lastError());
                 return MAV_RESULT_FAILED;
             }
             copyReason(reason, reasonLen, "MAG_CAL_SAVED");

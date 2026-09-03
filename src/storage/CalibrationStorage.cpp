@@ -6,6 +6,13 @@
 #include "pico/platform.h"
 
 namespace {
+// Calibration uses sectors -6 and -5. Parameter storage owns -4 and -3,
+// while the Arduino core reserves the final sector for EEPROM emulation.
+constexpr uint32_t CALIBRATION_FLASH_BASE_OFFSET =
+    PICO_FLASH_SIZE_BYTES - (6 * FLASH_SECTOR_SIZE);
+constexpr uint32_t PREVIOUS_CALIBRATION_FLASH_BASE_OFFSET =
+    PICO_FLASH_SIZE_BYTES - (CALIBRATION_STORAGE_SLOT_COUNT * FLASH_SECTOR_SIZE);
+
 struct CalibrationFlashWriteContext {
     uint32_t offset;
     const uint8_t* page;
@@ -38,6 +45,27 @@ bool legacyCalibrationValid(const LegacyCalibrationBlob& blob) {
            blob.size == sizeof(LegacyCalibrationBlob) &&
            blob.checksum == legacyCalibrationChecksum(blob) &&
            (blob.imu.valid || blob.mag.valid);
+}
+
+void loadCalibrationJournal(uint32_t baseOffset, CalibrationBlob& best, bool& found) {
+    for (uint8_t slot = 0; slot < CALIBRATION_STORAGE_SLOT_COUNT; ++slot) {
+        const uint32_t offset = baseOffset + ((uint32_t)slot * FLASH_SECTOR_SIZE);
+        const auto* stored = reinterpret_cast<const CalibrationBlob*>(XIP_BASE + offset);
+        const CalibrationBlob candidate = *stored;
+        if (CalibrationStorage::isValid(candidate) &&
+            (!found || candidate.generation > best.generation)) {
+            best = candidate;
+            found = true;
+        }
+    }
+}
+
+bool calibrationSlotMatches(uint32_t offset, const CalibrationBlob& expected) {
+    const auto* stored = reinterpret_cast<const CalibrationBlob*>(XIP_BASE + offset);
+    const CalibrationBlob candidate = *stored;
+    return CalibrationStorage::isValid(candidate) &&
+           candidate.generation == expected.generation &&
+           memcmp(&candidate, &expected, sizeof(CalibrationBlob)) == 0;
 }
 
 void __not_in_flash_func(programCalibrationFlash)(void* opaque) {
@@ -113,18 +141,10 @@ bool RPFlashCalibrationStorage::load(CalibrationBlob& blob) {
     (void)blob;
     return false;
 #else
-    constexpr uint32_t FLASH_BASE_OFFSET = PICO_FLASH_SIZE_BYTES - (CALIBRATION_STORAGE_SLOT_COUNT * FLASH_SECTOR_SIZE);
     bool found = false;
     CalibrationBlob best = {};
-    for (uint8_t slot = 0; slot < CALIBRATION_STORAGE_SLOT_COUNT; ++slot) {
-        const uint32_t offset = FLASH_BASE_OFFSET + ((uint32_t)slot * FLASH_SECTOR_SIZE);
-        const auto* stored = reinterpret_cast<const CalibrationBlob*>(XIP_BASE + offset);
-        CalibrationBlob candidate = *stored;
-        if (CalibrationStorage::isValid(candidate) && (!found || candidate.generation > best.generation)) {
-            best = candidate;
-            found = true;
-        }
-    }
+    loadCalibrationJournal(CALIBRATION_FLASH_BASE_OFFSET, best, found);
+    loadCalibrationJournal(PREVIOUS_CALIBRATION_FLASH_BASE_OFFSET, best, found);
     if (!found) {
         constexpr uint32_t LEGACY_OFFSET = PICO_FLASH_SIZE_BYTES - FLASH_SECTOR_SIZE;
         const auto* legacy = reinterpret_cast<const LegacyCalibrationBlob*>(XIP_BASE + LEGACY_OFFSET);
@@ -141,7 +161,9 @@ bool RPFlashCalibrationStorage::load(CalibrationBlob& blob) {
 }
 
 bool RPFlashCalibrationStorage::save(const CalibrationBlob& blob) {
+    _lastError = Error::None;
     if (!CalibrationStorage::isValid(blob)) {
+        _lastError = Error::InvalidBlob;
         return false;
     }
 
@@ -149,9 +171,8 @@ bool RPFlashCalibrationStorage::save(const CalibrationBlob& blob) {
     (void)blob;
     return false;
 #else
-    constexpr uint32_t FLASH_BASE_OFFSET = PICO_FLASH_SIZE_BYTES - (CALIBRATION_STORAGE_SLOT_COUNT * FLASH_SECTOR_SIZE);
     constexpr size_t PAGE_SIZE = FLASH_PAGE_SIZE;
-    alignas(4) uint8_t page[PAGE_SIZE];
+    alignas(FLASH_PAGE_SIZE) uint8_t page[PAGE_SIZE];
 
     CalibrationBlob existing = {};
     const bool hasExisting = load(existing);
@@ -167,10 +188,57 @@ bool RPFlashCalibrationStorage::save(const CalibrationBlob& blob) {
     memcpy(page, &journalBlob, sizeof(CalibrationBlob));
 
     CalibrationFlashWriteContext context = {
-        FLASH_BASE_OFFSET + ((uint32_t)slot * FLASH_SECTOR_SIZE),
+        CALIBRATION_FLASH_BASE_OFFSET + ((uint32_t)slot * FLASH_SECTOR_SIZE),
         page
     };
-    constexpr uint32_t FLASH_SAFE_TIMEOUT_MS = 1000;
-    return flash_safe_execute(programCalibrationFlash, &context, FLASH_SAFE_TIMEOUT_MS) == PICO_OK;
+    constexpr uint32_t FLASH_SAFE_TIMEOUT_MS = 2500;
+    constexpr uint8_t FLASH_WRITE_ATTEMPTS = 3;
+    for (uint8_t attempt = 0; attempt < FLASH_WRITE_ATTEMPTS; ++attempt) {
+        const int result = flash_safe_execute(
+            programCalibrationFlash,
+            &context,
+            FLASH_SAFE_TIMEOUT_MS
+        );
+
+        // The callback may have completed even when the SDK reports an exit
+        // timeout, so verified flash contents are the authoritative result.
+        if (calibrationSlotMatches(context.offset, journalBlob)) {
+            _lastError = Error::None;
+            return true;
+        }
+
+        switch (result) {
+            case PICO_ERROR_TIMEOUT:
+                _lastError = Error::FlashTimeout;
+                break;
+            case PICO_ERROR_NOT_PERMITTED:
+                _lastError = Error::FlashNotPermitted;
+                break;
+            case PICO_ERROR_INSUFFICIENT_RESOURCES:
+                _lastError = Error::FlashResources;
+                break;
+            case PICO_OK:
+                _lastError = Error::VerifyFailed;
+                break;
+            default:
+                _lastError = Error::FlashError;
+                break;
+        }
+        delay(5);
+    }
+    return false;
 #endif
+}
+
+const char* RPFlashCalibrationStorage::lastError() const {
+    switch (_lastError) {
+        case Error::None: return "NONE";
+        case Error::InvalidBlob: return "INVALID_BLOB";
+        case Error::FlashTimeout: return "FLASH_TIMEOUT";
+        case Error::FlashNotPermitted: return "FLASH_NOT_PERMITTED";
+        case Error::FlashResources: return "FLASH_RESOURCES";
+        case Error::VerifyFailed: return "VERIFY_FAILED";
+        case Error::FlashError:
+        default: return "FLASH_ERROR";
+    }
 }

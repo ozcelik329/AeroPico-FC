@@ -28,7 +28,10 @@ void ServiceCommandProcessor::pollAsyncCompletions() {
     }
     CalibrationBlob blob = CalibrationStorage::makeBlob(imu, _context.sensors->getMagCalibration());
     if (!_context.calibrationStorage->save(blob)) {
-        complete(AEROPICO_CMD_CAL_IMU, MAV_RESULT_FAILED, "IMU calibration save failed");
+        char reason[64];
+        snprintf(reason, sizeof(reason), "IMU calibration save failed: %s",
+                 _context.calibrationStorage->lastError());
+        complete(AEROPICO_CMD_CAL_IMU, MAV_RESULT_FAILED, reason);
         return;
     }
     complete(AEROPICO_CMD_CAL_IMU, MAV_RESULT_ACCEPTED, "IMU calibration saved");
@@ -90,9 +93,14 @@ void ServiceCommandProcessor::processRequest(const ServiceCommandRequest& reques
                 }
                 CalibrationBlob blob = CalibrationStorage::makeBlob(_context.sensors->getImuCalibration(), mag);
                 const bool saved = _context.calibrationStorage && _context.calibrationStorage->save(blob);
+                const char* saveResult = saved
+                    ? "MAG_CAL_SAVED"
+                    : (_context.calibrationStorage
+                        ? _context.calibrationStorage->lastError()
+                        : "MAG_CAL_STORAGE_MISSING");
                 complete(request.action,
                          saved ? MAV_RESULT_ACCEPTED : MAV_RESULT_FAILED,
-                         saved ? "MAG_CAL_SAVED" : "MAG_CAL_SAVE_FAILED");
+                         saveResult);
             }
             break;
 
