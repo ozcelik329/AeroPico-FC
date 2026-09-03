@@ -1,4 +1,20 @@
 #include "FlightManager.h"
+#include <stdarg.h>
+
+namespace {
+void copyReason(char* out, size_t outLen, const char* text) {
+    if (!out || outLen == 0) return;
+    snprintf(out, outLen, "%s", text ? text : "");
+}
+
+void formatReason(char* out, size_t outLen, const char* format, ...) {
+    if (!out || outLen == 0) return;
+    va_list args;
+    va_start(args, format);
+    vsnprintf(out, outLen, format, args);
+    va_end(args);
+}
+}
 
 void FlightManager::init() {
     _sensorPipeline.init(nullptr);
@@ -8,6 +24,8 @@ void FlightManager::init() {
     _vehicleState = _sensorPipeline.getState();
     _rcState = _rcPipeline.getState();
     __atomic_store_n(&_armedShared, 0, __ATOMIC_RELEASE);
+    __atomic_store_n(&_benchForceArmSessionShared, 0, __ATOMIC_RELEASE);
+    __atomic_store_n(&_latestFailsafeReasonsShared, FailsafeNone, __ATOMIC_RELEASE);
 }
 
 void FlightManager::init(IImuDriver* imuDrv, IRxDriver* rxDrv) {
@@ -18,6 +36,8 @@ void FlightManager::init(IImuDriver* imuDrv, IRxDriver* rxDrv) {
     _vehicleState = _sensorPipeline.getState();
     _rcState = _rcPipeline.getState();
     __atomic_store_n(&_armedShared, 0, __ATOMIC_RELEASE);
+    __atomic_store_n(&_benchForceArmSessionShared, 0, __ATOMIC_RELEASE);
+    __atomic_store_n(&_latestFailsafeReasonsShared, FailsafeNone, __ATOMIC_RELEASE);
 }
 
 void FlightManager::attachSensorDriver(IImuDriver* imuDrv) {
@@ -62,29 +82,41 @@ void FlightManager::updateRc() {
 }
 
 void FlightManager::publishState() {
-    FlightData provisional = _statePublisher.buildFlightData(_vehicleState, _rcState, {_rcState.failsafe, "RC pipeline"});
-    provisional.timingExceeded = _timingExceeded;
-    provisional.batteryCritical = _batteryCritical;
-    provisional.actuatorFault = _actuatorFault;
-    FailsafeDecision failsafe = _failsafeManager.evaluate(provisional, _rcRequired);
-    if (_benchForceArmAllowed) {
-        failsafe = {false, "bench admin override", 0};
+    const bool benchAuthorized =
+        __atomic_load_n(&_benchForceArmAuthorizedShared, __ATOMIC_ACQUIRE) != 0;
+    bool benchSession =
+        __atomic_load_n(&_benchForceArmSessionShared, __ATOMIC_ACQUIRE) != 0;
+    if (!benchAuthorized && benchSession) {
+        benchSession = false;
+        __atomic_store_n(&_benchForceArmSessionShared, 0, __ATOMIC_RELEASE);
+    }
+
+    FailsafeDecision failsafe = evaluateFailsafe(_vehicleState, _rcState, benchSession);
+    __atomic_store_n(&_latestFailsafeReasonsShared, failsafe.reasons, __ATOMIC_RELEASE);
+    if (benchSession && failsafe.active) {
+        __atomic_store_n(&_benchForceArmSessionShared, 0, __ATOMIC_RELEASE);
     }
     FlightData data = _statePublisher.buildFlightData(_vehicleState, _rcState, failsafe);
-    data.timingExceeded = _timingExceeded;
-    data.batteryCritical = _batteryCritical;
-    data.actuatorFault = _actuatorFault;
+    data.timingExceeded = __atomic_load_n(&_timingExceededShared, __ATOMIC_ACQUIRE) != 0;
+    data.batteryCritical = __atomic_load_n(&_batteryCriticalShared, __ATOMIC_ACQUIRE) != 0;
+    data.actuatorFault = __atomic_load_n(&_actuatorFaultShared, __ATOMIC_ACQUIRE) != 0;
 
     ControlPipelineInput controlInput;
     controlInput.rc = _rcState;
     controlInput.vehicle = _vehicleState;
-    controlInput.failsafe = _benchForceArmAllowed ? false : failsafe.active;
-    controlInput.preflightArmAllowed = _benchForceArmAllowed ? true : _preflightArmAllowed;
+    controlInput.failsafe = failsafe.active;
+    controlInput.preflightArmAllowed =
+        __atomic_load_n(&_preflightArmAllowedShared, __ATOMIC_ACQUIRE) != 0;
+    controlInput.rcGesturesEnabled =
+        __atomic_load_n(&_rcRequiredShared, __ATOMIC_ACQUIRE) != 0;
     const bool wasArmed = _controlPipeline.isArmed();
     const bool wasFailsafe = _controlPipeline.isFailsafe();
     const FlightState previousState = _controlPipeline.flightState();
     _controlPipeline.update(controlInput);
     const FlightState currentState = _controlPipeline.flightState();
+    if (wasArmed && !_controlPipeline.isArmed()) {
+        __atomic_store_n(&_benchForceArmSessionShared, 0u, __ATOMIC_RELEASE);
+    }
     __atomic_store_n(&_armedShared, _controlPipeline.isArmed() ? 1u : 0u, __ATOMIC_RELEASE);
     if (wasArmed != _controlPipeline.isArmed()) {
         systemEventBus.publish({SystemEventType::ArmStateChanged, data.timestamp,
@@ -95,7 +127,7 @@ void FlightManager::publishState() {
             _controlPipeline.isFailsafe() ? SystemEventType::FailsafeEntered
                                           : SystemEventType::FailsafeCleared,
             data.timestamp,
-            0
+            (uint32_t)(_controlPipeline.isFailsafe() ? failsafe.reasons : FailsafeNone)
         });
     }
     if (previousState != FlightState::PreflightBlocked &&
@@ -145,65 +177,106 @@ void FlightManager::applyRcMapping(const RcMapping& mapping) {
     _rcPipeline.applyMapping(mapping);
 }
 
+void FlightManager::setDefaultControlMode(ControlMode mode) {
+    _rcPipeline.setDefaultControlMode(mode);
+}
+
 void FlightManager::setPreflightArmAllowed(bool allowed) {
-    _preflightArmAllowed = allowed;
+    __atomic_store_n(&_preflightArmAllowedShared, allowed ? 1u : 0u, __ATOMIC_RELEASE);
 }
 
 void FlightManager::setBenchForceArmAllowed(bool allowed) {
-    _benchForceArmAllowed = allowed;
+    __atomic_store_n(&_benchForceArmAuthorizedShared, allowed ? 1u : 0u, __ATOMIC_RELEASE);
+    if (!allowed) {
+        __atomic_store_n(&_benchForceArmSessionShared, 0, __ATOMIC_RELEASE);
+    }
 }
 
 void FlightManager::setRcRequired(bool required) {
-    _rcRequired = required;
+    __atomic_store_n(&_rcRequiredShared, required ? 1u : 0u, __ATOMIC_RELEASE);
 }
 
 bool FlightManager::requestArmFromMavlink(bool arm, bool force, char* reason, size_t reasonLen) {
-    const char* localReason = "";
+    const char* controllerReason = "";
     bool accepted = false;
-    const bool faulted = _timingExceeded || _batteryCritical || _actuatorFault;
-    const bool failsafe = (_rcRequired && _rcState.failsafe) || faulted;
+    VehicleState vehicle = _vehicleState;
+    RcInputState rc = _rcState;
+    systemBlackboard.vehicle.read(vehicle);
+    systemBlackboard.rc.read(rc);
+
+    const bool rcRequired = __atomic_load_n(&_rcRequiredShared, __ATOMIC_ACQUIRE) != 0;
+    const bool benchAuthorized =
+        __atomic_load_n(&_benchForceArmAuthorizedShared, __ATOMIC_ACQUIRE) != 0;
+    const bool preflightAllowed =
+        __atomic_load_n(&_preflightArmAllowedShared, __ATOMIC_ACQUIRE) != 0;
+    const uint16_t throttle = rcRequired ? rc.throttle : PWM_MIN;
+    const FailsafeDecision decision = evaluateFailsafe(vehicle, rc, arm && force);
+    __atomic_store_n(&_latestFailsafeReasonsShared, decision.reasons, __ATOMIC_RELEASE);
 
     if (arm && force) {
-        if (_benchForceArmAllowed) {
-            accepted = _controlPipeline.forceArm(&localReason);
+        if (!benchAuthorized) {
+            copyReason(reason, reasonLen, "ARM_DENIED BENCH_JUMPER");
+        } else if (decision.active) {
+            formatReason(reason, reasonLen, "ARM_DENIED %s MASK=0x%02X",
+                         decision.reason, decision.reasons);
         } else {
-            localReason = "bench force arm jumper missing";
-            accepted = false;
+            accepted = _controlPipeline.forceArm(&controllerReason);
+            if (accepted) {
+                __atomic_store_n(&_benchForceArmSessionShared, 1u, __ATOMIC_RELEASE);
+                copyReason(reason, reasonLen, "ARMED BENCH_FORCE");
+            }
         }
-    } else if (arm && faulted) {
-        localReason = _batteryCritical ? "battery critical" :
-                      _actuatorFault ? "actuator fault" :
-                      "timing budget exceeded";
-        accepted = false;
     } else if (arm) {
-        accepted = _controlPipeline.requestArm(
-            _preflightArmAllowed,
-            failsafe,
-            _rcState.throttle,
-            &localReason
-        );
+        __atomic_store_n(&_benchForceArmSessionShared, 0u, __ATOMIC_RELEASE);
+        if (decision.active) {
+            formatReason(reason, reasonLen, "ARM_DENIED %s MASK=0x%02X",
+                         decision.reason, decision.reasons);
+        } else {
+            accepted = _controlPipeline.requestArm(
+                preflightAllowed, false, throttle, &controllerReason);
+            if (accepted) {
+                copyReason(reason, reasonLen, "ARMED NORMAL");
+            } else {
+                formatReason(reason, reasonLen, "ARM_DENIED %s",
+                             preflightAllowed ? controllerReason : "PREFLIGHT");
+            }
+        }
     } else {
-        accepted = _controlPipeline.requestDisarm(force, _rcState.throttle, &localReason);
+        accepted = _controlPipeline.requestDisarm(force, throttle, &controllerReason);
+        if (accepted) {
+            __atomic_store_n(&_benchForceArmSessionShared, 0u, __ATOMIC_RELEASE);
+            copyReason(reason, reasonLen, "DISARMED");
+        } else {
+            formatReason(reason, reasonLen, "DISARM_DENIED %s", controllerReason);
+        }
     }
 
     __atomic_store_n(&_armedShared, _controlPipeline.isArmed() ? 1u : 0u, __ATOMIC_RELEASE);
-    if (reason && reasonLen > 0) {
-        reason[0] = '\0';
-        if (localReason) {
-            strncpy(reason, localReason, reasonLen - 1);
-            reason[reasonLen - 1] = '\0';
-        }
-    }
     systemEventBus.publish({
         accepted ? SystemEventType::ArmStateChanged : SystemEventType::ArmDenied,
-        _vehicleState.timestampUs,
-        _controlPipeline.isArmed() ? 1u : 0u
+        vehicle.timestampUs,
+        accepted ? (_controlPipeline.isArmed() ? 1u : 0u) : decision.reasons
     });
     return accepted;
 }
 
 void FlightManager::setSystemFaults(bool timingExceeded, bool batteryCritical, bool actuatorFault) {
-    _timingExceeded = timingExceeded;
-    _batteryCritical = batteryCritical;
-    _actuatorFault = actuatorFault;
+    __atomic_store_n(&_timingExceededShared, timingExceeded ? 1u : 0u, __ATOMIC_RELEASE);
+    __atomic_store_n(&_batteryCriticalShared, batteryCritical ? 1u : 0u, __ATOMIC_RELEASE);
+    __atomic_store_n(&_actuatorFaultShared, actuatorFault ? 1u : 0u, __ATOMIC_RELEASE);
+}
+
+FailsafeDecision FlightManager::evaluateFailsafe(const VehicleState& vehicle,
+                                                 const RcInputState& rc,
+                                                 bool applyBenchPolicy) const {
+    FailsafeDecision none = {};
+    FlightData data = _statePublisher.buildFlightData(vehicle, rc, none);
+    data.timingExceeded = __atomic_load_n(&_timingExceededShared, __ATOMIC_ACQUIRE) != 0;
+    data.batteryCritical = __atomic_load_n(&_batteryCriticalShared, __ATOMIC_ACQUIRE) != 0;
+    data.actuatorFault = __atomic_load_n(&_actuatorFaultShared, __ATOMIC_ACQUIRE) != 0;
+
+    FailsafePolicy policy;
+    policy.rcRequired = __atomic_load_n(&_rcRequiredShared, __ATOMIC_ACQUIRE) != 0;
+    policy.bypassMask = applyBenchPolicy ? FAILSAFE_BENCH_BYPASS_MASK : FailsafeNone;
+    return _failsafeManager.evaluate(data, policy);
 }

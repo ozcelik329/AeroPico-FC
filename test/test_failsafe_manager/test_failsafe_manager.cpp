@@ -38,10 +38,45 @@ void test_failsafe_manager_ignores_rc_loss_when_rc_is_disabled() {
     FlightData data = healthyData();
     data.failsafe = true;
 
-    FailsafeDecision decision = manager.evaluate(data, false);
+    FailsafePolicy policy;
+    policy.rcRequired = false;
+    FailsafeDecision decision = manager.evaluate(data, policy);
 
     TEST_ASSERT_FALSE(decision.active);
     TEST_ASSERT_EQUAL_UINT16(FailsafeNone, decision.reasons);
+}
+
+void test_bench_policy_bypasses_rc_sensor_and_estimator_only() {
+    FailsafeManager manager;
+    FlightData data = healthyData();
+    data.failsafe = true;
+    data.sensorHealth = SensorHealth::Stale;
+    data.estimatorValid = false;
+
+    FailsafePolicy policy;
+    policy.bypassMask = FAILSAFE_BENCH_BYPASS_MASK;
+    FailsafeDecision decision = manager.evaluate(data, policy);
+
+    TEST_ASSERT_FALSE(decision.active);
+    TEST_ASSERT_EQUAL_UINT16(FailsafeNone, decision.reasons);
+    TEST_ASSERT_BITS(FAILSAFE_BENCH_BYPASS_MASK,
+                     FAILSAFE_BENCH_BYPASS_MASK,
+                     decision.observedReasons);
+}
+
+void test_bench_policy_never_bypasses_critical_faults() {
+    FailsafeManager manager;
+    FlightData data = healthyData();
+    data.timingExceeded = true;
+    data.actuatorFault = true;
+
+    FailsafePolicy policy;
+    policy.bypassMask = FAILSAFE_BENCH_BYPASS_MASK;
+    FailsafeDecision decision = manager.evaluate(data, policy);
+
+    TEST_ASSERT_TRUE(decision.active);
+    TEST_ASSERT_BITS(FailsafeTiming, FailsafeTiming, decision.reasons);
+    TEST_ASSERT_BITS(FailsafeActuator, FailsafeActuator, decision.reasons);
 }
 
 void test_failsafe_manager_blocks_invalid_estimator() {
@@ -113,6 +148,8 @@ int main() {
     RUN_TEST(test_failsafe_manager_allows_healthy_data);
     RUN_TEST(test_failsafe_manager_blocks_rc_failsafe);
     RUN_TEST(test_failsafe_manager_ignores_rc_loss_when_rc_is_disabled);
+    RUN_TEST(test_bench_policy_bypasses_rc_sensor_and_estimator_only);
+    RUN_TEST(test_bench_policy_never_bypasses_critical_faults);
     RUN_TEST(test_failsafe_manager_blocks_sensor_timeout);
     RUN_TEST(test_failsafe_manager_blocks_sensor_stale);
     RUN_TEST(test_failsafe_manager_blocks_invalid_estimator);

@@ -10,7 +10,8 @@ void ConfiguratorParamRuntime::bindAndApply(ParamManager& params,
                                             ParamManager::MavlinkRatesApplyHandler mavlinkRatesHandler,
                                             ParamManager::BlackboxRateApplyHandler blackboxRateHandler,
                                             ParamManager::PreflightQualityApplyHandler preflightQualityHandler,
-                                            ParamManager::BatteryProfileApplyHandler batteryProfileHandler) {
+                                            ParamManager::BatteryProfileApplyHandler batteryProfileHandler,
+                                            ParamManager::ModuleSetupApplyHandler moduleSetupHandler) {
     params.setPidGainsApplyHandler(pidHandler);
     params.setMixerSettingsApplyHandler(mixerHandler);
     params.setFailsafeTimeoutApplyHandler(failsafeHandler);
@@ -19,6 +20,7 @@ void ConfiguratorParamRuntime::bindAndApply(ParamManager& params,
     params.setBlackboxRateApplyHandler(blackboxRateHandler);
     params.setPreflightQualityApplyHandler(preflightQualityHandler);
     params.setBatteryProfileApplyHandler(batteryProfileHandler);
+    params.setModuleSetupApplyHandler(moduleSetupHandler);
 
     pidHandler(params.getAngleP(), params.getAngleI(), params.getAngleD(),
                params.getRateP(), params.getRateI(), params.getRateD());
@@ -34,6 +36,7 @@ void ConfiguratorParamRuntime::bindAndApply(ParamManager& params,
                           params.getBatteryCapacityMah(), params.getBatteryCRating(),
                           params.getBatteryLowVoltage(), params.getBatteryBrownoutVoltage(),
                           params.getBatteryMaxVoltage());
+    moduleSetupHandler();
 }
 
 #endif

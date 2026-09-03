@@ -21,7 +21,7 @@ RcInputState RCPipeline::failsafeState(uint32_t nowMs) const {
     state.elevator = PWM_NEUTRAL;
     state.throttle = PWM_MIN;
     state.rudder = PWM_NEUTRAL;
-    state.controlMode = ControlMode::Manual;
+    state.controlMode = getDefaultControlMode();
     state.failsafe = true;
     state.overrideActive = false;
     state.timestampMs = nowMs;
@@ -49,7 +49,7 @@ RcInputState RCPipeline::update() {
         _state.elevator = _overrideElevator;
         _state.throttle = _overrideThrottle;
         _state.rudder = _overrideRudder;
-        _state.controlMode = ControlMode::Manual;
+        _state.controlMode = getDefaultControlMode();
         _state.failsafe = false;
         _state.overrideActive = true;
         _state.timestampMs = nowMs;
@@ -79,6 +79,20 @@ void RCPipeline::applyMapping(const RcMapping& mapping) {
     _mapping.throttleChannel = clampChannel(mapping.throttleChannel);
     _mapping.yawChannel = clampChannel(mapping.yawChannel);
     _mapping.modeChannel = clampChannel(mapping.modeChannel);
+}
+
+void RCPipeline::setDefaultControlMode(ControlMode mode) {
+    const uint8_t value = mode == ControlMode::Stabilize
+        ? (uint8_t)ControlMode::Stabilize
+        : (uint8_t)ControlMode::Manual;
+    __atomic_store_n(&_defaultControlMode, value, __ATOMIC_RELEASE);
+}
+
+ControlMode RCPipeline::getDefaultControlMode() const {
+    const uint8_t value = __atomic_load_n(&_defaultControlMode, __ATOMIC_ACQUIRE);
+    return value == (uint8_t)ControlMode::Stabilize
+        ? ControlMode::Stabilize
+        : ControlMode::Manual;
 }
 
 void RCPipeline::setOverride(uint16_t aileron, uint16_t elevator, uint16_t throttle, uint16_t rudder) {

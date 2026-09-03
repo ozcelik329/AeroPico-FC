@@ -23,6 +23,11 @@ void FlightModeController::update(uint16_t throttle, uint16_t rudder, bool fails
 }
 
 void FlightModeController::update(uint16_t throttle, uint16_t rudder, bool failsafe, bool preflightOk) {
+    update(throttle, rudder, failsafe, preflightOk, true);
+}
+
+void FlightModeController::update(uint16_t throttle, uint16_t rudder, bool failsafe,
+                                  bool preflightOk, bool rcGesturesEnabled) {
     uint32_t now = millis();
 
     if (failsafe) {
@@ -46,7 +51,7 @@ void FlightModeController::update(uint16_t throttle, uint16_t rudder, bool fails
         if (_state != FlightState::ReadyToArm) {
             transitionTo(FlightState::ReadyToArm, "ready to arm");
         }
-        if (throttle < ARM_THROTTLE_MAX && rudder >= ARM_RUDDER_MIN) {
+        if (rcGesturesEnabled && throttle < ARM_THROTTLE_MAX && rudder >= ARM_RUDDER_MIN) {
             if (_armHoldStart == 0) _armHoldStart = now;
             if (now - _armHoldStart >= ARM_HOLD_MS) {
                 transitionTo(FlightState::ArmedManual, "arm gesture");
@@ -55,7 +60,7 @@ void FlightModeController::update(uint16_t throttle, uint16_t rudder, bool fails
             _armHoldStart = 0;
         }
     } else {
-        if (throttle < ARM_THROTTLE_MAX && rudder <= DISARM_RUDDER_MAX) {
+        if (rcGesturesEnabled && throttle < ARM_THROTTLE_MAX && rudder <= DISARM_RUDDER_MAX) {
             if (_disarmHoldStart == 0) _disarmHoldStart = now;
             if (now - _disarmHoldStart >= ARM_HOLD_MS) {
                 transitionTo(FlightState::ReadyToArm, "disarm gesture");

@@ -31,6 +31,7 @@ class RuntimeHealthReporter {
 	  private:
 	    static uint16_t clampStackWords(UBaseType_t value);
 	    void sendStatusTextThrottled(const char* text);
+	    void reportSystemEvents();
 	    struct StatusThrottleSlot {
 	        char text[50] = {};
 	        uint32_t lastSentMs = 0;
@@ -41,6 +42,7 @@ class RuntimeHealthReporter {
 	    uint32_t _lastBlackboxDroppedRecords = 0;
 	    StatusThrottleSlot _statusThrottleSlots[8] = {};
 	    bool _batteryWarningLatched = false;
+	    bool _rcSignalInvalidLatched = false;
 	};
 
 #endif

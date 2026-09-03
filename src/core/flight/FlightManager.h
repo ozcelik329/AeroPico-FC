@@ -40,10 +40,14 @@ class FlightManager {
     void setBenchForceArmAllowed(bool allowed);
     void setRcRequired(bool required);
     void setSystemFaults(bool timingExceeded, bool batteryCritical, bool actuatorFault);
+    uint16_t latestFailsafeReasons() const {
+        return __atomic_load_n(&_latestFailsafeReasonsShared, __ATOMIC_ACQUIRE);
+    }
 
     void setRCOverride(uint16_t aileron, uint16_t elevator, uint16_t throttle, uint16_t rudder);
     void clearRCOverride();
     void applyRcMapping(const RcMapping& mapping);
+    void setDefaultControlMode(ControlMode mode);
 
     // Consumer: called by the single consumer (Core 1) to consume pending samples
     bool consumeLatest();
@@ -64,15 +68,20 @@ class FlightManager {
     StatePublisher _statePublisher;
     ControlPipeline _controlPipeline;
     FailsafeManager _failsafeManager;
-    bool _preflightArmAllowed = false;
-    bool _benchForceArmAllowed = false;
-    bool _rcRequired = true;
-    bool _timingExceeded = false;
-    bool _batteryCritical = false;
-    bool _actuatorFault = false;
+    uint8_t _preflightArmAllowedShared = 0;
+    uint8_t _benchForceArmAuthorizedShared = 0;
+    uint8_t _benchForceArmSessionShared = 0;
+    uint8_t _rcRequiredShared = 1;
+    uint8_t _timingExceededShared = 0;
+    uint8_t _batteryCriticalShared = 0;
+    uint8_t _actuatorFaultShared = 0;
     mutable uint8_t _armedShared = 0;
+    mutable uint16_t _latestFailsafeReasonsShared = FailsafeNone;
     SensorHealth _lastPublishedSensorHealth = SensorHealth::Invalid;
 
+    FailsafeDecision evaluateFailsafe(const VehicleState& vehicle,
+                                      const RcInputState& rc,
+                                      bool applyBenchPolicy) const;
     FlightData readLatestSnapshot() const { return _latest; }
     
 };

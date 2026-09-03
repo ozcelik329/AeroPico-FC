@@ -20,6 +20,8 @@ class FlightModeController {
     void update(uint16_t throttle, uint16_t rudder);
     void update(uint16_t throttle, uint16_t rudder, bool failsafe);
     void update(uint16_t throttle, uint16_t rudder, bool failsafe, bool preflightOk);
+    void update(uint16_t throttle, uint16_t rudder, bool failsafe,
+                bool preflightOk, bool rcGesturesEnabled);
     bool requestArm(bool preflightOk, bool failsafe, uint16_t throttle, const char** reason);
     bool forceArm(const char** reason);
     bool requestDisarm(bool force, uint16_t throttle, const char** reason);

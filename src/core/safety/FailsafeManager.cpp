@@ -3,9 +3,10 @@
 void FailsafeManager::init() {
 }
 
-FailsafeDecision FailsafeManager::evaluate(const FlightData& data, bool rcRequired) const {
+FailsafeDecision FailsafeManager::evaluate(const FlightData& data,
+                                           const FailsafePolicy& policy) const {
     uint16_t reasons = FailsafeNone;
-    if (rcRequired && data.failsafe) {
+    if (policy.rcRequired && data.failsafe) {
         reasons |= FailsafeRcLoss;
     }
 
@@ -34,11 +35,22 @@ FailsafeDecision FailsafeManager::evaluate(const FlightData& data, bool rcRequir
         reasons |= FailsafeActuator;
     }
 
-    if (reasons & FailsafeRcLoss) return {true, "RC failsafe", reasons};
-    if (reasons & FailsafeSensorInvalid) return {true, "Sensor unhealthy", reasons};
-    if (reasons & FailsafeEstimatorInvalid) return {true, "Estimator unhealthy", reasons};
-    if (reasons & FailsafeTiming) return {true, "Timing budget exceeded", reasons};
-    if (reasons & FailsafeBatteryCritical) return {true, "Battery critical", reasons};
-    if (reasons & FailsafeActuator) return {true, "Actuator fault", reasons};
-    return {false, "OK", FailsafeNone};
+    const uint16_t effectiveReasons = reasons & (uint16_t)~policy.bypassMask;
+    return {
+        effectiveReasons != FailsafeNone,
+        reasonToken(effectiveReasons),
+        effectiveReasons,
+        reasons,
+        data.timestamp
+    };
+}
+
+const char* FailsafeManager::reasonToken(uint16_t reasons) {
+    if (reasons & FailsafeRcLoss) return "RC_LOSS";
+    if (reasons & FailsafeSensorInvalid) return "SENSOR_INVALID";
+    if (reasons & FailsafeEstimatorInvalid) return "ESTIMATOR_INVALID";
+    if (reasons & FailsafeTiming) return "TIMING";
+    if (reasons & FailsafeBatteryCritical) return "BATTERY_CRITICAL";
+    if (reasons & FailsafeActuator) return "ACTUATOR_FAULT";
+    return "NONE";
 }

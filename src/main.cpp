@@ -306,6 +306,13 @@ static void refreshModuleSetupFromParams() {
 #endif
     moduleSetupRuntime.update(snapshot);
     flightManager.setRcRequired(moduleSetupRuntime.rcRequired());
+#ifdef MAVLINK_PARAMS_ENABLED
+    flightManager.setDefaultControlMode(paramManager.getDefaultControlMode());
+#else
+    flightManager.setDefaultControlMode(DEFAULT_CONTROL_MODE == 1
+        ? ControlMode::Stabilize
+        : ControlMode::Manual);
+#endif
 }
 
 static uint16_t enabledSensorMask(uint16_t detectedMask) {
@@ -659,7 +666,8 @@ void setup() {
                                            applyMavlinkRates,
                                            applyBlackboxRate,
                                            applyPreflightQuality,
-                                           applyBatteryProfile);
+                                           applyBatteryProfile,
+                                           refreshModuleSetupFromParams);
     refreshModuleSetupFromParams();
 #endif
     const AppTaskHandles taskHandles = AppTasks::create(taskSensor, taskFlight, taskTelemetry);

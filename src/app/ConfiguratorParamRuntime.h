@@ -14,7 +14,8 @@ void bindAndApply(ParamManager& params,
                   ParamManager::MavlinkRatesApplyHandler mavlinkRatesHandler,
                   ParamManager::BlackboxRateApplyHandler blackboxRateHandler,
                   ParamManager::PreflightQualityApplyHandler preflightQualityHandler,
-                  ParamManager::BatteryProfileApplyHandler batteryProfileHandler);
+                  ParamManager::BatteryProfileApplyHandler batteryProfileHandler,
+                  ParamManager::ModuleSetupApplyHandler moduleSetupHandler);
 }
 
 #endif

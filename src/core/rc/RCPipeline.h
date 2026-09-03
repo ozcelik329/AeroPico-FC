@@ -21,6 +21,8 @@ class RCPipeline {
     RcInputState getState() const;
     void applyMapping(const RcMapping& mapping);
     RcMapping getMapping() const { return _mapping; }
+    void setDefaultControlMode(ControlMode mode);
+    ControlMode getDefaultControlMode() const;
 
     void setOverride(uint16_t aileron, uint16_t elevator, uint16_t throttle, uint16_t rudder);
     void clearOverride();
@@ -39,6 +41,7 @@ class RCPipeline {
     };
 
     bool _overrideActive = false;
+    uint8_t _defaultControlMode = DEFAULT_CONTROL_MODE;
     uint32_t _overrideLastMs = 0;
     uint16_t _overrideAileron = PWM_NEUTRAL;
     uint16_t _overrideElevator = PWM_NEUTRAL;

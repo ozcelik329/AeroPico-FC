@@ -8,12 +8,13 @@
 #include <common/mavlink.h>
 #include "../drivers/PioUart.h"
 #include "board/Config.h"
+#include "../types.h"
 #include "../core/control/FixedWingMixer.h"
 #include "../storage/ParamStorage.h"
 
 // Desteklenen parametreler
-#define PARAM_PERSISTED_COUNT 54
-#define PARAM_COUNT 55
+#define PARAM_PERSISTED_COUNT 55
+#define PARAM_COUNT 56
 
 enum ParamIndex : uint8_t {
     PARAM_IDX_ANGLE_P = 0,
@@ -70,6 +71,7 @@ enum ParamIndex : uint8_t {
     PARAM_IDX_TYPE_GPS,
     PARAM_IDX_TYPE_RC,
     PARAM_IDX_TYPE_BATT,
+    PARAM_IDX_DEF_MODE,
     PARAM_IDX_SAVE
 };
 
@@ -97,6 +99,7 @@ class ParamManager {
                                                 float lowVoltage,
                                                 float brownoutVoltage,
                                                 float maxVoltage);
+    using ModuleSetupApplyHandler = void (*)();
     using ArmStateProvider = bool (*)();
 
     void init();
@@ -108,6 +111,7 @@ class ParamManager {
     void setBlackboxRateApplyHandler(BlackboxRateApplyHandler handler);
     void setPreflightQualityApplyHandler(PreflightQualityApplyHandler handler);
     void setBatteryProfileApplyHandler(BatteryProfileApplyHandler handler);
+    void setModuleSetupApplyHandler(ModuleSetupApplyHandler handler);
     void setArmStateProvider(ArmStateProvider provider);
     void setStorage(IParamStorage* storage);
     bool loadPersistent();
@@ -175,6 +179,11 @@ class ParamManager {
     uint8_t getGpsType() const { return (uint8_t)_params[PARAM_IDX_TYPE_GPS].value; }
     uint8_t getRcType() const { return (uint8_t)_params[PARAM_IDX_TYPE_RC].value; }
     uint8_t getBatteryType() const { return (uint8_t)_params[PARAM_IDX_TYPE_BATT].value; }
+    ControlMode getDefaultControlMode() const {
+        return _params[PARAM_IDX_DEF_MODE].value >= 0.5f
+            ? ControlMode::Stabilize
+            : ControlMode::Manual;
+    }
 
   private:
     Param _params[PARAM_COUNT] = {
@@ -232,6 +241,7 @@ class ParamManager {
         {"TYPE_GPS", 1.0f, 0.0f, 1.0f},
         {"TYPE_RC", 1.0f, 0.0f, 1.0f},
         {"TYPE_BATT", 0.0f, 0.0f, 1.0f},
+        {"DEF_MODE", DEFAULT_CONTROL_MODE, 0.0f, 1.0f},
         {"PARAM_SAVE", 0.0f, 0.0f, 1.0f},
     };
     PidGainsApplyHandler _pidGainsApplyHandler = nullptr;
@@ -242,6 +252,7 @@ class ParamManager {
     BlackboxRateApplyHandler _blackboxRateApplyHandler = nullptr;
     PreflightQualityApplyHandler _preflightQualityApplyHandler = nullptr;
     BatteryProfileApplyHandler _batteryProfileApplyHandler = nullptr;
+    ModuleSetupApplyHandler _moduleSetupApplyHandler = nullptr;
     ArmStateProvider _armStateProvider = nullptr;
     IParamStorage* _storage = nullptr;
     bool _dirty = false;
@@ -255,6 +266,7 @@ class ParamManager {
     bool _isRcMappingParam(uint8_t index) const;
     bool _isMavlinkRateParam(uint8_t index) const;
     bool _isBatteryParam(uint8_t index) const;
+    bool _isModuleSetupParam(uint8_t index) const;
     void _applyParam(uint8_t index);
     void _handleParamRequestList(const mavlink_message_t& msg);
     void _handleParamSet(const mavlink_message_t& msg);

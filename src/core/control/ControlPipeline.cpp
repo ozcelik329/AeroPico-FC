@@ -11,7 +11,8 @@ void ControlPipeline::update(const ControlPipelineInput& input) {
         input.rc.throttle,
         input.rc.rudder,
         input.failsafe,
-        input.preflightArmAllowed
+        input.preflightArmAllowed,
+        input.rcGesturesEnabled
     );
 
     _navController.update(input.rc.aileron, input.rc.elevator, input.failsafe);

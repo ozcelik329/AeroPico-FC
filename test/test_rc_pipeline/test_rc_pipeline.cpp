@@ -135,6 +135,25 @@ void test_rc_pipeline_uses_mode_channel_for_control_mode() {
     TEST_ASSERT_EQUAL((int)ControlMode::Stabilize, (int)stabilize.controlMode);
 }
 
+void test_rc_pipeline_uses_configured_default_without_valid_rc() {
+    FakeRxDriver rx;
+    rx.valid = false;
+
+    RCPipeline pipeline;
+    pipeline.setDefaultControlMode(ControlMode::Stabilize);
+    pipeline.init(&rx);
+
+    RcInputState fallback = pipeline.update();
+    TEST_ASSERT_TRUE(fallback.failsafe);
+    TEST_ASSERT_EQUAL((int)ControlMode::Stabilize, (int)fallback.controlMode);
+
+    rx.valid = true;
+    rx.channels[RC_MODE_CHANNEL] = RC_MODE_STABILIZE_THRESHOLD - 1;
+    RcInputState receiverControlled = pipeline.update();
+    TEST_ASSERT_FALSE(receiverControlled.failsafe);
+    TEST_ASSERT_EQUAL((int)ControlMode::Manual, (int)receiverControlled.controlMode);
+}
+
 int main() {
     UNITY_BEGIN();
     RUN_TEST(test_rc_pipeline_reads_receiver_channels);
@@ -143,5 +162,6 @@ int main() {
     RUN_TEST(test_rc_pipeline_applies_runtime_channel_mapping);
     RUN_TEST(test_rc_pipeline_clamps_runtime_channel_mapping);
     RUN_TEST(test_rc_pipeline_uses_mode_channel_for_control_mode);
+    RUN_TEST(test_rc_pipeline_uses_configured_default_without_valid_rc);
     return UNITY_END();
 }

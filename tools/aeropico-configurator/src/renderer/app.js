@@ -44,7 +44,8 @@
         ["RC_PITCH_CH", "Pitch Channel", "0 tabanli kanal indeksi."],
         ["RC_THR_CH", "Throttle Channel", "0 tabanli kanal indeksi."],
         ["RC_YAW_CH", "Yaw Channel", "0 tabanli kanal indeksi."],
-        ["RC_MODE_CH", "Mode Channel", "Manual/Stabilize secim kanali."]
+        ["RC_MODE_CH", "Mode Channel", "Manual/Stabilize secim kanali."],
+        ["DEF_MODE", "Varsayilan Mod", "RC kullanilmadiginda uygulanacak kontrol modu."]
       ]
     },
     {
@@ -241,6 +242,7 @@
     RC_THR_CH: { min: 0, max: 15, step: 1, integer: true },
     RC_YAW_CH: { min: 0, max: 15, step: 1, integer: true },
     RC_MODE_CH: { min: 0, max: 15, step: 1, integer: true },
+    DEF_MODE: { min: 0, max: 1, step: 1, integer: true },
     FS_TIMEOUT: { min: 100, max: 5000, step: 1, integer: true },
     PREF_Q_MIN: { min: 0, max: 100, step: 1, integer: true },
     BATT_CELLS: { min: 1, max: 6, step: 1, integer: true },
@@ -359,6 +361,13 @@
     commandHistory: [],
     mavlinkHistory: [],
     firmwareVersion: null,
+    failsafeStatus: {
+      active: null,
+      reason: "",
+      mask: 0,
+      benchForce: false,
+      lastText: ""
+    },
     i2cDiagnostics: {
       ack: new Set(),
       reg: new Set(),
@@ -377,6 +386,7 @@
     selectedPin: null,
     pinMap: new Map(), // pinNumber -> role string
     dirtyParams: new Map(),
+    settingsRenderPending: false,
     txQueue: [],
     txBusy: false
   };
@@ -952,7 +962,22 @@
     return "— Bilinmiyor";
   }
 
+  function isSettingsEditorActive() {
+    const active = document.activeElement;
+    return Boolean(active && els.settingsGrid.contains(active) && active.matches("input, select"));
+  }
+
+  function flushPendingSettingsRender() {
+    if (!state.settingsRenderPending || isSettingsEditorActive()) return;
+    renderSettings();
+  }
+
   function renderSettings() {
+    if (isSettingsEditorActive()) {
+      state.settingsRenderPending = true;
+      return;
+    }
+    state.settingsRenderPending = false;
     const group = PARAM_GROUPS.find((item) => item.id === state.activeGroup);
     document.getElementById("sectionTitle").textContent = group.label;
     els.settingsGrid.dataset.group = group.id;
@@ -979,14 +1004,22 @@
       desc.textContent = description;
 
       const footer = document.createElement("footer");
-      const input = document.createElement("input");
-      input.type = "number";
-      input.placeholder = "Değer yok";
       const rule = PARAM_RULES[name] || { step: 0.001 };
-      input.step = String(rule.step || 0.001);
-      if (Number.isFinite(rule.min)) input.min = String(rule.min);
-      if (Number.isFinite(rule.max)) input.max = String(rule.max);
-      if (displayValue !== null) input.value = String(displayValue);
+      const input = document.createElement(name === "DEF_MODE" ? "select" : "input");
+      if (name === "DEF_MODE") {
+        input.innerHTML = '<option value="0">Manual</option><option value="1">Stabilize</option>';
+      } else {
+        input.type = "number";
+        input.placeholder = "Değer yok";
+        input.step = String(rule.step || 0.001);
+        if (Number.isFinite(rule.min)) input.min = String(rule.min);
+        if (Number.isFinite(rule.max)) input.max = String(rule.max);
+      }
+      if (displayValue !== null) {
+        input.value = name === "DEF_MODE"
+          ? String(Math.round(displayValue))
+          : String(displayValue);
+      }
 
       const button = document.createElement("button");
       button.textContent = "Yaz";
@@ -1016,6 +1049,9 @@
           if (validation.ok) updateParamVisual(visual, name, validation.value);
         }
         updateDirtyButton();
+      });
+      input.addEventListener("blur", () => {
+        window.setTimeout(flushPendingSettingsRender, 0);
       });
       button.addEventListener("click", () => {
         if (setParam(name, Number(input.value))) {
@@ -1050,6 +1086,7 @@
     if (name.startsWith("BATT_")) return renderBatteryVisual(name, rawValue);
     if (name.startsWith("MIX_")) return renderMixerVisual(name, rawValue);
     if (name.startsWith("RC_")) return renderRcChannelVisual(name, rawValue);
+    if (name === "DEF_MODE") return renderDefaultModeVisual(rawValue);
     if (name === "FS_TIMEOUT" || name === "PREF_Q_MIN") return renderSafetyVisual(name, rawValue);
     if (name.startsWith("MAV_") || name === "BB_LOG_HZ") return renderTelemetryVisual(name, rawValue);
     return "";
@@ -1061,6 +1098,7 @@
     if (name.startsWith("BATT_")) return "setting-battery";
     if (name.startsWith("MIX_")) return "setting-mixer";
     if (name.startsWith("RC_")) return "setting-rc";
+    if (name === "DEF_MODE") return "setting-rc";
     if (name === "FS_TIMEOUT" || name === "PREF_Q_MIN") return "setting-safety";
     if (name.startsWith("MAV_") || name === "BB_LOG_HZ") return "setting-telemetry";
     return "";
@@ -1221,6 +1259,15 @@
     <div class="range-caption"><strong>CH${selected + 1}</strong><span>${role.toLowerCase()} girisi</span></div>`;
   }
 
+  function renderDefaultModeVisual(rawValue) {
+    const stabilize = Number(rawValue) >= 0.5;
+    return `<div class="rc-channel-strip" aria-hidden="true">
+      <i class="${stabilize ? "" : "active"}">M</i>
+      <i class="${stabilize ? "active" : ""}">S</i>
+    </div>
+    <div class="range-caption"><strong>${stabilize ? "Stabilize" : "Manual"}</strong><span>RC fallback modu</span></div>`;
+  }
+
   function defaultRcChannel(name) {
     if (name === "RC_ROLL_CH") return 0;
     if (name === "RC_PITCH_CH") return 1;
@@ -1315,7 +1362,9 @@
         ((command === "normal" || command === "force") && state.armed === true) ||
         (command === "disarm" && state.armed !== true);
     });
-    renderSettings();
+    els.settingsGrid.querySelectorAll(".setting-card footer button").forEach((button) => {
+      button.disabled = !state.connected;
+    });
     renderSummary();
   }
 
@@ -2468,6 +2517,13 @@
     for (const moduleId of Object.keys(state.moduleFaults)) state.moduleFaults[moduleId] = null;
     state.lastSysStatus = null;
     state.lastHeartbeatMs = 0;
+    state.failsafeStatus = {
+      active: null,
+      reason: "",
+      mask: 0,
+      benchForce: false,
+      lastText: ""
+    };
     state.i2cDiagnostics = {
       ack: new Set(),
       reg: new Set(),
@@ -2616,6 +2672,7 @@
     if (message.type === "statusText") {
       log(`FC: ${message.text}`);
       const text = message.text.toUpperCase();
+      applyFailsafeStatus(text, message.text);
       const versionMatch = message.text.match(/^FW_VERSION\s+(\S+)/i);
       if (versionMatch) {
         state.firmwareVersion = versionMatch[1];
@@ -2784,11 +2841,80 @@
       checklistItem("GPS", optionalModuleState("gps", gpsRequired), gpsRequired ? moduleChecklistText("gps", "GPS") : "Setup'ta devre dışı, arm engeli değil."),
       checklistItem("Batarya", optionalModuleState("battery", batteryRequired), batteryRequired ? moduleChecklistText("battery", "Batarya ADC") : "Bench/setup gereği batarya arm engeli değil."),
       checklistItem("RC", optionalModuleState("rc", rcRequired), rcRequired ? moduleChecklistText("rc", "SBUS") : "Setup'ta devre dışı, RC failsafe arm engeli değil."),
+      checklistItem("Runtime Failsafe", failsafeChecklistKind(), failsafeChecklistText()),
       checklistItem("Servo/ESC Pinleri", actuatorSetupHealth() === "ok" ? "ok" : "bad", actuatorSetupHealth() === "ok" ? "Pin Mapper servo/ESC çakışması yok." : "Pin Mapper servo/ESC setup çakışması var."),
       checklistItem("Son Preflight", preflightOk ? "ok" : preflightBlocked ? "bad" : "muted", preflightOk ? "Firmware preflight kabul etti." : preflightBlocked ? state.lastPreflightText : "Preflight Kontrol komutu bekleniyor.")
     ];
 
     els.armChecklist.innerHTML = items.join("");
+  }
+
+  function applyFailsafeStatus(text, originalText) {
+    const match = text.match(/^(ARM_DENIED|FAILSAFE_ENTER)\s+([A-Z_]+)(?:\s+MASK=0X([0-9A-F]+))?/);
+    if (match) {
+      const hasMask = Boolean(match[3]);
+      state.failsafeStatus.active = match[1] === "FAILSAFE_ENTER" || hasMask;
+      state.failsafeStatus.reason = match[2];
+      state.failsafeStatus.mask = hasMask ? Number.parseInt(match[3], 16) : 0;
+      state.failsafeStatus.lastText = originalText;
+      return true;
+    }
+    if (text.startsWith("FAILSAFE_CLEAR") || text.startsWith("ARMED NORMAL")) {
+      state.failsafeStatus.active = false;
+      state.failsafeStatus.reason = "NONE";
+      state.failsafeStatus.mask = 0;
+      state.failsafeStatus.benchForce = false;
+      state.failsafeStatus.lastText = originalText;
+      return true;
+    }
+    if (text.startsWith("ARMED BENCH_FORCE")) {
+      state.failsafeStatus.active = false;
+      state.failsafeStatus.reason = "BENCH_FORCE";
+      state.failsafeStatus.mask = 0;
+      state.failsafeStatus.benchForce = true;
+      state.failsafeStatus.lastText = originalText;
+      return true;
+    }
+    if (text.startsWith("DISARMED")) {
+      state.failsafeStatus.benchForce = false;
+      state.failsafeStatus.lastText = originalText;
+      return true;
+    }
+    return false;
+  }
+
+  function failsafeChecklistKind() {
+    if (state.failsafeStatus.active === true) return "bad";
+    if (state.failsafeStatus.benchForce) return "warn";
+    if (state.failsafeStatus.active === false) return "ok";
+    return "muted";
+  }
+
+  function failsafeChecklistText() {
+    const status = state.failsafeStatus;
+    if (status.active === true) {
+      const mask = status.mask ? ` (mask 0x${status.mask.toString(16).toUpperCase()})` : "";
+      return `Firmware failsafe aktif: ${failsafeReasonLabel(status.reason)}${mask}.`;
+    }
+    if (status.benchForce) {
+      return "BENCH_FORCE_ARM oturumu aktif; kritik timing, batarya ve actuator korumaları çalışmaya devam ediyor.";
+    }
+    if (status.active === false) return "Firmware runtime failsafe temiz.";
+    return "Firmware failsafe kararı henüz bildirilmedi.";
+  }
+
+  function failsafeReasonLabel(reason) {
+    const labels = {
+      RC_LOSS: "RC bağlantısı kayıp",
+      SENSOR_INVALID: "sensör verisi geçersiz veya bayat",
+      ESTIMATOR_INVALID: "yönelim kestirimi geçersiz",
+      TIMING: "uçuş döngüsü timing bütçesi aşıldı",
+      BATTERY_CRITICAL: "batarya kritik",
+      ACTUATOR_FAULT: "actuator çıkışı hazır değil",
+      PREFLIGHT: "preflight kontrolü geçmedi",
+      BENCH_JUMPER: "bench jumper yetkisi yok"
+    };
+    return labels[reason] || reason || "bilinmeyen neden";
   }
 
   function optionalModuleState(moduleId, required) {

@@ -83,6 +83,22 @@ void test_flight_mode_controller_force_arm_bypasses_preflight_for_bench() {
     TEST_ASSERT_EQUAL_STRING("BENCH_FORCE_ARM active", reason);
 }
 
+void test_rc_gestures_are_ignored_when_rc_is_disabled() {
+    FlightModeController m;
+    m.init();
+    const char* reason = "";
+
+    TEST_ASSERT_TRUE(m.requestArm(true, false, 1000, &reason));
+    TEST_ASSERT_TRUE(m.isArmed());
+
+    setMockMillis(100);
+    m.update(1000, 1000, false, true, false);
+    setMockMillis(100 + ARM_HOLD_MS + 1);
+    m.update(1000, 1000, false, true, false);
+
+    TEST_ASSERT_TRUE(m.isArmed());
+}
+
 int main() {
     UNITY_BEGIN();
     RUN_TEST(test_flight_mode_controller_starts_disarmed);
@@ -92,5 +108,6 @@ int main() {
     RUN_TEST(test_flight_mode_controller_reports_ready_reason_after_preflight_recovers);
     RUN_TEST(test_flight_mode_controller_recovers_from_failsafe_to_ready);
     RUN_TEST(test_flight_mode_controller_force_arm_bypasses_preflight_for_bench);
+    RUN_TEST(test_rc_gestures_are_ignored_when_rc_is_disabled);
     return UNITY_END();
 }

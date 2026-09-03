@@ -17,6 +17,7 @@ static bool mavlinkRatesApplied;
 static bool blackboxRateApplied;
 static bool preflightQualityApplied;
 static bool batteryProfileApplied;
+static bool moduleSetupApplied;
 static float appliedAngleP;
 static float appliedRateD;
 static MixerSettings appliedMixerSettings;
@@ -108,6 +109,10 @@ static void applyBatteryProfile(uint8_t cells,
     appliedBatteryMaxVoltage = maxVoltage;
 }
 
+static void applyModuleSetup() {
+    moduleSetupApplied = true;
+}
+
 void setUp() {
     gainsApplied = false;
     mixerApplied = false;
@@ -117,6 +122,7 @@ void setUp() {
     blackboxRateApplied = false;
     preflightQualityApplied = false;
     batteryProfileApplied = false;
+    moduleSetupApplied = false;
     appliedAngleP = 0.0f;
     appliedRateD = 0.0f;
     appliedFailsafeTimeoutMs = 0;
@@ -141,6 +147,7 @@ void setUp() {
     paramManager.setBlackboxRateApplyHandler(applyBlackboxRate);
     paramManager.setPreflightQualityApplyHandler(applyPreflightQuality);
     paramManager.setBatteryProfileApplyHandler(applyBatteryProfile);
+    paramManager.setModuleSetupApplyHandler(applyModuleSetup);
     paramManager.setArmStateProvider(provideArmState);
 }
 
@@ -274,6 +281,29 @@ void test_param_manager_applies_battery_profile_callback() {
     TEST_ASSERT_EQUAL_UINT8(60, appliedBatteryCRating);
 }
 
+void test_param_manager_applies_module_setup_immediately() {
+    TEST_ASSERT_TRUE(paramManager.setParamByName("EN_RC", 0.0f));
+    TEST_ASSERT_TRUE(moduleSetupApplied);
+    TEST_ASSERT_FALSE(paramManager.isRcEnabled());
+}
+
+void test_param_manager_applies_and_persists_default_control_mode() {
+    MemoryParamStorage storage;
+    paramManager.setStorage(&storage);
+
+    TEST_ASSERT_TRUE(paramManager.setParamByName("DEF_MODE", 1.0f));
+    TEST_ASSERT_TRUE(moduleSetupApplied);
+    TEST_ASSERT_EQUAL((int)ControlMode::Stabilize,
+                      (int)paramManager.getDefaultControlMode());
+    TEST_ASSERT_TRUE(paramManager.setParamByName("PARAM_SAVE", 1.0f));
+
+    ParamManager loaded;
+    loaded.setStorage(&storage);
+    TEST_ASSERT_TRUE(loaded.loadPersistent());
+    TEST_ASSERT_EQUAL((int)ControlMode::Stabilize,
+                      (int)loaded.getDefaultControlMode());
+}
+
 void test_param_manager_clamps_battery_profile() {
     TEST_ASSERT_TRUE(paramManager.setParamByName("BATT_CELLS", 12.0f));
     TEST_ASSERT_EQUAL_UINT8(6, paramManager.getBatteryCellCount());
@@ -339,6 +369,8 @@ int main() {
     RUN_TEST(test_param_manager_applies_stream_and_log_callbacks);
     RUN_TEST(test_param_manager_applies_preflight_quality_callback);
     RUN_TEST(test_param_manager_applies_battery_profile_callback);
+    RUN_TEST(test_param_manager_applies_module_setup_immediately);
+    RUN_TEST(test_param_manager_applies_and_persists_default_control_mode);
     RUN_TEST(test_param_manager_clamps_battery_profile);
     RUN_TEST(test_param_manager_persists_pin_mapper_expansion);
     RUN_TEST(test_param_manager_schedules_non_blocking_parameter_stream);

@@ -3,6 +3,7 @@
 #include "pico/time.h"
 #include "../core/events/SystemEventBus.h"
 #include "../core/safety/BatteryMonitor.h"
+#include "../core/safety/FailsafeManager.h"
 #include "../core/scheduling/SystemTimer.h"
 #include "../drivers/Sensors.h"
 #include "../telemetry/Blackbox.h"
@@ -52,8 +53,24 @@ bool RuntimeHealthReporter::run(const PreflightResult& preflight,
     _runtimeHealth.eventQueueDrops = _context.events->droppedCount() > 0xFFFFu
         ? 0xFFFFu : (uint16_t)_context.events->droppedCount();
 
+    // Consume transition events first so an RC recovery can close the latched
+    // loss episode before the current preflight snapshot is evaluated.
+    reportSystemEvents();
+
     if (!preflight.canArm) {
-        sendStatusTextThrottled(preflight.firstFailureReason);
+        const bool rcSignalInvalid = preflight.firstFailureReason &&
+            strcmp(preflight.firstFailureReason, "RC signal invalid") == 0;
+        if (rcSignalInvalid) {
+            if (!_rcSignalInvalidLatched) {
+                _rcSignalInvalidLatched = true;
+                _context.mavlink->sendStatusText("RC signal invalid", MAV_SEVERITY_WARNING);
+            }
+        } else {
+            sendStatusTextThrottled(preflight.firstFailureReason);
+        }
+    } else if (_rcSignalInvalidLatched) {
+        // RC can be disabled in setup, so a clean preflight also ends the old episode.
+        _rcSignalInvalidLatched = false;
     }
 
     if (battery.configured && !battery.healthy && !_batteryWarningLatched) {
@@ -101,6 +118,31 @@ bool RuntimeHealthReporter::run(const PreflightResult& preflight,
 
     SystemTimer::requestTimingWindowReset();
     return latestBatteryCritical;
+}
+
+void RuntimeHealthReporter::reportSystemEvents() {
+    SystemEvent event = {};
+    while (_context.events->consume(event)) {
+        char text[50] = {};
+        if (event.type == SystemEventType::FailsafeEntered) {
+            snprintf(text, sizeof(text), "FAILSAFE_ENTER %s MASK=0x%02lX",
+                     FailsafeManager::reasonToken((uint16_t)event.detail),
+                     (unsigned long)event.detail);
+            _context.mavlink->sendStatusText(text, MAV_SEVERITY_CRITICAL);
+        } else if (event.type == SystemEventType::FailsafeCleared) {
+            _context.mavlink->sendStatusText("FAILSAFE_CLEAR", MAV_SEVERITY_INFO);
+        } else if (event.type == SystemEventType::RcLost) {
+            if (!_rcSignalInvalidLatched) {
+                _rcSignalInvalidLatched = true;
+                _context.mavlink->sendStatusText("RC_SIGNAL_LOST", MAV_SEVERITY_WARNING);
+            }
+        } else if (event.type == SystemEventType::RcRecovered) {
+            if (_rcSignalInvalidLatched) {
+                _rcSignalInvalidLatched = false;
+                _context.mavlink->sendStatusText("RC_SIGNAL_OK", MAV_SEVERITY_INFO);
+            }
+        }
+    }
 }
 
 uint16_t RuntimeHealthReporter::clampStackWords(UBaseType_t value) {

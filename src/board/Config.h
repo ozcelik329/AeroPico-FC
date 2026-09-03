@@ -105,6 +105,7 @@
 #define RC_YAW_CHANNEL      3
 #define RC_MODE_CHANNEL     4
 #define RC_MODE_STABILIZE_THRESHOLD 1500
+#define DEFAULT_CONTROL_MODE 0
 
 // Açı ve Rate PID Parametreleri
 #define ANGLE_P_GAIN 2.0

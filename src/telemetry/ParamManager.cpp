@@ -45,6 +45,10 @@ void ParamManager::setBatteryProfileApplyHandler(BatteryProfileApplyHandler hand
     _batteryProfileApplyHandler = handler;
 }
 
+void ParamManager::setModuleSetupApplyHandler(ModuleSetupApplyHandler handler) {
+    _moduleSetupApplyHandler = handler;
+}
+
 void ParamManager::setArmStateProvider(ArmStateProvider provider) {
     _armStateProvider = provider;
 }
@@ -72,6 +76,11 @@ bool ParamManager::_isMavlinkRateParam(uint8_t index) const {
 
 bool ParamManager::_isBatteryParam(uint8_t index) const {
     return index >= PARAM_IDX_BATT_CELLS && index <= PARAM_IDX_BATT_BRN_V;
+}
+
+bool ParamManager::_isModuleSetupParam(uint8_t index) const {
+    return (index >= PARAM_IDX_PIN_AIL && index <= PARAM_IDX_TYPE_BATT) ||
+           index == PARAM_IDX_DEF_MODE;
 }
 
 int ParamManager::_findParamIndex(const char* name) const {
@@ -128,6 +137,9 @@ void ParamManager::_applyParam(uint8_t index) {
             getBatteryBrownoutVoltage(),
             getBatteryMaxVoltage()
         );
+    }
+    if (_isModuleSetupParam(index) && _moduleSetupApplyHandler) {
+        _moduleSetupApplyHandler();
     }
 }
 

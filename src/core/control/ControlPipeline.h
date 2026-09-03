@@ -11,6 +11,7 @@ struct ControlPipelineInput {
     VehicleState vehicle;
     bool failsafe;
     bool preflightArmAllowed;
+    bool rcGesturesEnabled;
 };
 
 class ControlPipeline {
