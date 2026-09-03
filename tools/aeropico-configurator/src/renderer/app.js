@@ -1534,6 +1534,60 @@
     });
   }
 
+  function wait(ms) {
+    return new Promise((resolve) => window.setTimeout(resolve, ms));
+  }
+
+  function isSerialOpenFailure(error) {
+    const detail = `${error?.name || ""} ${error?.message || ""}`;
+    return /file_error_not_found|file_error_access_denied|failed to open serial port|networkerror/i.test(detail);
+  }
+
+  async function requestAeroPicoPort() {
+    return withTimeout(
+      navigator.serial.requestPort({ filters: [{ usbVendorId: 0x2e8a }] }),
+      12000,
+      "Port secimi zaman asimina ugradi.",
+      () => {
+        window.aeropicoBridge?.cancelSerialPort?.();
+        closeModal(els.portPickerModal);
+      }
+    );
+  }
+
+  async function openAeroPicoPort(baudRate) {
+    let lastError = null;
+
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      const port = await requestAeroPicoPort();
+      state.port = port;
+      if (typeof port.getInfo === "function") setPortDisplay(normalizeSerialInfo(port.getInfo()));
+
+      try {
+        await withTimeout(
+          port.open({ baudRate }),
+          5000,
+          `Port acma zaman asimi: ${state.portDisplay.name || "USB serial"}`
+        );
+        return port;
+      } catch (error) {
+        lastError = error;
+        await releaseSerialResources(port, null, null);
+
+        if (attempt === 0 && isSerialOpenFailure(error)) {
+          log(`Port acilamadi (${error.name || "SerialError"}); eski port izni temizlenip yeniden deneniyor.`);
+          if (typeof port.forget === "function") await port.forget().catch(() => {});
+          state.port = null;
+          await wait(800);
+          continue;
+        }
+        throw error;
+      }
+    }
+
+    throw lastError || new Error("USB serial portu acilamadi.");
+  }
+
   function renderPortPicker(ports) {
     const recommended = chooseLikelyAeroPicoPort(ports);
     els.portPickerList.innerHTML = "";
@@ -1621,8 +1675,7 @@
     try {
       els.connectBtn.classList.add("loading");
       els.connectBtn.disabled = true;
-      state.port = await navigator.serial.requestPort();
-      await state.port.open({ baudRate });
+      state.port = await openAeroPicoPort(baudRate);
       if (typeof state.port.setSignals === "function") {
         await state.port.setSignals({ dataTerminalReady: true, requestToSend: false }).catch(() => {});
       }
